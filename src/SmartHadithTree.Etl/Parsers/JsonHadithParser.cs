@@ -38,8 +38,25 @@ public class JsonHadithParser(ILogger<JsonHadithParser> logger) : IDataSourcePar
             return Directory.EnumerateFiles(sourcePath, "*.json").Any();
         }
 
-        return File.Exists(sourcePath) &&
-               Path.GetExtension(sourcePath).Equals(".json", StringComparison.OrdinalIgnoreCase);
+        if (File.Exists(sourcePath) && Path.GetExtension(sourcePath).Equals(".json", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                using var fs = File.OpenRead(sourcePath);
+                using var sr = new StreamReader(fs);
+                int b;
+                while ((b = sr.Read()) != -1)
+                {
+                    if (char.IsWhiteSpace((char)b)) continue;
+                    return (char)b == '[';
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        return false;
     }
 
     public async Task<ParsedDataset> ParseAsync(string sourcePath, CancellationToken ct = default)
