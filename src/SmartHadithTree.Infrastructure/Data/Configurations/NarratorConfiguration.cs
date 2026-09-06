@@ -1,0 +1,63 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using SmartHadithTree.Domain.Entities;
+
+namespace SmartHadithTree.Infrastructure.Data.Configurations;
+
+/// <summary>
+/// EF Core Fluent API configuration for the <see cref="Narrator"/> entity.
+/// </summary>
+public class NarratorConfiguration : IEntityTypeConfiguration<Narrator>
+{
+    public void Configure(EntityTypeBuilder<Narrator> builder)
+    {
+        builder.ToTable("Narrators");
+
+        // ── Primary Key ────────────────────────────────────────────
+        builder.HasKey(n => n.Id);
+        builder.Property(n => n.Id)
+            ;
+
+        // ── String Properties with Arabic Collation ────────────────
+        builder.Property(n => n.FullName)
+            .IsRequired()
+            .HasMaxLength(500)
+            .UseCollation("Arabic_100_CI_AI");
+
+        builder.Property(n => n.KnownAs)
+            .HasMaxLength(200)
+            .UseCollation("Arabic_100_CI_AI");
+
+        builder.Property(n => n.Kunyah)
+            .HasMaxLength(200)
+            .UseCollation("Arabic_100_CI_AI");
+
+        builder.Property(n => n.GenerationTier)
+            .HasMaxLength(150)
+            .UseCollation("Arabic_100_CI_AI");
+
+        builder.Property(n => n.BirthPlace)
+            .HasMaxLength(200)
+            .UseCollation("Arabic_100_CI_AI");
+
+        builder.Property(n => n.DeathPlace)
+            .HasMaxLength(200)
+            .UseCollation("Arabic_100_CI_AI");
+
+        builder.Property(n => n.Biography)
+            .UseCollation("Arabic_100_CI_AI");
+
+        // ── Indexes ────────────────────────────────────────────────
+        // Primary search index on full name.
+        builder.HasIndex(n => n.FullName)
+            .HasDatabaseName("IX_Narrators_FullName");
+
+        // Filtering by death year (common in Hadith scholarship).
+        builder.HasIndex(n => n.DeathYearHijri)
+            .HasDatabaseName("IX_Narrators_DeathYearHijri");
+
+        // KnownAs for alias-based searches.
+        builder.HasIndex(n => n.KnownAs)
+            .HasDatabaseName("IX_Narrators_KnownAs");
+    }
+}

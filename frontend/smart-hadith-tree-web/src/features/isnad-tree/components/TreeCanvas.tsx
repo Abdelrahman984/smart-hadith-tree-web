@@ -25,7 +25,7 @@ interface TreeCanvasProps {
   narratorsTooltips?: Record<string, NarratorSummaryDto>;
 }
 
-export default function TreeCanvas({ treeData, narratorsTooltips = {} }: TreeCanvasProps) {
+export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { openDrawer } = useNarratorDrawerStore();
@@ -35,7 +35,7 @@ export default function TreeCanvas({ treeData, narratorsTooltips = {} }: TreeCan
 
     // Convert API nodes to React Flow nodes
     const initialNodes: Node[] = treeData.nodes.map((n) => {
-      const tooltip = narratorsTooltips[n.narratorId];
+      const tooltip = narratorsTooltips?.[n.narratorId];
       return {
         id: n.id,
         type: "narrator",
@@ -74,7 +74,8 @@ export default function TreeCanvas({ treeData, narratorsTooltips = {} }: TreeCan
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
     });
-  }, [treeData, narratorsTooltips, setNodes, setEdges]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [treeData?.hadithId, narratorsTooltips, setNodes, setEdges]);
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     // node.id is the transmissionId in this mapping. Wait, we need narratorId to open drawer!
@@ -85,7 +86,7 @@ export default function TreeCanvas({ treeData, narratorsTooltips = {} }: TreeCan
   }, [treeData, openDrawer]);
 
   return (
-    <div className="w-full h-full" dir="ltr">
+    <div className="absolute inset-0" dir="ltr">
       <ReactFlow
         nodes={nodes}
         edges={edges}

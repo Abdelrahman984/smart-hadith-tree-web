@@ -1,0 +1,14 @@
+using Microsoft.EntityFrameworkCore;
+using SmartHadithTree.Domain.Entities;
+
+namespace SmartHadithTree.Application.Interfaces;
+
+public interface IHadithTreeDbContext
+{
+    DbSet<HadithText> Hadiths { get; }
+    DbSet<Narrator> Narrators { get; }
+    DbSet<Transmission> Transmissions { get; }
+    DbSet<ScholarEvaluation> ScholarEvaluations { get; }
+    
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken);
+}
