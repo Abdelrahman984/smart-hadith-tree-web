@@ -14,21 +14,24 @@ const NarratorNode = ({ data, selected }: { data: NarratorNodeData; selected?: b
   let borderClass = 'border-slate-300';
   let bgClass = 'bg-white';
   
-  if (data.gradeSummary === 'ثقة') {
+  if (data.gradeSummary === 'ثقة' || data.gradeSummary === 'صحابي' || data.gradeSummary === 'صحابية') {
     borderClass = 'border-brand-teal';
     bgClass = 'bg-brand-teal/5';
-  } else if (data.gradeSummary === 'ضعيف') {
-    borderClass = 'border-red-400';
+  } else if (data.gradeSummary === 'ضعيف' || data.gradeSummary === 'متروك') {
+    borderClass = 'border-red-500';
     bgClass = 'bg-red-50';
-  } else if (data.gradeSummary === 'صدوق') {
+  } else if (data.gradeSummary === 'صدوق' || data.gradeSummary?.includes('حسن')) {
     borderClass = 'border-blue-400';
     bgClass = 'bg-blue-50';
+  } else if (data.gradeSummary === 'مجهول' || !data.gradeSummary) {
+    borderClass = 'border-orange-400';
+    bgClass = 'bg-orange-50';
   }
 
   return (
     <div 
       dir="rtl" 
-      className={`px-4 py-3 shadow-md rounded-lg border-2 min-w-[200px] text-center transition-all ${bgClass} ${selected ? 'ring-2 ring-brand-blue border-brand-blue' : borderClass}`}
+      className={`px-4 py-3 shadow-md rounded-lg border-2 min-w-[200px] max-w-[250px] text-center transition-all break-words ${bgClass} ${selected ? 'ring-2 ring-brand-blue border-brand-blue' : borderClass}`}
     >
       {/* Top Handle - Input from Sheikh */}
       <Handle type="target" position={Position.Top} className="w-3 h-3 bg-slate-400" />

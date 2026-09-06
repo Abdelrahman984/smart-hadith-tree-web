@@ -33,41 +33,63 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
   useEffect(() => {
     if (!treeData || treeData.nodes.length === 0) return;
 
-    // Convert API nodes to React Flow nodes
-    const initialNodes: Node[] = treeData.nodes.map((n) => {
-      const tooltip = narratorsTooltips?.[n.narratorId];
-      return {
-        id: n.id,
-        type: "narrator",
-        position: { x: 0, y: 0 },
-        data: {
-          narratorName: n.knownAs || n.narratorName,
-          generationTier: n.generationTier,
-          transmissionTerm: n.transmissionTerm,
-          gradeSummary: tooltip?.gradeSummary,
-        },
-      };
+    // We want Narrators to be the Nodes, and Transmissions to be the Edges.
+    // The API returns a flat list of Transmissions (IsnadNodeDto), where:
+    // n.id = Transmission.Id
+    // n.narratorId = Sheikh's NarratorId (or Compiler's NarratorId for anchor)
+    // n.parentNodeId = Parent Transmission.Id (to find the Student)
+    
+    // 1. Deduplicate Narrators to create React Flow Nodes
+    const uniqueNarrators = new Map<string, Node>();
+    
+    treeData.nodes.forEach((n) => {
+      if (!uniqueNarrators.has(n.narratorId)) {
+        const tooltip = narratorsTooltips?.[n.narratorId];
+        uniqueNarrators.set(n.narratorId, {
+          id: n.narratorId,
+          type: "narrator",
+          position: { x: 0, y: 0 },
+          data: {
+            narratorName: n.knownAs || n.narratorName,
+            generationTier: n.generationTier,
+            transmissionTerm: n.transmissionTerm,
+            gradeSummary: tooltip?.gradeSummary,
+          },
+        });
+      }
     });
 
-    // Create edges (from parentNodeId to child)
-    // Note: ParentNodeId is the edge going DOWN the tree (from Sheikh to Student).
-    // In our tree, the "root" is at the bottom visually? No, usually Prophet is at top, Compiler is at bottom.
-    // Step 1 is the Compiler. Step 7 is Prophet/Companion.
-    // So the ParentNodeId actually points to the Student.
-    // This means Sheikh is the SOURCE, Student is the TARGET.
-    const initialEdges: Edge[] = treeData.nodes
-      .filter((n) => n.parentNodeId)
-      .map((n) => ({
-        id: `e-${n.id}-${n.parentNodeId}`,
-        source: n.id, // Sheikh
-        target: n.parentNodeId!, // Student
-        type: "smoothstep",
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: "#94a3b8", // slate-400
-        },
-        style: { stroke: "#cbd5e1", strokeWidth: 2 },
-      }));
+    const initialNodes = Array.from(uniqueNarrators.values());
+
+    // 2. Create Edges
+    // We need to link Sheikh (source) to Student (target).
+    // In our CTE, a node 'n' represents a Transmission from n.narratorId (Sheikh) to its parent's narrator.
+    // To find the Student, we look at the node whose n.id == n.parentNodeId.
+    const uniqueEdges = new Map<string, Edge>();
+    
+    treeData.nodes.forEach((n) => {
+      if (n.parentNodeId) {
+        const parentNode = treeData.nodes.find(p => p.id === n.parentNodeId);
+        if (parentNode) {
+          const edgeId = `e-${n.narratorId}-${parentNode.narratorId}`;
+          if (!uniqueEdges.has(edgeId)) {
+            uniqueEdges.set(edgeId, {
+              id: edgeId,
+              source: n.narratorId, // Sheikh
+              target: parentNode.narratorId, // Student
+              type: "smoothstep",
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                color: "#94a3b8",
+              },
+              style: { stroke: "#cbd5e1", strokeWidth: 2 },
+            });
+          }
+        }
+      }
+    });
+
+    const initialEdges = Array.from(uniqueEdges.values());
 
     // Apply ELK layout
     getLayoutedElements(initialNodes, initialEdges).then(({ nodes: layoutedNodes, edges: layoutedEdges }) => {
@@ -78,12 +100,9 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
   }, [treeData?.hadithId, narratorsTooltips, setNodes, setEdges]);
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    // node.id is the transmissionId in this mapping. Wait, we need narratorId to open drawer!
-    const isnadNode = treeData.nodes.find((n) => n.id === node.id);
-    if (isnadNode) {
-      openDrawer(isnadNode.narratorId);
-    }
-  }, [treeData, openDrawer]);
+    // node.id is now the narratorId!
+    openDrawer(node.id);
+  }, [openDrawer]);
 
   return (
     <div className="absolute inset-0" dir="ltr">

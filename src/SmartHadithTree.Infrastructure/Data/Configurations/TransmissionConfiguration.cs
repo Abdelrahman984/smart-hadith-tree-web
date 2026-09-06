@@ -54,9 +54,8 @@ public class TransmissionConfiguration : IEntityTypeConfiguration<Transmission>
 
         // ── Indexes ────────────────────────────────────────────────
 
-        // Each step in a Hadith's chain is unique.
+        // Allow multiple branches in a Hadith's chain (not unique).
         builder.HasIndex(t => new { t.HadithId, t.StepOrder })
-            .IsUnique()
             .HasDatabaseName("IX_Transmissions_HadithId_StepOrder");
 
         // Bidirectional narrator traversal queries:

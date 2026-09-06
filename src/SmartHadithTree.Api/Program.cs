@@ -20,20 +20,14 @@ builder.Services.AddDbContext<HadithTreeDbContext>(options =>
         }));
 
 // Register Semantic Kernel
-var geminiApiKey = builder.Configuration["Gemini:ApiKey"];
-if (!string.IsNullOrEmpty(geminiApiKey))
-{
-    // Use gemini-1.5-flash or gemini-2.5-flash as the model ID
-    builder.Services.AddKernel()
-        .AddGoogleAIGeminiChatCompletion("gemini-1.5-flash", geminiApiKey);
-}
+// Remove Semantic Kernel because we're using raw HttpClient to bypass the Alpha package bugs
+builder.Services.AddHttpClient<IAiEvaluationService, AiEvaluationService>();
 
 // Register Services
 builder.Services.AddScoped<IHadithTreeDbContext>(provider => provider.GetRequiredService<HadithTreeDbContext>());
 builder.Services.AddScoped<IHadithChainRepository, HadithChainRepository>();
 builder.Services.AddScoped<IHadithSearchService, HadithSearchService>();
 builder.Services.AddScoped<INarratorService, NarratorService>();
-builder.Services.AddScoped<IAiEvaluationService, AiEvaluationService>();
 
 // ── Controllers ────────────────────────────────────────────────────
 builder.Services.AddControllers()

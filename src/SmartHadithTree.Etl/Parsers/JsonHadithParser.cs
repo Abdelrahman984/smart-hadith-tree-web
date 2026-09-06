@@ -48,6 +48,8 @@ public class JsonHadithParser(ILogger<JsonHadithParser> logger) : IDataSourcePar
 
         // Narrator dedup cache: normalized name → entity
         var narratorCache = new Dictionary<string, Narrator>(StringComparer.OrdinalIgnoreCase);
+        // Hadith dedup cache: BookName_HadithNumber → entity
+        var hadithCache = new Dictionary<string, HadithText>(StringComparer.OrdinalIgnoreCase);
 
         var files = Directory.Exists(sourcePath)
             ? Directory.EnumerateFiles(sourcePath, "*.json")
@@ -72,7 +74,7 @@ public class JsonHadithParser(ILogger<JsonHadithParser> logger) : IDataSourcePar
 
             foreach (var record in records)
             {
-                ProcessRecord(record, dataset, narratorCache);
+                ProcessRecord(record, dataset, narratorCache, hadithCache);
             }
 
             logger.LogInformation("Parsed {Count} records from {FilePath}.", records.Count, filePath);
@@ -90,22 +92,30 @@ public class JsonHadithParser(ILogger<JsonHadithParser> logger) : IDataSourcePar
     private void ProcessRecord(
         JsonHadithRecord record,
         ParsedDataset dataset,
-        Dictionary<string, Narrator> narratorCache)
+        Dictionary<string, Narrator> narratorCache,
+        Dictionary<string, HadithText> hadithCache)
     {
-        // 1. Create the HadithText entity
-        var hadith = new HadithText
+        // 1. Create or retrieve the HadithText entity
+        var bookName = record.Book ?? "غير محدد";
+        var hadithKey = $"{bookName}_{record.HadithNumber}";
+
+        if (!hadithCache.TryGetValue(hadithKey, out var hadith))
         {
-            Id = Guid.CreateVersion7(),
-            MatnArabic = record.ArabicText ?? string.Empty,
-            NormalizedMatn = SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize(record.ArabicText ?? string.Empty),
-            BookName = record.Book ?? "غير محدد",
-            NormalizedBookName = SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize(record.Book ?? "غير محدد"),
-            HadithNumber = record.HadithNumber,
-            Volume = record.Volume,
-            Chapter = record.Chapter,
-            FullIsnadText = record.IsnadText
-        };
-        dataset.Hadiths.Add(hadith);
+            hadith = new HadithText
+            {
+                Id = Guid.CreateVersion7(),
+                MatnArabic = record.ArabicText ?? string.Empty,
+                NormalizedMatn = SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize(record.ArabicText ?? string.Empty),
+                BookName = bookName,
+                NormalizedBookName = SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize(bookName),
+                HadithNumber = record.HadithNumber,
+                Volume = record.Volume,
+                Chapter = record.Chapter,
+                FullIsnadText = record.IsnadText
+            };
+            hadithCache[hadithKey] = hadith;
+            dataset.Hadiths.Add(hadith);
+        }
 
         // 2. Resolve narrators (dedup by normalized name)
         if (record.Narrators is null || record.Narrators.Count == 0)

@@ -1,8 +1,8 @@
-using Microsoft.SemanticKernel;
 using SmartHadithTree.Application.Interfaces;
 using SmartHadithTree.Application.DTOs;
-using Microsoft.SemanticKernel.ChatCompletion;
 using System.Text.Json;
+using System.Text;
+using Microsoft.Extensions.Configuration;
 
 namespace SmartHadithTree.Application.Services;
 
@@ -11,7 +11,7 @@ public interface IAiEvaluationService
     Task<string> GenerateNarratorEvaluationSummaryAsync(NarratorDetailDto narrator, CancellationToken ct = default);
 }
 
-public class AiEvaluationService(Kernel kernel) : IAiEvaluationService
+public class AiEvaluationService(IConfiguration config, HttpClient httpClient) : IAiEvaluationService
 {
     public async Task<string> GenerateNarratorEvaluationSummaryAsync(NarratorDetailDto narrator, CancellationToken ct = default)
     {
@@ -20,37 +20,109 @@ public class AiEvaluationService(Kernel kernel) : IAiEvaluationService
             return "لا توجد أقوال مسجلة لهذا الراوي لاستنتاج حكم عام.";
         }
 
-        var chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
-
-        var prompt = @"
+        var prompt = $@"
 أنت عالم جرح وتعديل متخصص في علم الحديث النبوي.
 لديك قائمة بأقوال العلماء (الجرح والتعديل) في راوٍ معين.
 مهمتك هي قراءة هذه الأقوال، وتلخيص حال الراوي في فقرة واحدة موجزة ودقيقة باللغة العربية.
 يجب أن تعطي الحكم النهائي (مثال: ثقة، صدوق، ضعيف، متروك) بناءً على أغلبية الأقوال وقوتها، ثم تبرر ذلك باختصار شديد.
 
 معلومات الراوي:
-الاسم: {{ $name }}
-الطبقة: {{ $tier }}
+الاسم: {narrator.KnownAs ?? narrator.FullName}
+الطبقة: {narrator.GenerationTier ?? "غير محددة"}
 
 أقوال العلماء:
-{{ $evaluations }}
+{string.Join("\n", narrator.Evaluations.Select(e => $"- {e.ScholarName}: {e.EvaluationText} (الحكم: {e.VerdictRating ?? "غير محدد"})"))}
 
 اكتب الخلاصة مباشرة دون مقدمات:
 ";
 
-        // Serialize evaluations to a neat string
-        var evaluationsText = string.Join("\n", narrator.Evaluations.Select(e => $"- {e.ScholarName}: {e.EvaluationText} (الحكم: {e.VerdictRating ?? "غير محدد"})"));
+        var ollamaModel = config["Ollama:Model"];
+        var ollamaUrl = config["Ollama:Url"] ?? "http://localhost:11434";
 
-        var arguments = new KernelArguments
+        if (!string.IsNullOrEmpty(ollamaModel))
         {
-            ["name"] = narrator.KnownAs ?? narrator.FullName,
-            ["tier"] = narrator.GenerationTier ?? "غير محددة",
-            ["evaluations"] = evaluationsText
+            return await GenerateWithOllamaAsync(prompt, ollamaModel, ollamaUrl, ct);
+        }
+
+        var apiKey = config["Gemini:ApiKey"];
+        if (string.IsNullOrEmpty(apiKey))
+        {
+            return "تعذر توليد الخلاصة. (مفتاح Gemini مفقود، ولم يتم إعداد Ollama)";
+        }
+
+        return await GenerateWithGeminiAsync(prompt, apiKey, ct);
+    }
+
+    private async Task<string> GenerateWithOllamaAsync(string prompt, string model, string baseUrl, CancellationToken ct)
+    {
+        var payload = new
+        {
+            model = model,
+            prompt = prompt,
+            stream = false
         };
 
-        var function = kernel.CreateFunctionFromPrompt(prompt);
-        var result = await kernel.InvokeAsync(function, arguments, ct);
+        var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        var response = await httpClient.PostAsync($"{baseUrl.TrimEnd('/')}/api/generate", content, ct);
 
-        return result.GetValue<string>() ?? "تعذر توليد الخلاصة.";
+        if (!response.IsSuccessStatusCode)
+        {
+            var err = await response.Content.ReadAsStringAsync(ct);
+            throw new Exception($"Ollama API Error ({response.StatusCode}): {err}");
+        }
+
+        var json = await response.Content.ReadAsStringAsync(ct);
+        using var doc = JsonDocument.Parse(json);
+        
+        try 
+        {
+            var text = doc.RootElement.GetProperty("response").GetString();
+            return text ?? "تعذر توليد الخلاصة.";
+        }
+        catch
+        {
+            return "تعذر قراءة الاستجابة من Ollama.";
+        }
+    }
+
+    private async Task<string> GenerateWithGeminiAsync(string prompt, string apiKey, CancellationToken ct)
+    {
+        var payload = new
+        {
+            contents = new[]
+            {
+                new { parts = new[] { new { text = prompt } } }
+            }
+        };
+
+        var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={apiKey}";
+        
+        var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        var response = await httpClient.PostAsync(url, content, ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var err = await response.Content.ReadAsStringAsync(ct);
+            throw new Exception($"Gemini API Error ({response.StatusCode}): {err}");
+        }
+
+        var json = await response.Content.ReadAsStringAsync(ct);
+        using var doc = JsonDocument.Parse(json);
+        
+        try 
+        {
+            var text = doc.RootElement
+                .GetProperty("candidates")[0]
+                .GetProperty("content")
+                .GetProperty("parts")[0]
+                .GetProperty("text")
+                .GetString();
+                
+            return text ?? "تعذر توليد الخلاصة.";
+        }
+        catch
+        {
+            return "تعذر قراءة الاستجابة من Gemini.";
+        }
     }
 }
