@@ -6,6 +6,27 @@ namespace SmartHadithTree.Application.Services;
 
 public class NarratorService(IHadithTreeDbContext context) : INarratorService
 {
+    public async Task<List<NarratorSearchResultDto>> SearchNarratorsAsync(string query, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return [];
+
+        var normalizedQuery = SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize(query);
+
+        return await context.Narrators
+            .Where(n => n.FullName.Contains(normalizedQuery) || (n.KnownAs != null && n.KnownAs.Contains(normalizedQuery)))
+            .Take(50)
+            .Select(n => new NarratorSearchResultDto
+            {
+                Id = n.Id,
+                FullName = n.FullName,
+                KnownAs = n.KnownAs,
+                GenerationTier = n.GenerationTier,
+                DeathYearHijri = n.DeathYearHijri
+            })
+            .ToListAsync(ct);
+    }
+
     public async Task<NarratorDetailDto?> GetNarratorDetailsAsync(Guid narratorId, CancellationToken ct = default)
     {
         var narrator = await context.Narrators

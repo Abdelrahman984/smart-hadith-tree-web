@@ -10,6 +10,7 @@ public interface IHadithSearchService
 
 public interface INarratorService
 {
+    Task<List<NarratorSearchResultDto>> SearchNarratorsAsync(string query, CancellationToken ct = default);
     Task<NarratorDetailDto?> GetNarratorDetailsAsync(Guid narratorId, CancellationToken ct = default);
     Task<NarratorSummaryDto?> GetNarratorTooltipAsync(Guid narratorId, CancellationToken ct = default);
 }

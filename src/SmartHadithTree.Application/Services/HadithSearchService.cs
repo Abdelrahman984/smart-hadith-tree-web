@@ -14,7 +14,10 @@ public class HadithSearchService(IHadithTreeDbContext context, IHadithChainRepos
         var normalizedQuery = SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize(query);
 
         var hadiths = await context.Hadiths
-            .Where(h => h.NormalizedMatn.Contains(normalizedQuery) || h.NormalizedBookName.Contains(normalizedQuery))
+            .Where(h => h.NormalizedMatn.Contains(normalizedQuery) || 
+                        h.NormalizedBookName.Contains(normalizedQuery) ||
+                        h.Transmissions.Any(t => t.Student.FullName.Contains(query) || 
+                                                 t.Sheikh.FullName.Contains(query)))
             .Take(50)
             .Select(h => new HadithSearchResultDto
             {
