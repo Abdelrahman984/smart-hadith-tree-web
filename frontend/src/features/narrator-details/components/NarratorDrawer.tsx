@@ -6,6 +6,40 @@ import { useNarratorDrawerStore } from '../store/useNarratorDrawerStore';
 import { X, Sparkles, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 
+const VERDICT_AR: Record<string, string> = {
+  reliable: "ثقة",
+  mostly_reliable: "صدوق",
+  weak: "ضعيف",
+  companion: "صحابي",
+  unknown: "مجهول",
+  abandoned: "متروك",
+  fabricator: "كذاب",
+};
+
+const SCHOLAR_AR: Record<string, string> = {
+  jarh: "ابن أبي حاتم (الجرح والتعديل)",
+  thiqat: "ابن حبان (الثقات)",
+  mughni_ducafa: "الذهبي (المغني في الضعفاء)",
+  diwan_ducafa: "الذهبي (ديوان الضعفاء)",
+  kashif: "الذهبي (الكاشف)",
+  tahdhib_tahdhib: "ابن حجر (تهذيب التهذيب)",
+  mizan: "الذهبي (ميزان الاعتدال)",
+  tahdhib_kamal: "المزي (تهذيب الكمال)",
+  taqrib: "ابن حجر (تقريب التهذيب)",
+  kamil: "ابن عدي (الكامل في الضعفاء)",
+  tabaqat: "ابن سعد (الطبقات الكبرى)",
+  siyar: "الذهبي (سير أعلام النبلاء)",
+  tarikh: "البخاري (التاريخ الكبير)",
+  tarikh_islam: "الذهبي (تاريخ الإسلام)",
+  durar_kamina: "ابن حجر (الدرر الكامنة)",
+  isaba: "ابن حجر (الإصابة)",
+  lisan_mizan: "ابن حجر (لسان الميزان)",
+  tadhkirat_huffaz: "الذهبي (تذكرة الحفاظ)",
+};
+
+const getVerdictAr = (en: string) => VERDICT_AR[en.toLowerCase()] || en;
+const getScholarAr = (en: string) => SCHOLAR_AR[en.toLowerCase()] || en;
+
 export default function NarratorDrawer() {
   const { isOpen, selectedNarratorId, closeDrawer } = useNarratorDrawerStore();
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -27,8 +61,12 @@ export default function NarratorDrawer() {
       if (!res.ok) throw new Error("فشل توليد الخلاصة. تأكد من إعداد مفتاح OpenAI.");
       const data = await res.json();
       setAiSummary(data.summary);
-    } catch (err: any) {
-      setAiError(err.message);
+    } catch (err) {
+      if (err instanceof Error) {
+        setAiError(err.message);
+      } else {
+        setAiError("حدث خطأ غير متوقع.");
+      }
     } finally {
       setIsAiLoading(false);
     }
@@ -94,7 +132,7 @@ export default function NarratorDrawer() {
                   )}
                   {narrator.gradeEn && (
                     <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold">
-                      {narrator.gradeEn.toUpperCase()}
+                      {getVerdictAr(narrator.gradeEn)}
                     </span>
                   )}
                   {narrator.birthYearHijri && (
@@ -166,10 +204,10 @@ export default function NarratorDrawer() {
                     {narrator.evaluations.map((evalRecord, idx) => (
                       <div key={idx} className="bg-slate-50 p-3 rounded border border-slate-100">
                         <div className="flex justify-between items-start mb-1">
-                          <span className="font-semibold text-brand-teal text-sm">{evalRecord.scholarName}</span>
+                          <span className="font-semibold text-brand-teal text-sm">{getScholarAr(evalRecord.scholarName)}</span>
                           {evalRecord.verdictRating && (
                             <span className="text-xs px-1.5 py-0.5 bg-white border border-slate-200 rounded text-slate-600">
-                              {evalRecord.verdictRating}
+                              {getVerdictAr(evalRecord.verdictRating)}
                             </span>
                           )}
                         </div>
