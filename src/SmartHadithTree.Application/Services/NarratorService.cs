@@ -1,0 +1,54 @@
+using Microsoft.EntityFrameworkCore;
+using SmartHadithTree.Application.DTOs;
+using SmartHadithTree.Application.Interfaces;
+
+namespace SmartHadithTree.Application.Services;
+
+public class NarratorService(IHadithTreeDbContext context) : INarratorService
+{
+    public async Task<NarratorDetailDto?> GetNarratorDetailsAsync(Guid narratorId, CancellationToken ct = default)
+    {
+        var narrator = await context.Narrators
+            .Include(n => n.ScholarEvaluations)
+            .FirstOrDefaultAsync(n => n.Id == narratorId, ct);
+
+        if (narrator == null)
+            return null;
+
+        return new NarratorDetailDto
+        {
+            Id = narrator.Id,
+            FullName = narrator.FullName,
+            KnownAs = narrator.KnownAs,
+            Kunyah = narrator.Kunyah,
+            GenerationTier = narrator.GenerationTier,
+            BirthYearHijri = narrator.BirthYearHijri,
+            DeathYearHijri = narrator.DeathYearHijri,
+            Biography = narrator.Biography,
+            Evaluations = narrator.ScholarEvaluations.Select(e => new ScholarEvaluationDto
+            {
+                ScholarName = e.ScholarName,
+                EvaluationText = e.EvaluationText,
+                SourceBook = e.SourceBook,
+                VerdictRating = e.VerdictRating
+            }).ToList()
+        };
+    }
+
+    public async Task<NarratorSummaryDto?> GetNarratorTooltipAsync(Guid narratorId, CancellationToken ct = default)
+    {
+        var narrator = await context.Narrators
+            .Where(n => n.Id == narratorId)
+            .Select(n => new NarratorSummaryDto
+            {
+                Id = n.Id,
+                FullName = n.KnownAs ?? n.FullName,
+                GenerationTier = n.GenerationTier,
+                // A very simplistic grade summary. The real AI one will come in Phase 5.
+                GradeSummary = n.ScholarEvaluations.Select(e => e.VerdictRating).FirstOrDefault() ?? "غير معروف"
+            })
+            .FirstOrDefaultAsync(ct);
+
+        return narrator;
+    }
+}

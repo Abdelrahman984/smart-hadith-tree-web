@@ -44,7 +44,8 @@ export const getLayoutedElements = async (nodes: Node[], edges: Edge[]) => {
     });
 
     return { nodes: layoutedNodes, edges };
-  } catch (console) {
+  } catch (error) {
+    console.error("ELK Layout Error:", error);
     return { nodes, edges };
   }
 };
