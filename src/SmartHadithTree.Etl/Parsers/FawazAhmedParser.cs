@@ -210,7 +210,14 @@ public class FawazAhmedParser(ILogger<FawazAhmedParser> logger) : IDataSourcePar
         name = Regex.Replace(name, @"رحمه الله", "");
         name = Regex.Replace(name, @"[،,:.""”«»\[\]\(\)\{\}\-]", " ");
         name = Regex.Replace(name, @"\s+", " ").Trim();
-        name = Regex.Replace(name, @"\s+(يقول|أنه|أنها)$", "").Trim();
+
+        // Strip narrative context attachments (e.g. "أن الحارث بن هشام سأل", "على المنبر", "في قوله", etc.)
+        name = Regex.Replace(name, @"\s+أن\s+.*$", "");
+        name = Regex.Replace(name, @"\s+على\s+المنبر.*$", "");
+        name = Regex.Replace(name, @"\s+في\s+قوله.*$", "");
+        name = Regex.Replace(name, @"\s+ح\s+.*$", "");
+        name = Regex.Replace(name, @"\s+(يقول|أنه|أنها|سأل|قالت|نحوه|ك|و|ف)$", "").Trim();
+
         return name;
     }
 
