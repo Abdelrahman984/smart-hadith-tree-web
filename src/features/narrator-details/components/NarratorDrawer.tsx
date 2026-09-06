@@ -1,0 +1,185 @@
+"use client";
+
+import { useQuery } from '@tanstack/react-query';
+import { getNarratorDetails } from '@/lib/api';
+import { useNarratorDrawerStore } from '../store/useNarratorDrawerStore';
+import { X, Sparkles, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
+
+export default function NarratorDrawer() {
+  const { isOpen, selectedNarratorId, closeDrawer } = useNarratorDrawerStore();
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const { data: narrator, isLoading, isError } = useQuery({
+    queryKey: ['narrator', selectedNarratorId],
+    queryFn: () => getNarratorDetails(selectedNarratorId!),
+    enabled: !!selectedNarratorId && isOpen,
+  });
+
+  const handleGenerateSummary = async () => {
+    if (!selectedNarratorId) return;
+    setIsAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await fetch(`http://localhost:5147/api/Narrators/${selectedNarratorId}/ai-summary`);
+      if (!res.ok) throw new Error("فشل توليد الخلاصة. تأكد من إعداد مفتاح OpenAI.");
+      const data = await res.json();
+      setAiSummary(data.summary);
+    } catch (err: any) {
+      setAiError(err.message);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  // Reset states when drawer closes
+  const handleClose = () => {
+    setAiSummary(null);
+    setAiError(null);
+    closeDrawer();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-slate-900/20 z-40 transition-opacity"
+        onClick={handleClose}
+      />
+      
+      {/* Drawer Panel */}
+      <div 
+        className="absolute top-0 bottom-0 start-0 w-96 bg-white shadow-2xl z-50 flex flex-col transform transition-transform duration-300"
+        dir="rtl"
+      >
+        <div className="flex items-center justify-between p-4 border-b border-slate-200">
+          <h2 className="text-xl font-bold text-slate-800">تفاصيل الراوي</h2>
+          <button 
+            onClick={handleClose}
+            className="p-1 rounded-full hover:bg-slate-100 text-slate-500"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          {isLoading ? (
+            <div className="animate-pulse space-y-4">
+              <div className="h-6 bg-slate-200 rounded w-3/4"></div>
+              <div className="h-4 bg-slate-200 rounded w-1/2"></div>
+              <div className="h-20 bg-slate-200 rounded"></div>
+            </div>
+          ) : isError || !narrator ? (
+            <div className="text-red-500">حدث خطأ أثناء تحميل بيانات الراوي.</div>
+          ) : (
+            <>
+              {/* Header Info */}
+              <div>
+                <h3 className="text-2xl font-bold text-brand-dark mb-1">
+                  {narrator.knownAs || narrator.fullName}
+                </h3>
+                {narrator.knownAs && (
+                  <p className="text-sm text-slate-500 mb-2">{narrator.fullName}</p>
+                )}
+                
+                <div className="flex gap-2 flex-wrap mt-3">
+                  {narrator.generationTier && (
+                    <span className="px-2 py-1 bg-brand-blue/10 text-brand-blue rounded text-xs font-semibold">
+                      {narrator.generationTier}
+                    </span>
+                  )}
+                  {narrator.birthYearHijri && (
+                    <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">
+                      مواليد: {narrator.birthYearHijri} هـ
+                    </span>
+                  )}
+                  {narrator.deathYearHijri && (
+                    <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">
+                      وفيات: {narrator.deathYearHijri} هـ
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Bio */}
+              {narrator.biography && (
+                <div>
+                  <h4 className="text-lg font-semibold text-slate-800 mb-2">ترجمة الراوي</h4>
+                  <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">
+                    {narrator.biography}
+                  </p>
+                </div>
+              )}
+
+              {/* AI Summary Section */}
+              {narrator.evaluations.length > 0 && (
+                <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="w-5 h-5 text-purple-600" />
+                    <h4 className="text-purple-900 font-bold">خلاصة الذكاء الاصطناعي</h4>
+                  </div>
+                  
+                  {!aiSummary && !isAiLoading && !aiError && (
+                    <button 
+                      onClick={handleGenerateSummary}
+                      className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                    >
+                      توليد الخلاصة الآن
+                    </button>
+                  )}
+
+                  {isAiLoading && (
+                    <div className="text-sm text-purple-600 animate-pulse text-center py-2">
+                      جاري تحليل الأقوال واستنتاج الخلاصة...
+                    </div>
+                  )}
+
+                  {aiError && (
+                    <div className="text-sm text-red-500 bg-red-50 p-3 rounded-lg flex gap-2 items-start">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{aiError}</span>
+                    </div>
+                  )}
+
+                  {aiSummary && (
+                    <div className="text-sm text-purple-900 leading-relaxed font-arabic">
+                      {aiSummary}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Scholar Evaluations */}
+              <div>
+                <h4 className="text-lg font-semibold text-slate-800 mb-3">أقوال الجرح والتعديل</h4>
+                {narrator.evaluations.length > 0 ? (
+                  <div className="space-y-3">
+                    {narrator.evaluations.map((evalRecord, idx) => (
+                      <div key={idx} className="bg-slate-50 p-3 rounded border border-slate-100">
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="font-semibold text-brand-teal text-sm">{evalRecord.scholarName}</span>
+                          {evalRecord.verdictRating && (
+                            <span className="text-xs px-1.5 py-0.5 bg-white border border-slate-200 rounded text-slate-600">
+                              {evalRecord.verdictRating}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-slate-700 text-sm italic">&quot;{evalRecord.evaluationText}&quot;</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">لا توجد أقوال مسجلة لهذا الراوي.</p>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
