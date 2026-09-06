@@ -20,8 +20,18 @@ builder.Services.AddDbContext<HadithTreeDbContext>(options =>
         }));
 
 // Register Semantic Kernel
-// Remove Semantic Kernel because we're using raw HttpClient to bypass the Alpha package bugs
-builder.Services.AddHttpClient<IAiEvaluationService, AiEvaluationService>();
+var geminiApiKey = builder.Configuration["Gemini:ApiKey"];
+if (!string.IsNullOrEmpty(geminiApiKey))
+{
+    builder.Services.AddKernel().AddGoogleAIGeminiChatCompletion("gemini-1.5-pro", geminiApiKey);
+}
+else
+{
+    // Dummy kernel if no API key is provided
+    builder.Services.AddKernel();
+}
+
+builder.Services.AddScoped<IAiEvaluationService, AiEvaluationService>();
 
 // Register Services
 builder.Services.AddScoped<IHadithTreeDbContext>(provider => provider.GetRequiredService<HadithTreeDbContext>());
