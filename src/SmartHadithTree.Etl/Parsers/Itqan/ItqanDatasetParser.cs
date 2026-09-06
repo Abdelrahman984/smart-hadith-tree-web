@@ -98,82 +98,101 @@ public class ItqanDatasetParser : IDataSourceParser
             }
         }
 
-        var bukhariDir = Path.Combine(sourcePath, "sunni", "bukhari");
-        if (Directory.Exists(bukhariDir))
+        await ParseBookDirectoryAsync(Path.Combine(sourcePath, "sunni", "bukhari"), "صحيح البخاري", GetBukhariChapterName, dataset, itqanToGuidMap, nameToItqanMap, cancellationToken);
+        await ParseBookDirectoryAsync(Path.Combine(sourcePath, "sunni", "muslim"), "صحيح مسلم", GetMuslimChapterName, dataset, itqanToGuidMap, nameToItqanMap, cancellationToken);
+        await ParseBookDirectoryAsync(Path.Combine(sourcePath, "sunni", "abudawud"), "سنن أبي داود", GetAbuDawudChapterName, dataset, itqanToGuidMap, nameToItqanMap, cancellationToken);
+        await ParseBookDirectoryAsync(Path.Combine(sourcePath, "sunni", "tirmidhi"), "جامع الترمذي", GetTirmidhiChapterName, dataset, itqanToGuidMap, nameToItqanMap, cancellationToken);
+
+        return dataset;
+    }
+
+    private async Task ParseBookDirectoryAsync(
+        string bookDir, 
+        string bookName, 
+        Func<string, string> getChapterName, 
+        ParsedDataset dataset, 
+        Dictionary<int, Guid> itqanToGuidMap, 
+        Dictionary<string, int> nameToItqanMap, 
+        CancellationToken cancellationToken)
+    {
+        if (!Directory.Exists(bookDir)) return;
+
+        var hadithFiles = Directory.GetFiles(bookDir, "*.json");
+        foreach (var file in hadithFiles)
         {
-            var hadithFiles = Directory.GetFiles(bukhariDir, "*.json");
-            foreach (var file in hadithFiles)
+            await using var stream = File.OpenRead(file);
+            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            
+            foreach (var element in doc.RootElement.EnumerateArray())
             {
-                await using var stream = File.OpenRead(file);
-                using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-                
-                foreach (var element in doc.RootElement.EnumerateArray())
+                var fileName = Path.GetFileNameWithoutExtension(file);
+                var chapterName = getChapterName(fileName);
+
+                var hadith = new HadithText
                 {
-                    var fileName = Path.GetFileNameWithoutExtension(file);
-                    var chapterName = GetBukhariChapterName(fileName);
-
-                    var hadith = new HadithText
+                    Id = Guid.NewGuid(),
+                    BookName = bookName,
+                    HadithNumber = element.TryGetProperty("idInBook", out var idProp) ? idProp.GetInt32() : 0,
+                    Chapter = chapterName,
+                    MatnArabic = element.TryGetProperty("arabic", out var arProp) ? arProp.GetString() ?? "" : ""
+                };
+                
+                dataset.Hadiths.Add(hadith);
+                
+                // Basic chain extraction logic
+                var text = hadith.MatnArabic;
+                var parts = Regex.Split(text, @"(حَدَّثَنَا|حَدَّثَنِي|أَخْبَرَنَا|أَخْبَرَنِي|أَنْبَأَنَا|عَنْ|سَمِعْتُ)");
+                
+                var step = 1;
+                Guid? studentId = null;
+                
+                for (int i = 1; i < parts.Length - 1; i += 2)
+                {
+                    var term = parts[i].Trim();
+                    var nameRaw = parts[i + 1].Split("قَالَ")[0].Trim(' ', '،', ',', '.', ':');
+                    var nameClean = Regex.Replace(nameRaw, @"[^\p{L}\s]", "").Trim();
+                    
+                    if (step == 1)
                     {
-                        Id = Guid.NewGuid(),
-                        BookName = "صحيح البخاري",
-                        HadithNumber = element.TryGetProperty("idInBook", out var idProp) ? idProp.GetInt32() : 0,
-                        Chapter = chapterName,
-                        MatnArabic = element.TryGetProperty("arabic", out var arProp) ? arProp.GetString() ?? "" : ""
-                    };
-                    
-                    dataset.Hadiths.Add(hadith);
-                    
-                    // Basic chain extraction logic
-                    var text = hadith.MatnArabic;
-                    // Split on common transmission terms
-                    var parts = Regex.Split(text, @"(حَدَّثَنَا|حَدَّثَنِي|أَخْبَرَنَا|أَخْبَرَنِي|أَنْبَأَنَا|عَنْ|سَمِعْتُ)");
-                    
-                    var step = 1;
-                    Guid? studentId = null;
-                    
-                    for (int i = 1; i < parts.Length - 1; i += 2)
-                    {
-                        var term = parts[i].Trim();
-                        var nameRaw = parts[i + 1].Split("قَالَ")[0].Trim(' ', '،', ',', '.', ':');
-                        var nameClean = Regex.Replace(nameRaw, @"[^\p{L}\s]", "").Trim(); // Remove diacritics for lookup
-                        
-                        // Default to Al-Bukhari for compiler (step 1)
-                        if (step == 1 && nameToItqanMap.TryGetValue("محمد بن إسماعيل بن إبراهيم بن المغيرة", out var bukhariItqanId) 
-                            && itqanToGuidMap.TryGetValue(bukhariItqanId, out var bGuid))
+                        var compilerName = bookName switch
                         {
-                            studentId = bGuid;
-                        }
-                        
-                        Guid? sheikhId = null;
-                        
-                        // Try exact match on mapped names, fallback to random if missing in this basic port
-                        // In reality, this requires the extensive `isnad_kunya_map` which we downloaded.
-                        // We will just do a simple search or fallback to the first narrator we find.
-                        if (nameToItqanMap.TryGetValue(nameClean, out var itqanId) && itqanToGuidMap.TryGetValue(itqanId, out var sGuid))
-                        {
-                            sheikhId = sGuid;
-                        }
+                            "صحيح البخاري" => "محمد بن إسماعيل بن إبراهيم بن المغيرة",
+                            "صحيح مسلم" => "مسلم بن الحجاج بن مسلم",
+                            "سنن أبي داود" => "سليمان بن الأشعث بن إسحاق بن بشير بن شداد",
+                            "جامع الترمذي" => "محمد بن عيسى بن سورة بن موسى بن الضحاك",
+                            _ => ""
+                        };
 
-                        if (studentId.HasValue && sheikhId.HasValue && studentId != sheikhId)
+                        if (nameToItqanMap.TryGetValue(compilerName, out var compilerItqanId) 
+                            && itqanToGuidMap.TryGetValue(compilerItqanId, out var cGuid))
                         {
-                            dataset.Transmissions.Add(new Transmission
-                            {
-                                Id = Guid.NewGuid(),
-                                HadithId = hadith.Id,
-                                StepOrder = step,
-                                StudentId = studentId.Value,
-                                SheikhId = sheikhId.Value,
-                                TransmissionTerm = term
-                            });
-                            studentId = sheikhId;
-                            step++;
+                            studentId = cGuid;
                         }
+                    }
+                    
+                    Guid? sheikhId = null;
+                    if (nameToItqanMap.TryGetValue(nameClean, out var itqanId) && itqanToGuidMap.TryGetValue(itqanId, out var sGuid))
+                    {
+                        sheikhId = sGuid;
+                    }
+
+                    if (studentId.HasValue && sheikhId.HasValue && studentId != sheikhId)
+                    {
+                        dataset.Transmissions.Add(new Transmission
+                        {
+                            Id = Guid.NewGuid(),
+                            HadithId = hadith.Id,
+                            StepOrder = step,
+                            StudentId = studentId.Value,
+                            SheikhId = sheikhId.Value,
+                            TransmissionTerm = term
+                        });
+                        studentId = sheikhId;
+                        step++;
                     }
                 }
             }
         }
-
-        return dataset;
     }
 
     private string GetBukhariChapterName(string fileNumber)
@@ -278,6 +297,180 @@ public class ItqanDatasetParser : IDataSourceParser
             "95" => "كتاب أخبار الآحاد",
             "96" => "كتاب الاعتصام بالكتاب والسنة",
             "97" => "كتاب التوحيد",
+            _ => $"كتاب {fileNumber}"
+        };
+    }
+
+    private string GetMuslimChapterName(string fileNumber)
+    {
+        return fileNumber switch
+        {
+            "0" => "المقدمة",
+            "1" => "كتاب الإيمان",
+            "2" => "كتاب الطهارة",
+            "3" => "كتاب الحيض",
+            "4" => "كتاب الصلاة",
+            "5" => "كتاب المساجد ومواضع الصلاة",
+            "6" => "كتاب صلاة المسافرين وقصرها",
+            "7" => "كتاب الفضائل",
+            "8" => "كتاب الجمعة",
+            "9" => "كتاب صلاة العيدين",
+            "10" => "كتاب صلاة الاستسقاء",
+            "11" => "كتاب الكسوف",
+            "12" => "كتاب الجنائز",
+            "13" => "كتاب الزكاة",
+            "14" => "كتاب الصيام",
+            "15" => "كتاب الحج",
+            "16" => "كتاب النكاح",
+            "17" => "كتاب الرضاع",
+            "18" => "كتاب الطلاق",
+            "19" => "كتاب اللعان",
+            "20" => "كتاب العتق",
+            "21" => "كتاب البيوع",
+            "22" => "كتاب المساقاة",
+            "23" => "كتاب الفرائض",
+            "24" => "كتاب الهبات",
+            "25" => "كتاب الوصية",
+            "26" => "كتاب النذور",
+            "27" => "كتاب الأيمان",
+            "28" => "كتاب القسامة والمحاربين والقصاص والديات",
+            "29" => "كتاب الحدود",
+            "30" => "كتاب الأقضية",
+            "31" => "كتاب اللقطة",
+            "32" => "كتاب الجهاد والسير",
+            "33" => "كتاب الإمارة",
+            "34" => "كتاب الصيد والذبائح وما يؤكل من الحيوان",
+            "35" => "كتاب الأضاحي",
+            "36" => "كتاب الأشربة",
+            "37" => "كتاب اللباس والزينة",
+            "38" => "كتاب الآداب",
+            "39" => "كتاب السلام",
+            "40" => "كتاب الألفاظ من الأدب وغيرها",
+            "41" => "كتاب الشعر",
+            "42" => "كتاب الرؤيا",
+            "43" => "كتاب الفضائل",
+            "44" => "كتاب فضائل الصحابة",
+            "45" => "كتاب البر والصلة والآداب",
+            "46" => "كتاب القدر",
+            "47" => "كتاب العلم",
+            "48" => "كتاب الذكر والدعاء والتوبة والاستغفار",
+            "49" => "كتاب الرقاق",
+            "50" => "كتاب التوبة",
+            "51" => "كتاب صفة القيامة والجنة والنار",
+            "52" => "كتاب الجنة وصفة نعيمها وأهلها",
+            "53" => "كتاب الفتن وأشراط الساعة",
+            "54" => "كتاب الزهد والرقائق",
+            "55" => "كتاب التفسير",
+            "56" => "كتاب أحاديث الأنبياء",
+            _ => $"كتاب {fileNumber}"
+        };
+    }
+
+    private string GetAbuDawudChapterName(string fileNumber)
+    {
+        return fileNumber switch
+        {
+            "0" => "المقدمة",
+            "1" => "كتاب الطهارة",
+            "2" => "كتاب الصلاة",
+            "3" => "كتاب الاستسقاء",
+            "4" => "كتاب صلاة السفر",
+            "5" => "كتاب التطوع",
+            "6" => "كتاب شهر رمضان",
+            "7" => "كتاب سجود القرآن",
+            "8" => "كتاب الوتر",
+            "9" => "كتاب الزكاة",
+            "10" => "كتاب اللقطة",
+            "11" => "كتاب المناسك",
+            "12" => "كتاب النكاح",
+            "13" => "كتاب الطلاق",
+            "14" => "كتاب الصوم",
+            "15" => "كتاب الجهاد",
+            "16" => "كتاب الأضحية",
+            "17" => "كتاب الصيد",
+            "18" => "كتاب الوصايا",
+            "19" => "كتاب الفرائض",
+            "20" => "كتاب الخراج والإمارة والفيء",
+            "21" => "كتاب الجنائز",
+            "22" => "كتاب الأيمان والنذور",
+            "23" => "كتاب البيوع",
+            "24" => "كتاب الإجارة",
+            "25" => "كتاب الأقضية",
+            "26" => "كتاب العلم",
+            "27" => "كتاب الأشربة",
+            "28" => "كتاب الأطعمة",
+            "29" => "كتاب الطب",
+            "30" => "كتاب الكهانة والتطير",
+            "31" => "كتاب العتق",
+            "32" => "كتاب الحروف والقراءات",
+            "33" => "كتاب الحمامات",
+            "34" => "كتاب اللباس",
+            "35" => "كتاب الترجل",
+            "36" => "كتاب الخاتم",
+            "37" => "كتاب الفتن والملاحم",
+            "38" => "كتاب المهدي",
+            "39" => "كتاب الملاحم",
+            "40" => "كتاب الحدود",
+            "41" => "كتاب الديات",
+            "42" => "كتاب السنة",
+            "43" => "كتاب الأدب",
+            _ => $"كتاب {fileNumber}"
+        };
+    }
+
+    private string GetTirmidhiChapterName(string fileNumber)
+    {
+        return fileNumber switch
+        {
+            "1" => "كتاب الطهارة",
+            "2" => "كتاب الصلاة",
+            "3" => "كتاب الوتر",
+            "4" => "كتاب الجمعة",
+            "5" => "كتاب الزكاة",
+            "6" => "كتاب الصوم",
+            "7" => "كتاب الحج",
+            "8" => "كتاب الجنائز",
+            "9" => "كتاب النكاح",
+            "10" => "كتاب الرضاع",
+            "11" => "كتاب الطلاق واللعان",
+            "12" => "كتاب البيوع",
+            "13" => "كتاب الأحكام",
+            "14" => "كتاب الديات",
+            "15" => "كتاب الحدود",
+            "16" => "كتاب الصيد والذبائح",
+            "17" => "كتاب الأضاحي",
+            "18" => "كتاب النذور والأيمان",
+            "19" => "كتاب السير",
+            "20" => "كتاب فضائل الجهاد",
+            "21" => "كتاب الجهاد",
+            "22" => "كتاب اللباس",
+            "23" => "كتاب الأطعمة",
+            "24" => "كتاب الأشربة",
+            "25" => "كتاب البر والصلة",
+            "26" => "كتاب الطب",
+            "27" => "كتاب الفرائض",
+            "28" => "كتاب الوصايا",
+            "29" => "كتاب الولاء والهبة",
+            "30" => "كتاب القدر",
+            "31" => "كتاب الفتن",
+            "32" => "كتاب الرؤيا",
+            "33" => "كتاب الشهادات",
+            "34" => "كتاب الزهد",
+            "35" => "كتاب صفة القيامة",
+            "36" => "كتاب صفة الجنة",
+            "37" => "كتاب صفة جهنم",
+            "38" => "كتاب الإيمان",
+            "39" => "كتاب العلم",
+            "40" => "كتاب الاستئذان والآداب",
+            "41" => "كتاب الأدب",
+            "42" => "كتاب الأمثال",
+            "43" => "كتاب ثواب القرآن",
+            "44" => "كتاب القراءات",
+            "45" => "كتاب التفسير",
+            "46" => "كتاب الدعوات",
+            "47" => "كتاب المناقب",
+            "48" => "كتاب فضائل الصحابة",
+            "49" => "كتاب العلل",
             _ => $"كتاب {fileNumber}"
         };
     }
