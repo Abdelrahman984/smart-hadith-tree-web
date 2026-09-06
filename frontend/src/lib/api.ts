@@ -25,3 +25,21 @@ export async function getNarratorTooltip(id: string): Promise<NarratorSummaryDto
   if (!res.ok) throw new Error("Failed to fetch narrator tooltip");
   return res.json();
 }
+
+export async function getBooks(): Promise<string[]> {
+  const res = await fetch(`${API_BASE}/Books`);
+  if (!res.ok) throw new Error("Failed to fetch books");
+  return res.json();
+}
+
+export async function getChapters(bookName: string): Promise<string[]> {
+  const res = await fetch(`${API_BASE}/Books/${encodeURIComponent(bookName)}/chapters`);
+  if (!res.ok) throw new Error("Failed to fetch chapters");
+  return res.json();
+}
+
+export async function getBookHadiths(bookName: string, chapter: string): Promise<HadithSearchResultDto[]> {
+  const res = await fetch(`${API_BASE}/Books/${encodeURIComponent(bookName)}/chapters/${encodeURIComponent(chapter)}/hadiths`);
+  if (!res.ok) throw new Error("Failed to fetch hadiths for chapter");
+  return res.json();
+}

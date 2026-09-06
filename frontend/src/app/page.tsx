@@ -12,12 +12,18 @@ export default function Home() {
           منصة متقدمة لرقمنة وتصور أسانيد الأحاديث النبوية، مع تحليل آلي لرجال السند باستخدام تقنيات الذكاء الاصطناعي لتقديم أحكام الجرح والتعديل.
         </p>
         
-        <div className="flex items-center justify-center pt-4">
+        <div className="flex items-center justify-center pt-4 gap-4">
           <Link 
             href="/search"
             className="px-8 py-4 bg-brand-blue text-white rounded-xl text-xl font-bold shadow-lg hover:bg-brand-dark hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
           >
             ابدأ البحث في الأحاديث
+          </Link>
+          <Link 
+            href="/books"
+            className="px-8 py-4 bg-brand-teal text-white rounded-xl text-xl font-bold shadow-lg hover:bg-teal-700 hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
+          >
+            تصفح الكتب
           </Link>
         </div>
 

@@ -2,7 +2,47 @@
 
 The backend API is hosted at `http://localhost:5147/api`.
 
-## 1. Search
+## 1. Books Exploration
+
+### `GET /api/books`
+Returns a list of all distinct available Hadith books.
+
+**Response (200 OK):**
+```json
+[
+  "صحيح البخاري"
+]
+```
+
+### `GET /api/books/{bookName}/chapters`
+Returns a list of distinct chapters in the specified book, ordered sequentially.
+
+**Response (200 OK):**
+```json
+[
+  "المقدمة",
+  "كتاب بدء الوحي",
+  "كتاب الإيمان"
+]
+```
+
+### `GET /api/books/{bookName}/chapters/{chapter}/hadiths`
+Returns all hadiths in the specified book and chapter.
+
+**Response (200 OK):**
+```json
+[
+  {
+    "id": "guid",
+    "bookName": "صحيح البخاري",
+    "hadithNumber": 1,
+    "chapter": "كتاب بدء الوحي",
+    "matnSnippet": "إنما الأعمال بالنيات..."
+  }
+]
+```
+
+## 2. Search
 
 ### `GET /api/hadith/search?q={query}`
 Searches for hadiths by text, book name, or narrator name.
@@ -36,7 +76,7 @@ Searches for narrators by their full name or aliases.
 ]
 ```
 
-## 2. Isnad Tree (Graph Data)
+## 3. Isnad Tree (Graph Data)
 
 ### `GET /api/tree/{hadithId}`
 Returns the full Isnad tree for a specific Hadith using a Recursive CTE query. 
@@ -63,7 +103,7 @@ Returns the full Isnad tree for a specific Hadith using a Recursive CTE query.
 }
 ```
 
-## 3. Narrator Details & AI
+## 4. Narrator Details & AI
 
 ### `GET /api/narrators/{id}`
 Returns detailed biographical info and all classical scholar evaluations.

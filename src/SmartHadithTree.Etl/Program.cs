@@ -24,9 +24,6 @@ builder.Services.AddDbContext<HadithTreeDbContext>(options =>
 
 // Parsers (pluggable — add new parsers here)
 builder.Services.AddTransient<IDataSourceParser, SmartHadithTree.Etl.Parsers.Itqan.ItqanDatasetParser>();
-builder.Services.AddTransient<IDataSourceParser, JsonHadithParser>();
-builder.Services.AddTransient<IDataSourceParser, FawazAhmedParser>();
-builder.Services.AddTransient<IDataSourceParser, ShamelaAuthorParser>();
 builder.Services.AddTransient<IDataSourceParser, SeedDataGenerator>();
 
 // Services

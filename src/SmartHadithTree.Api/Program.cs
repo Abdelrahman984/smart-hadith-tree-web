@@ -38,6 +38,7 @@ builder.Services.AddScoped<IHadithTreeDbContext>(provider => provider.GetRequire
 builder.Services.AddScoped<IHadithChainRepository, HadithChainRepository>();
 builder.Services.AddScoped<IHadithSearchService, HadithSearchService>();
 builder.Services.AddScoped<INarratorService, NarratorService>();
+builder.Services.AddScoped<IBooksService, BooksService>();
 
 // ── Controllers ────────────────────────────────────────────────────
 builder.Services.AddControllers()
