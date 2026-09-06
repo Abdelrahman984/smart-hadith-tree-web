@@ -26,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" className={`${notoSansArabic.variable} ${inter.variable} font-arabic h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
+      <body suppressHydrationWarning className="min-h-full flex flex-col bg-slate-50 text-slate-900">
         <QueryProvider>
           {children}
         </QueryProvider>
