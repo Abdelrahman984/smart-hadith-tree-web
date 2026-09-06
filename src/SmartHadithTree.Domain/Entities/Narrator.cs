@@ -42,6 +42,18 @@ public class Narrator
     /// <summary>Transmissions where this narrator is the student (receiver).</summary>
     public ICollection<Transmission> TransmissionsAsStudent { get; set; } = [];
 
-    /// <summary>Scholar evaluations (أقوال الجرح والتعديل) about this narrator.</summary>
-    public ICollection<ScholarEvaluation> ScholarEvaluations { get; set; } = [];
+    /// <summary>
+    /// ID from the R3GENESI5/Itqan dataset (for mapping).
+    /// </summary>
+    public int? ItqanId { get; set; }
+
+    /// <summary>
+    /// Standardized English grade from Itqan (reliable, weak, etc.) for UI color mapping.
+    /// </summary>
+    public string? ItqanGrade { get; set; }
+
+    /// <summary>
+    /// classical evaluation records
+    /// </summary>
+    public ICollection<ScholarEvaluation> ScholarEvaluations { get; set; } = new List<ScholarEvaluation>();
 }

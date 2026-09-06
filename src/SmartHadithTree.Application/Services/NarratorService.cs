@@ -46,6 +46,7 @@ public class NarratorService(IHadithTreeDbContext context) : INarratorService
             BirthYearHijri = narrator.BirthYearHijri,
             DeathYearHijri = narrator.DeathYearHijri,
             Biography = narrator.Biography,
+            GradeEn = narrator.ItqanGrade,
             Evaluations = narrator.ScholarEvaluations.Select(e => new ScholarEvaluationDto
             {
                 ScholarName = e.ScholarName,
@@ -65,8 +66,8 @@ public class NarratorService(IHadithTreeDbContext context) : INarratorService
                 Id = n.Id,
                 FullName = n.KnownAs ?? n.FullName,
                 GenerationTier = n.GenerationTier,
-                // A very simplistic grade summary. The real AI one will come in Phase 5.
-                GradeSummary = n.ScholarEvaluations.Select(e => e.VerdictRating).FirstOrDefault() ?? "غير معروف"
+                GradeSummary = n.ScholarEvaluations.Select(e => e.VerdictRating).FirstOrDefault() ?? "غير معروف",
+                GradeEn = n.ItqanGrade
             })
             .FirstOrDefaultAsync(ct);
 

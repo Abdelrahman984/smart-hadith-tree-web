@@ -15,6 +15,9 @@ export interface IsnadNodeDto {
   stepOrder: number;
   parentNodeId: string | null;
   transmissionTerm: string | null;
+  gradeEn?: string;
+  isAnomaly?: boolean;
+  anomalyReason?: string;
 }
 
 export interface IsnadTreeResponseDto {
@@ -30,6 +33,7 @@ export interface NarratorSummaryDto {
   fullName: string;
   generationTier: string | null;
   gradeSummary: string;
+  gradeEn?: string;
 }
 
 export interface ScholarEvaluationDto {
@@ -48,5 +52,6 @@ export interface NarratorDetailDto {
   birthYearHijri: number | null;
   deathYearHijri: number | null;
   biography: string | null;
+  gradeEn?: string;
   evaluations: ScholarEvaluationDto[];
 }

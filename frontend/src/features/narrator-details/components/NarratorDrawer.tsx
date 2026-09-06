@@ -92,6 +92,11 @@ export default function NarratorDrawer() {
                       {narrator.generationTier}
                     </span>
                   )}
+                  {narrator.gradeEn && (
+                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold">
+                      {narrator.gradeEn.toUpperCase()}
+                    </span>
+                  )}
                   {narrator.birthYearHijri && (
                     <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">
                       مواليد: {narrator.birthYearHijri} هـ

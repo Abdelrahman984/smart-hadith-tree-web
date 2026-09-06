@@ -38,3 +38,11 @@ Follow these guidelines strictly when contributing to this repository.
 - Add clear XML doc comments to public APIs and complex backend logic.
 - Keep responses concise and prioritize specific answers over generic advice.
 - When referencing files, provide the exact path relative to the repository root.
+
+## 6. Current Project State & Advanced Features
+- **Data Source**: `Itqan` (in `data/itqan/`) is the definitive, primary dataset. Do not build parsers for `fawazahmed0` or `Shamela` unless acting as a fallback.
+- **Completed Features**: 
+  - **Graph Visualization**: Fully implemented in `React Flow` using ELK.js layout (`TreeCanvas.tsx`). Includes anomaly detection (Inqita') marked by dashed red edges and warning icons (`NarratorNode.tsx`).
+  - **AI / RAG**: Microsoft Semantic Kernel is already fully wired up in the Application layer (`AiEvaluationService.cs`) to summarize narrator profiles via Gemini.
+  - **Search**: Advanced Full-Text search is active on `/search` and handled by `HadithSearchService.cs`.
+- **Action**: When instructed to work on the project, **assume these core functionalities exist and are functional**. Do not attempt to rebuild them from scratch. Read `docs/changelog.md` to see what was built during the advanced features session.

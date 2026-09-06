@@ -19,6 +19,10 @@ public class IsnadNodeDto
     public int StepOrder { get; set; } // 1 = Compiler (Bukhari), higher = earlier (Sahabi)
     public Guid? ParentNodeId { get; set; } // Points to the student (who received it from this sheikh)
     public string? TransmissionTerm { get; set; } // حدثنا, عن
+    public string? GradeEn { get; set; }
+    
+    public bool IsAnomaly { get; set; }
+    public string? AnomalyReason { get; set; }
 }
 
 public class IsnadTreeResponseDto
@@ -36,6 +40,7 @@ public class NarratorSummaryDto
     public string FullName { get; set; } = string.Empty;
     public string? GenerationTier { get; set; }
     public string GradeSummary { get; set; } = string.Empty; // e.g. "ثقة", "ضعيف"
+    public string? GradeEn { get; set; }
 }
 
 public class NarratorDetailDto
@@ -48,6 +53,7 @@ public class NarratorDetailDto
     public int? BirthYearHijri { get; set; }
     public int? DeathYearHijri { get; set; }
     public string? Biography { get; set; }
+    public string? GradeEn { get; set; }
     public List<ScholarEvaluationDto> Evaluations { get; set; } = [];
 }
 

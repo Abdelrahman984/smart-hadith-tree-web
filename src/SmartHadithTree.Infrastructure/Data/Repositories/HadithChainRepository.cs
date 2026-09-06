@@ -53,7 +53,10 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                 n.GenerationTier,
                 rc.StepOrder,
                 rc.ParentNodeId,
-                rc.TransmissionTerm
+                rc.TransmissionTerm,
+                n.ItqanGrade AS GradeEn,
+                CAST(0 AS BIT) AS IsAnomaly,
+                CAST(NULL AS NVARCHAR(MAX)) AS AnomalyReason
             FROM RecursiveChain rc
             INNER JOIN Narrators n ON rc.NarratorId = n.Id
             ORDER BY rc.StepOrder ASC;
@@ -63,6 +66,32 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
         var nodes = await context.Database
             .SqlQueryRaw<IsnadNodeDto>(sql, hadithId)
             .ToListAsync(ct);
+
+        // Fetch birth/death years for the narrators in this chain
+        var narratorIds = nodes.Select(n => n.NarratorId).Distinct().ToList();
+        var narratorDates = await context.Narrators
+            .Where(n => narratorIds.Contains(n.Id))
+            .Select(n => new { n.Id, n.BirthYearHijri, n.DeathYearHijri })
+            .ToDictionaryAsync(n => n.Id, ct);
+
+        // Detect anomalies (Inqita' - Disconnection)
+        foreach (var node in nodes)
+        {
+            if (node.ParentNodeId.HasValue && node.ParentNodeId.Value != Guid.Empty)
+            {
+                var studentNode = nodes.FirstOrDefault(n => n.Id == node.ParentNodeId.Value);
+                if (studentNode != null && narratorDates.TryGetValue(node.NarratorId, out var sheikhDates) && narratorDates.TryGetValue(studentNode.NarratorId, out var studentDates))
+                {
+                    // If student was born AFTER sheikh died
+                    if (studentDates.BirthYearHijri.HasValue && sheikhDates.DeathYearHijri.HasValue && 
+                        studentDates.BirthYearHijri.Value > sheikhDates.DeathYearHijri.Value)
+                    {
+                        node.IsAnomaly = true;
+                        node.AnomalyReason = $"انقطاع زمني: التلميذ ولد سنة {studentDates.BirthYearHijri} بعد وفاة الشيخ سنة {sheikhDates.DeathYearHijri}";
+                    }
+                }
+            }
+        }
 
         return nodes;
     }

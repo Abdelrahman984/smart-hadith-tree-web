@@ -59,5 +59,12 @@ public class NarratorConfiguration : IEntityTypeConfiguration<Narrator>
         // KnownAs for alias-based searches.
         builder.HasIndex(n => n.KnownAs)
             .HasDatabaseName("IX_Narrators_KnownAs");
+
+        builder.Property(n => n.ItqanGrade)
+            .HasMaxLength(50);
+
+        builder.HasIndex(n => n.ItqanId)
+            .IsUnique()
+            .HasDatabaseName("IX_Narrators_ItqanId");
     }
 }

@@ -11,10 +11,14 @@ import {
   Edge,
   MarkerType,
 } from "@xyflow/react";
+import ELK from 'elkjs/lib/elk.bundled.js';
 import { getLayoutedElements } from "../utils/elkLayout";
 import NarratorNode from "./NarratorNode";
 import { IsnadTreeResponseDto, NarratorSummaryDto } from "@/types/api";
 import { useNarratorDrawerStore } from "@/features/narrator-details/store/useNarratorDrawerStore";
+import GraphControls from './GraphControls';
+
+const elk = new ELK();
 
 const nodeTypes = {
   narrator: NarratorNode,
@@ -29,6 +33,7 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { openDrawer } = useNarratorDrawerStore();
+  const [showWeakOnly, setShowWeakOnly] = useState(false);
 
   useEffect(() => {
     if (!treeData || treeData.nodes.length === 0) return;
@@ -54,6 +59,9 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
             generationTier: n.generationTier,
             transmissionTerm: n.transmissionTerm,
             gradeSummary: tooltip?.gradeSummary,
+            gradeEn: n.gradeEn,
+            isAnomaly: n.isAnomaly,
+            anomalyReason: n.anomalyReason,
           },
         });
       }
@@ -80,9 +88,16 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
               type: "smoothstep",
               markerEnd: {
                 type: MarkerType.ArrowClosed,
-                color: "#94a3b8",
+                color: n.isAnomaly ? "#ef4444" : "#94a3b8",
               },
-              style: { stroke: "#cbd5e1", strokeWidth: 2 },
+              style: { 
+                stroke: n.isAnomaly ? "#ef4444" : "#cbd5e1", 
+                strokeWidth: n.isAnomaly ? 3 : 2,
+                strokeDasharray: n.isAnomaly ? "5 5" : undefined 
+              },
+              animated: n.isAnomaly,
+              label: n.isAnomaly ? "انقطاع" : undefined,
+              labelStyle: { fill: "#ef4444", fontWeight: "bold" },
             });
           }
         }
@@ -104,8 +119,20 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
     openDrawer(node.id);
   }, [openDrawer]);
 
+  useEffect(() => {
+    setNodes((nds) => 
+      nds.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          showWeakOnly
+        }
+      }))
+    );
+  }, [showWeakOnly, setNodes]);
+
   return (
-    <div className="absolute inset-0" dir="ltr">
+    <div className="absolute inset-0 bg-slate-50" dir="ltr">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -117,6 +144,7 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
         attributionPosition="bottom-right"
         className="bg-slate-50"
       >
+        <GraphControls showWeakOnly={showWeakOnly} setShowWeakOnly={setShowWeakOnly} />
         <Background color="#cbd5e1" gap={16} />
         <Controls />
       </ReactFlow>

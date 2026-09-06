@@ -113,6 +113,13 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                         .HasColumnType("nvarchar(150)")
                         .UseCollation("Arabic_100_CI_AI");
 
+                    b.Property<string>("ItqanGrade")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int?>("ItqanId")
+                        .HasColumnType("int");
+
                     b.Property<string>("KnownAs")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)")
@@ -130,6 +137,11 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
 
                     b.HasIndex("FullName")
                         .HasDatabaseName("IX_Narrators_FullName");
+
+                    b.HasIndex("ItqanId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Narrators_ItqanId")
+                        .HasFilter("[ItqanId] IS NOT NULL");
 
                     b.HasIndex("KnownAs")
                         .HasDatabaseName("IX_Narrators_KnownAs");
