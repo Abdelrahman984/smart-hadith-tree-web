@@ -44,6 +44,7 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                 INNER JOIN RecursiveChain parent 
                     ON child.StudentId = parent.NarratorId 
                     AND child.HadithId = parent.HadithId
+                    AND child.StepOrder = parent.StepOrder + 1
             )
             SELECT 
                 rc.Id,
@@ -136,6 +137,7 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                 INNER JOIN RecursiveChain parent 
                     ON child.StudentId = parent.NarratorId 
                     AND child.HadithId = parent.HadithId
+                    AND child.StepOrder = parent.StepOrder + 1
             )
             SELECT 
                 rc.Id,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   ReactFlow,
   Controls,
@@ -11,14 +11,12 @@ import {
   Edge,
   MarkerType,
 } from "@xyflow/react";
-import ELK from 'elkjs/lib/elk.bundled.js';
 import { getLayoutedElements } from "../utils/elkLayout";
+import { formatTwoPartNarratorName } from "../utils/formatNarratorName";
 import NarratorNode from "./NarratorNode";
 import { IsnadTreeResponseDto, NarratorSummaryDto } from "@/types/api";
 import { useNarratorDrawerStore } from "@/features/narrator-details/store/useNarratorDrawerStore";
 import GraphControls from './GraphControls';
-
-const elk = new ELK();
 
 const nodeTypes = {
   narrator: NarratorNode,
@@ -55,7 +53,8 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
           type: "narrator",
           position: { x: 0, y: 0 },
           data: {
-            narratorName: n.knownAs || n.narratorName,
+            narratorName: formatTwoPartNarratorName(n.narratorName || n.knownAs),
+            fullName: n.narratorName,
             generationTier: n.generationTier,
             transmissionTerm: n.transmissionTerm,
             gradeSummary: tooltip?.gradeSummary,

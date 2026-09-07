@@ -4,6 +4,7 @@ import { AlertTriangle } from 'lucide-react';
 
 type ComparativeNarratorNodeData = {
   narratorName: string;
+  fullName?: string;
   generationTier: string | null;
   transmissionTerm: string | null;
   gradeSummary?: string;
@@ -113,7 +114,7 @@ const ComparativeNarratorNode = ({ data, selected }: { data: ComparativeNarrator
         </div>
       )}
       
-      <div className="font-bold text-slate-800 text-lg">
+      <div className="font-bold text-slate-800 text-lg" title={data.fullName || data.narratorName}>
         {data.narratorName}
       </div>
       

@@ -12,6 +12,7 @@ import {
   MarkerType,
 } from "@xyflow/react";
 import { getLayoutedElements } from "../utils/elkLayout";
+import { formatTwoPartNarratorName } from "../utils/formatNarratorName";
 import ComparativeNarratorNode from "./ComparativeNarratorNode";
 import { ComparativeTreeResponseDto, NarratorSummaryDto } from "@/types/api";
 import { useNarratorDrawerStore } from "@/features/narrator-details/store/useNarratorDrawerStore";
@@ -56,7 +57,8 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
           type: "comparativeNarrator",
           position: { x: 0, y: 0 },
           data: {
-            narratorName: n.knownAs || n.narratorName,
+            narratorName: formatTwoPartNarratorName(n.narratorName || n.knownAs),
+            fullName: n.narratorName,
             generationTier: n.generationTier,
             transmissionTerm: n.transmissionTerm,
             gradeSummary: tooltip?.gradeSummary,
