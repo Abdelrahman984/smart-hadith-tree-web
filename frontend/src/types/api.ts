@@ -55,3 +55,20 @@ export interface NarratorDetailDto {
   gradeEn?: string;
   evaluations: ScholarEvaluationDto[];
 }
+
+export interface ComparativeHadithSourceDto {
+  hadithId: string;
+  bookName: string;
+  hadithNumber: number;
+  matnSnippet: string;
+}
+
+export interface ComparativeIsnadNodeDto extends IsnadNodeDto {
+  sourceHadithIds: string[];
+  sourceBooks: string[];
+}
+
+export interface ComparativeTreeResponseDto {
+  sources: ComparativeHadithSourceDto[];
+  nodes: ComparativeIsnadNodeDto[];
+}

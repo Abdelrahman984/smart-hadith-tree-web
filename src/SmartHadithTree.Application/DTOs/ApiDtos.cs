@@ -64,3 +64,36 @@ public class ScholarEvaluationDto
     public string? SourceBook { get; set; }
     public string? VerdictRating { get; set; }
 }
+
+/// <summary>
+/// Represents a source Hadith in the comparative (Takhreej) view.
+/// </summary>
+public class ComparativeHadithSourceDto
+{
+    public Guid HadithId { get; set; }
+    public string BookName { get; set; } = string.Empty;
+    public int HadithNumber { get; set; }
+    public string MatnSnippet { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Extended node DTO that tracks which books/sources a narrator appears in
+/// across multiple merged Isnad chains.
+/// </summary>
+public class ComparativeIsnadNodeDto : IsnadNodeDto
+{
+    /// <summary>Which source Hadith(s) this transmission belongs to.</summary>
+    public List<Guid> SourceHadithIds { get; set; } = [];
+
+    /// <summary>Which book(s) this narrator appears in for this cluster.</summary>
+    public List<string> SourceBooks { get; set; } = [];
+}
+
+/// <summary>
+/// The unified tree response wrapping multiple sources into a single merged DAG.
+/// </summary>
+public class ComparativeTreeResponseDto
+{
+    public List<ComparativeHadithSourceDto> Sources { get; set; } = [];
+    public List<ComparativeIsnadNodeDto> Nodes { get; set; } = [];
+}

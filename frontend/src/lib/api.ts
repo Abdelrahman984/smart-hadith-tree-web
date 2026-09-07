@@ -1,4 +1,4 @@
-import { HadithSearchResultDto, IsnadTreeResponseDto, NarratorDetailDto, NarratorSummaryDto } from "@/types/api";
+import { HadithSearchResultDto, IsnadTreeResponseDto, NarratorDetailDto, NarratorSummaryDto, ComparativeTreeResponseDto } from "@/types/api";
 
 const API_BASE = "http://localhost:5147/api"; // Default ASP.NET Core dev port
 
@@ -41,5 +41,18 @@ export async function getChapters(bookName: string): Promise<string[]> {
 export async function getBookHadiths(bookName: string, chapter: string): Promise<HadithSearchResultDto[]> {
   const res = await fetch(`${API_BASE}/Books/${encodeURIComponent(bookName)}/chapters/${encodeURIComponent(chapter)}/hadiths`);
   if (!res.ok) throw new Error("Failed to fetch hadiths for chapter");
+  return res.json();
+}
+
+export async function getComparativeTree(hadithIds: string[]): Promise<ComparativeTreeResponseDto> {
+  const ids = hadithIds.join(',');
+  const res = await fetch(`${API_BASE}/Takhreej?ids=${ids}`);
+  if (!res.ok) throw new Error('Failed to fetch comparative tree');
+  return res.json();
+}
+
+export async function getRelatedHadiths(hadithId: string): Promise<HadithSearchResultDto[]> {
+  const res = await fetch(`${API_BASE}/Takhreej/related/${hadithId}`);
+  if (!res.ok) throw new Error('Failed to fetch related hadiths');
   return res.json();
 }
