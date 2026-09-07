@@ -88,8 +88,8 @@ function TakhreejContent() {
         </div>
 
         {/* Sidebar for Matn texts */}
-        <div className={`transition-all duration-300 ease-in-out border-r border-slate-200 bg-white z-10 flex flex-col ${isSidebarOpen ? 'w-80' : 'w-0'}`}>
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className={`transition-all duration-300 ease-in-out border-r border-slate-200 bg-white z-10 flex flex-col overflow-hidden ${isSidebarOpen ? 'w-80' : 'w-0 border-r-0'}`}>
+          <div className="flex-1 overflow-y-auto p-4 space-y-6 min-w-[20rem]">
             <h2 className="font-bold text-lg text-slate-800 mb-4 whitespace-nowrap">المتون</h2>
             {data.sources.map((source, idx) => (
               <div key={idx} className="space-y-2">
@@ -108,10 +108,12 @@ function TakhreejContent() {
         {/* Toggle Sidebar Button */}
         <button 
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="absolute top-1/2 -translate-y-1/2 left-0 bg-white border border-l-0 border-slate-200 p-2 rounded-r-lg shadow-md z-20 text-slate-500 hover:text-brand-blue"
-          style={{ right: isSidebarOpen ? '20rem' : '0' }}
+          className="absolute top-1/2 -translate-y-1/2 bg-white border border-l-0 border-slate-200 p-2 rounded-r-lg shadow-md z-20 text-slate-500 hover:text-brand-blue transition-all duration-300 ease-in-out flex items-center justify-center cursor-pointer"
+          style={{ left: isSidebarOpen ? '20rem' : '0' }}
+          title={isSidebarOpen ? "إخفاء المتون" : "إظهار المتون"}
+          aria-label={isSidebarOpen ? "إخفاء المتون" : "إظهار المتون"}
         >
-          {isSidebarOpen ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+          {isSidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
         </button>
       </div>
 
