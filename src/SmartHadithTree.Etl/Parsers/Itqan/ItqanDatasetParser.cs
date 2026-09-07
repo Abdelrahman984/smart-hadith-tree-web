@@ -1,11 +1,26 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SmartHadithTree.Domain.Entities;
+using SmartHadithTree.Domain.Utilities;
+using SmartHadithTree.Infrastructure.Data;
 
 namespace SmartHadithTree.Etl.Parsers.Itqan;
 
 public class ItqanDatasetParser : IDataSourceParser
 {
+    private readonly HadithTreeDbContext? _dbContext;
+    private readonly ILogger<ItqanDatasetParser>? _logger;
+
+    public ItqanDatasetParser() : this(null, null) { }
+
+    public ItqanDatasetParser(HadithTreeDbContext? dbContext = null, ILogger<ItqanDatasetParser>? logger = null)
+    {
+        _dbContext = dbContext;
+        _logger = logger;
+    }
+
     public string Name => "Itqan Dataset Parser";
 
     public bool CanParse(string sourcePath)
@@ -13,72 +28,120 @@ public class ItqanDatasetParser : IDataSourceParser
         return Directory.Exists(sourcePath) && sourcePath.Contains("itqan", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static readonly Dictionary<string, (string ArabicName, int CompilerItqanId, string CompilerName)> BookMetadata = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["bukhari"] = ("صحيح البخاري", 55562, "محمد بن إسماعيل بن إبراهيم بن المغيرة"),
+        ["muslim"] = ("صحيح مسلم", 618, "مسلم بن الحجاج بن مسلم"),
+        ["abudawud"] = ("سنن أبي داود", 74, "سليمان بن الأشعث"),
+        ["tirmidhi"] = ("جامع الترمذي", 69584, "محمد بن عيسى بن سورة بن موسى بن الضحاك"),
+        ["nasai"] = ("سنن النسائي", 57802, "أحمد بن شعيب بن علي بن سنان بن بحر"),
+        ["ibnmajah"] = ("سنن ابن ماجه", 64080, "محمد بن يزيد بن ماجه"),
+        ["ahmed"] = ("مسند أحمد", 12657, "أحمد بن محمد بن حنبل"),
+        ["malik"] = ("موطأ مالك", 60209, "مالك بن أنس"),
+        ["darimi"] = ("سنن الدارمي", 56570, "عبد الله بن عبد الرحمن بن الفضل بن بهرام"),
+        ["nawawi40"] = ("الأربعون النووية", 58153, "يحيى بن شرف بن مري بن حسن النووي"),
+        ["qudsi40"] = ("الأربعون القدسية", 0, ""),
+        ["shahwaliullah40"] = ("أربعون شاه ولي الله", 0, ""),
+        ["riyad_assalihin"] = ("رياض الصالحين", 58153, "يحيى بن شرف بن مري بن حسن النووي"),
+        ["aladab_almufrad"] = ("الأدب المفرد", 55562, "محمد بن إسماعيل بن إبراهيم بن المغيرة"),
+        ["bulugh_almaram"] = ("بلوغ المرام", 1642, "أحمد بن علي بن محمد بن محمد بن علي بن أحمد"),
+        ["mishkat_almasabih"] = ("مشكاة المصابيح", 0, ""),
+        ["shamail_muhammadiyah"] = ("الشمائل المحمدية", 69584, "محمد بن عيسى بن سورة بن موسى بن الضحاك"),
+        ["musannaf_ibnabi_shaybah"] = ("مصنف ابن أبي شيبة", 57598, "عبد الله بن محمد بن إبراهيم بن عثمان")
+    };
+
     public async Task<ParsedDataset> ParseAsync(string sourcePath, CancellationToken cancellationToken = default)
     {
         var dataset = new ParsedDataset();
         var itqanToGuidMap = new Dictionary<int, Guid>();
         var nameToItqanMap = new Dictionary<string, int>();
 
+        // 1. Check existing narrators from database
+        var existingNarratorsCount = 0;
+        if (_dbContext != null)
+        {
+            var existingNarrators = await _dbContext.Narrators
+                .Where(n => n.ItqanId != null)
+                .Select(n => new { ItqanId = n.ItqanId!.Value, n.Id })
+                .ToListAsync(cancellationToken);
+
+            if (existingNarrators.Count > 0)
+            {
+                existingNarratorsCount = existingNarrators.Count;
+                _logger?.LogInformation("Loaded {Count} existing narrator mappings from database.", existingNarrators.Count);
+                foreach (var n in existingNarrators)
+                {
+                    itqanToGuidMap[n.ItqanId] = n.Id;
+                }
+            }
+        }
+
         var rijalDir = Path.Combine(sourcePath, "rijal");
         if (Directory.Exists(rijalDir))
         {
-            var profileFiles = Directory.GetFiles(rijalDir, "profiles_*.json");
-            foreach (var file in profileFiles)
+            // Only parse profiles if not already in DB
+            if (existingNarratorsCount == 0)
             {
-                await using var stream = File.OpenRead(file);
-                using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-
-                foreach (var element in doc.RootElement.EnumerateObject())
+                _logger?.LogInformation("Parsing rijal profiles from {RijalDir}...", rijalDir);
+                var profileFiles = Directory.GetFiles(rijalDir, "profiles_*.json");
+                foreach (var file in profileFiles)
                 {
-                    var profile = element.Value;
-                    if (!profile.TryGetProperty("id", out var idProp) || idProp.ValueKind != JsonValueKind.Number)
-                        continue;
+                    await using var stream = File.OpenRead(file);
+                    using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
 
-                    var itqanId = idProp.GetInt32();
-                    var guid = Guid.NewGuid();
-                    itqanToGuidMap[itqanId] = guid;
-
-                    var fn = profile.TryGetProperty("full_name", out var fnProp) ? fnProp.GetString() ?? string.Empty : string.Empty;
-                    var known = profile.TryGetProperty("laqab", out var laqabProp) && laqabProp.GetString() != "-" ? laqabProp.GetString() : null;
-                    var kunya = profile.TryGetProperty("kunya", out var kunyaProp) ? kunyaProp.GetString() : null;
-                    var tier = profile.TryGetProperty("tabaqat", out var tabProp) ? tabProp.GetString() : null;
-                    
-                    var narrator = new Narrator
+                    foreach (var element in doc.RootElement.EnumerateObject())
                     {
-                        Id = guid,
-                        ItqanId = itqanId,
-                        FullName = fn.Length > 500 ? fn.Substring(0, 500) : fn,
-                        KnownAs = known != null && known.Length > 200 ? known.Substring(0, 200) : known,
-                        Kunyah = kunya != null && kunya.Length > 200 ? kunya.Substring(0, 200) : kunya,
-                        GenerationTier = tier != null && tier.Length > 150 ? tier.Substring(0, 150) : tier,
-                        Biography = profile.TryGetProperty("nasab", out var nasabProp) ? nasabProp.GetString() : null,
-                        ItqanGrade = profile.TryGetProperty("grade_en", out var gProp) ? gProp.GetString() : null
-                    };
+                        var profile = element.Value;
+                        if (!profile.TryGetProperty("id", out var idProp) || idProp.ValueKind != JsonValueKind.Number)
+                            continue;
 
-                    dataset.Narrators.Add(narrator);
+                        var itqanId = idProp.GetInt32();
+                        var guid = Guid.NewGuid();
+                        itqanToGuidMap[itqanId] = guid;
 
-                    if (profile.TryGetProperty("classical_sources", out var sourcesProp))
-                    {
-                        foreach (var source in sourcesProp.EnumerateObject())
+                        var fn = profile.TryGetProperty("full_name", out var fnProp) ? fnProp.GetString() ?? string.Empty : string.Empty;
+                        var known = profile.TryGetProperty("laqab", out var laqabProp) && laqabProp.GetString() != "-" ? laqabProp.GetString() : null;
+                        var kunya = profile.TryGetProperty("kunya", out var kunyaProp) ? kunyaProp.GetString() : null;
+                        var tier = profile.TryGetProperty("tabaqat", out var tabProp) ? tabProp.GetString() : null;
+                        
+                        var narrator = new Narrator
                         {
-                            var gradeAr = source.Value.TryGetProperty("grade_ar", out var garProp) ? garProp.GetString() : string.Empty;
-                            var gradeEn = source.Value.TryGetProperty("grade_en", out var genProp) ? genProp.GetString() : string.Empty;
-                            
-                            if (string.IsNullOrWhiteSpace(gradeAr)) continue;
+                            Id = guid,
+                            ItqanId = itqanId,
+                            FullName = fn.Length > 500 ? fn.Substring(0, 500) : fn,
+                            KnownAs = known != null && known.Length > 200 ? known.Substring(0, 200) : known,
+                            Kunyah = kunya != null && kunya.Length > 200 ? kunya.Substring(0, 200) : kunya,
+                            GenerationTier = tier != null && tier.Length > 150 ? tier.Substring(0, 150) : tier,
+                            Biography = profile.TryGetProperty("nasab", out var nasabProp) ? nasabProp.GetString() : null,
+                            ItqanGrade = profile.TryGetProperty("grade_en", out var gProp) ? gProp.GetString() : null
+                        };
 
-                            dataset.ScholarEvaluations.Add(new ScholarEvaluation
+                        dataset.Narrators.Add(narrator);
+
+                        if (profile.TryGetProperty("classical_sources", out var sourcesProp))
+                        {
+                            foreach (var source in sourcesProp.EnumerateObject())
                             {
-                                Id = Guid.NewGuid(),
-                                NarratorId = guid,
-                                ScholarName = source.Name,
-                                EvaluationText = gradeAr,
-                                VerdictRating = gradeEn
-                            });
+                                var gradeAr = source.Value.TryGetProperty("grade_ar", out var garProp) ? garProp.GetString() : string.Empty;
+                                var gradeEn = source.Value.TryGetProperty("grade_en", out var genProp) ? genProp.GetString() : string.Empty;
+                                
+                                if (string.IsNullOrWhiteSpace(gradeAr)) continue;
+
+                                dataset.ScholarEvaluations.Add(new ScholarEvaluation
+                                {
+                                    Id = Guid.NewGuid(),
+                                    NarratorId = guid,
+                                    ScholarName = source.Name,
+                                    EvaluationText = gradeAr,
+                                    VerdictRating = gradeEn
+                                });
+                            }
                         }
                     }
                 }
             }
 
+            // Always parse by_name.json for text-to-ID mapping
             var byNameFile = Path.Combine(rijalDir, "by_name.json");
             if (File.Exists(byNameFile))
             {
@@ -98,10 +161,53 @@ public class ItqanDatasetParser : IDataSourceParser
             }
         }
 
-        await ParseBookDirectoryAsync(Path.Combine(sourcePath, "sunni", "bukhari"), "صحيح البخاري", GetBukhariChapterName, dataset, itqanToGuidMap, nameToItqanMap, cancellationToken);
-        await ParseBookDirectoryAsync(Path.Combine(sourcePath, "sunni", "muslim"), "صحيح مسلم", GetMuslimChapterName, dataset, itqanToGuidMap, nameToItqanMap, cancellationToken);
-        await ParseBookDirectoryAsync(Path.Combine(sourcePath, "sunni", "abudawud"), "سنن أبي داود", GetAbuDawudChapterName, dataset, itqanToGuidMap, nameToItqanMap, cancellationToken);
-        await ParseBookDirectoryAsync(Path.Combine(sourcePath, "sunni", "tirmidhi"), "جامع الترمذي", GetTirmidhiChapterName, dataset, itqanToGuidMap, nameToItqanMap, cancellationToken);
+        // 2. Determine existing books in database to avoid duplicate ingestion
+        var existingBooks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (_dbContext != null)
+        {
+            var booksFromDb = await _dbContext.Hadiths
+                .Where(h => !string.IsNullOrEmpty(h.BookName))
+                .Select(h => h.BookName)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            foreach (var b in booksFromDb)
+            {
+                existingBooks.Add(b);
+                existingBooks.Add(ArabicNormalizer.Normalize(b));
+            }
+            _logger?.LogInformation("Found {Count} existing books in database: {Books}", booksFromDb.Count, string.Join(", ", booksFromDb));
+        }
+
+        // 3. Dynamically discover and parse books in sunni/ directory
+        var sunniDir = Path.Combine(sourcePath, "sunni");
+        if (Directory.Exists(sunniDir))
+        {
+            var bookDirs = Directory.GetDirectories(sunniDir);
+            foreach (var dir in bookDirs)
+            {
+                var dirName = Path.GetFileName(dir);
+                var arabicName = dirName;
+                var compilerItqanId = 0;
+                var compilerName = "";
+
+                if (BookMetadata.TryGetValue(dirName, out var meta))
+                {
+                    arabicName = meta.ArabicName;
+                    compilerItqanId = meta.CompilerItqanId;
+                    compilerName = meta.CompilerName;
+                }
+
+                if (existingBooks.Contains(arabicName) || existingBooks.Contains(ArabicNormalizer.Normalize(arabicName)))
+                {
+                    _logger?.LogInformation("Book '{BookName}' already exists in database. Skipping.", arabicName);
+                    continue;
+                }
+
+                _logger?.LogInformation("Parsing book: {BookName} ({Dir})...", arabicName, dirName);
+                await ParseBookDirectoryAsync(dir, arabicName, compilerItqanId, compilerName, dataset, itqanToGuidMap, nameToItqanMap, cancellationToken);
+            }
+        }
 
         return dataset;
     }
@@ -109,7 +215,8 @@ public class ItqanDatasetParser : IDataSourceParser
     private async Task ParseBookDirectoryAsync(
         string bookDir, 
         string bookName, 
-        Func<string, string> getChapterName, 
+        int compilerItqanId,
+        string compilerName,
         ParsedDataset dataset, 
         Dictionary<int, Guid> itqanToGuidMap, 
         Dictionary<string, int> nameToItqanMap, 
@@ -117,97 +224,142 @@ public class ItqanDatasetParser : IDataSourceParser
     {
         if (!Directory.Exists(bookDir)) return;
 
-        var hadithFiles = Directory.GetFiles(bookDir, "*.json");
+        // Load index.json if present for authentic chapter names
+        var chapterMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var indexFile = Path.Combine(bookDir, "index.json");
+        if (File.Exists(indexFile))
+        {
+            try
+            {
+                await using var idxStream = File.OpenRead(indexFile);
+                using var idxDoc = await JsonDocument.ParseAsync(idxStream, cancellationToken: cancellationToken);
+                foreach (var el in idxDoc.RootElement.EnumerateArray())
+                {
+                    var fileProp = el.TryGetProperty("file", out var f) ? f.GetString() : null;
+                    var nameArProp = el.TryGetProperty("name_ar", out var nar) ? nar.GetString() : null;
+                    if (!string.IsNullOrWhiteSpace(fileProp) && !string.IsNullOrWhiteSpace(nameArProp))
+                    {
+                        chapterMap[fileProp] = nameArProp;
+                        chapterMap[Path.GetFileNameWithoutExtension(fileProp)] = nameArProp;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to parse index.json in {BookDir}", bookDir);
+            }
+        }
+
+        var hadithFiles = Directory.GetFiles(bookDir, "*.json")
+            .Where(f => int.TryParse(Path.GetFileNameWithoutExtension(f), out _))
+            .OrderBy(f => int.Parse(Path.GetFileNameWithoutExtension(f)))
+            .ToList();
+
         foreach (var file in hadithFiles)
         {
+            var fileName = Path.GetFileNameWithoutExtension(file);
+            string chapterName;
+            if (chapterMap.TryGetValue(fileName, out var cn) || chapterMap.TryGetValue(Path.GetFileName(file), out cn))
+            {
+                chapterName = cn;
+            }
+            else
+            {
+                chapterName = GetFallbackChapterName(bookName, fileName);
+            }
+
             await using var stream = File.OpenRead(file);
             using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                continue;
             
             foreach (var element in doc.RootElement.EnumerateArray())
             {
-                var fileName = Path.GetFileNameWithoutExtension(file);
-                var chapterName = getChapterName(fileName);
+                int hadithNumber = 0;
+                if (element.TryGetProperty("idInBook", out var idProp) && idProp.ValueKind == JsonValueKind.Number)
+                    hadithNumber = idProp.GetInt32();
+                else if (element.TryGetProperty("hadithNumber", out var hnProp) && hnProp.ValueKind == JsonValueKind.Number)
+                    hadithNumber = hnProp.GetInt32();
+                else if (element.TryGetProperty("id", out var id2Prop) && id2Prop.ValueKind == JsonValueKind.Number)
+                    hadithNumber = id2Prop.GetInt32();
 
                 var matn = element.TryGetProperty("arabic", out var arProp) ? arProp.GetString() ?? "" : "";
+                if (string.IsNullOrWhiteSpace(matn)) continue;
+
                 var hadith = new HadithText
                 {
                     Id = Guid.NewGuid(),
                     BookName = bookName,
-                    NormalizedBookName = SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize(bookName),
-                    HadithNumber = element.TryGetProperty("idInBook", out var idProp) ? idProp.GetInt32() : 0,
+                    NormalizedBookName = ArabicNormalizer.Normalize(bookName),
+                    HadithNumber = hadithNumber,
                     Chapter = chapterName,
                     MatnArabic = matn,
-                    NormalizedMatn = SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize(matn)
+                    NormalizedMatn = ArabicNormalizer.Normalize(matn)
                 };
                 
                 dataset.Hadiths.Add(hadith);
                 
-                // Basic chain extraction logic
-                var text = hadith.MatnArabic;
-                var parts = Regex.Split(text, @"(حَدَّثَنَا|حَدَّثَنِي|أَخْبَرَنَا|أَخْبَرَنِي|أَنْبَأَنَا|عَنْ|سَمِعْتُ)");
-                
+                // Chain extraction logic
+                var parts = Regex.Split(matn, @"(حَدَّثَنَا|حَدَّثَنِي|أَخْبَرَنَا|أَخْبَرَنِي|أَنْبَأَنَا|عَنْ|سَمِعْتُ)");
                 var step = 1;
                 Guid? studentId = null;
-                
+
+                if (compilerItqanId != 0 && itqanToGuidMap.TryGetValue(compilerItqanId, out var cGuid))
+                {
+                    studentId = cGuid;
+                }
+                else if (!string.IsNullOrEmpty(compilerName) && nameToItqanMap.TryGetValue(compilerName, out var cId) && itqanToGuidMap.TryGetValue(cId, out var cGuid2))
+                {
+                    studentId = cGuid2;
+                }
+
                 for (int i = 1; i < parts.Length - 1; i += 2)
                 {
                     var term = parts[i].Trim();
                     var nameRaw = parts[i + 1].Split("قَالَ")[0].Trim(' ', '،', ',', '.', ':');
                     var nameClean = Regex.Replace(nameRaw, @"[^\p{L}\s]", "").Trim();
-                    
-                    if (step == 1)
-                    {
-                        var compilerName = bookName switch
-                        {
-                            "صحيح البخاري" => "محمد بن إسماعيل بن إبراهيم بن المغيرة",
-                            "صحيح مسلم" => "مسلم بن الحجاج بن مسلم",
-                            "سنن أبي داود" => "سليمان بن الأشعث",
-                            "جامع الترمذي" => "محمد بن عيسى بن سورة بن موسى بن الضحاك",
-                            _ => ""
-                        };
 
-                        if (!nameToItqanMap.TryGetValue(compilerName, out var compilerItqanId))
-                        {
-                            compilerItqanId = bookName switch
-                            {
-                                "صحيح البخاري" => 55562,
-                                "صحيح مسلم" => 618,
-                                "سنن أبي داود" => 74,
-                                "جامع الترمذي" => 69584,
-                                _ => 0
-                            };
-                        }
-
-                        if (compilerItqanId != 0 && itqanToGuidMap.TryGetValue(compilerItqanId, out var cGuid))
-                        {
-                            studentId = cGuid;
-                        }
-                    }
-                    
                     Guid? sheikhId = null;
                     if (nameToItqanMap.TryGetValue(nameClean, out var itqanId) && itqanToGuidMap.TryGetValue(itqanId, out var sGuid))
                     {
                         sheikhId = sGuid;
                     }
 
-                    if (studentId.HasValue && sheikhId.HasValue && studentId != sheikhId)
+                    if (sheikhId.HasValue)
                     {
-                        dataset.Transmissions.Add(new Transmission
+                        if (studentId.HasValue && studentId != sheikhId)
                         {
-                            Id = Guid.NewGuid(),
-                            HadithId = hadith.Id,
-                            StepOrder = step,
-                            StudentId = studentId.Value,
-                            SheikhId = sheikhId.Value,
-                            TransmissionTerm = term
-                        });
+                            dataset.Transmissions.Add(new Transmission
+                            {
+                                Id = Guid.NewGuid(),
+                                HadithId = hadith.Id,
+                                StepOrder = step,
+                                StudentId = studentId.Value,
+                                SheikhId = sheikhId.Value,
+                                TransmissionTerm = term
+                            });
+                            step++;
+                        }
                         studentId = sheikhId;
-                        step++;
                     }
                 }
             }
         }
     }
+
+    private string GetFallbackChapterName(string bookName, string fileNumber)
+    {
+        return bookName switch
+        {
+            "صحيح البخاري" => GetBukhariChapterName(fileNumber),
+            "صحيح مسلم" => GetMuslimChapterName(fileNumber),
+            "سنن أبي داود" => GetAbuDawudChapterName(fileNumber),
+            "جامع الترمذي" => GetTirmidhiChapterName(fileNumber),
+            _ => $"كتاب {fileNumber}"
+        };
+    }
+
 
     private string GetBukhariChapterName(string fileNumber)
     {

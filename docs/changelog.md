@@ -34,3 +34,33 @@ Implemented an end-to-end flow to hierarchically browse the Hadith corpus and fi
 - **Frontend Pages**: Added a hierarchical browsing flow (`/books` -> `/books/[bookId]` -> `/books/[bookId]/chapters/[chapterId]`) allowing users to drill down from a Book to a Chapter to a list of Hadiths.
 - **Data Cleanup**: Ran a SQL migration to normalize the `FawazAhmed` generated "كتاب 1" placeholders in the database to their authentic Arabic Sahih al-Bukhari names (e.g., "كتاب الإيمان").
 - **ETL Optimization**: Purged legacy parsers (`FawazAhmedParser`, `ShamelaAuthorParser`, `JsonHadithParser`) and their raw data files from the repository. Upgraded the `ItqanDatasetParser` with a hardcoded static map of all 97 Bukhari chapters to ensure future ingestion runs natively produce Arabic chapter metadata.
+
+## 7. Full Itqan Corpus Ingestion (All 18 Sunni Hadith Collections)
+**Date:** September 7, 2026
+Expanded the repository from 4 collections to the complete 18 Sunni Hadith collections in the `Itqan` dataset.
+- **Data Ingested**: Ingested 88,839 additional Hadiths and 148,188 transmission links across 1,418 chapters. The total corpus now stands at **112,813 Hadiths** and **225,807 Transmissions**, fully unified with the 115,735 narrators.
+- **ETL Parser Upgrade (`ItqanDatasetParser.cs`)**:
+  - Automatically loads existing narrator ID mappings directly from the database to prevent duplicate narrator insertions and preserve foreign-key integrity.
+  - Detects already imported collections (`صحيح البخاري`, `صحيح مسلم`, `سنن أبي داود`, `جامع الترمذي`) and skips them cleanly.
+  - Dynamically discovers all book subdirectories in `data/itqan/sunni/` and uses `index.json` to extract authentic Arabic chapter titles for every chapter without hardcoding.
+  - Maps compiler Itqan IDs for all 18 collections and falls back to chain-initiating sheikhs if the compiler is uncatalogued.
+- **Collections Active**:
+  1. مصنف ابن أبي شيبة (37,943 hadiths)
+  2. مسند أحمد (26,539 hadiths)
+  3. صحيح مسلم (7,368 hadiths)
+  4. صحيح البخاري (7,277 hadiths)
+  5. سنن النسائي (5,905 hadiths)
+  6. سنن أبي داود (5,276 hadiths)
+  7. مشكاة المصابيح (4,447 hadiths)
+  8. سنن ابن ماجه (4,321 hadiths)
+  9. جامع الترمذي (4,053 hadiths)
+  10. سنن الدارمي (2,953 hadiths)
+  11. موطأ مالك (1,860 hadiths)
+  12. بلوغ المرام (1,767 hadiths)
+  13. الأدب المفرد (1,326 hadiths)
+  14. رياض الصالحين (1,245 hadiths)
+  15. الشمائل المحمدية (411 hadiths)
+  16. الأربعون النووية (42 hadiths)
+  17. أربعون شاه ولي الله (40 hadiths)
+  18. الأربعون القدسية (40 hadiths)
+

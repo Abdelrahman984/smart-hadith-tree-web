@@ -42,51 +42,58 @@ foreach ($file in $filesToDownload) {
     }
 }
 
-Write-Host "Downloading Bukhari chapters (1-97)..."
-for ($i = 1; $i -le 97; $i++) {
-    $url = "$repoBaseUrl/app/data/sunni/bukhari/$i.json"
-    $dest = Join-Path $dataDir "sunni\bukhari\$i.json"
-    try {
-        Invoke-WebRequest -Uri $url -OutFile $dest -ErrorAction Stop
-    } catch {
-        # File might not exist, silently ignore
-    }
-}
+$sunniBooks = @(
+    "bukhari", "muslim", "abudawud", "tirmidhi", "nasai", "ibnmajah",
+    "ahmed", "malik", "darimi", "nawawi40", "qudsi40", "shahwaliullah40",
+    "riyad_assalihin", "aladab_almufrad", "bulugh_almaram", "mishkat_almasabih",
+    "shamail_muhammadiyah", "musannaf_ibnabi_shaybah"
+)
 
-Write-Host "Downloading Muslim chapters (1-56)..."
-New-Item -ItemType Directory -Force -Path (Join-Path $dataDir "sunni\muslim") | Out-Null
-for ($i = 1; $i -le 56; $i++) {
-    $url = "$repoBaseUrl/app/data/sunni/muslim/$i.json"
-    $dest = Join-Path $dataDir "sunni\muslim\$i.json"
-    try {
-        Invoke-WebRequest -Uri $url -OutFile $dest -ErrorAction Stop
-    } catch {
-        # File might not exist, silently ignore
-    }
-}
+# If git is available, use fast sparse checkout
+$hasGit = (Get-Command git -ErrorAction SilentlyContinue) -ne $null
 
-Write-Host "Downloading Abu Dawud chapters (1-43)..."
-New-Item -ItemType Directory -Force -Path (Join-Path $dataDir "sunni\abudawud") | Out-Null
-for ($i = 1; $i -le 43; $i++) {
-    $url = "$repoBaseUrl/app/data/sunni/abudawud/$i.json"
-    $dest = Join-Path $dataDir "sunni\abudawud\$i.json"
+if ($hasGit) {
+    Write-Host "Downloading all 18 Sunni Hadith books using git sparse-checkout..." -ForegroundColor Cyan
+    $tempGitDir = Join-Path ([System.IO.Path]::GetTempPath()) ("itqan_sparse_" + [System.Guid]::NewGuid().ToString("N"))
     try {
-        Invoke-WebRequest -Uri $url -OutFile $dest -ErrorAction Stop
-    } catch {
-        # File might not exist, silently ignore
+        git clone --depth 1 --filter=blob:none --sparse "https://github.com/R3GENESI5/Itqan.git" $tempGitDir
+        git -C $tempGitDir sparse-checkout set app/data/sunni
+        
+        $sparseSunni = Join-Path $tempGitDir "app\data\sunni"
+        if (Test-Path $sparseSunni) {
+            $destSunni = Join-Path $dataDir "sunni"
+            New-Item -ItemType Directory -Force -Path $destSunni | Out-Null
+            Copy-Item -Path "$sparseSunni\*" -Destination $destSunni -Recurse -Force
+            Write-Host "All 18 Hadith books synced successfully via git!" -ForegroundColor Green
+        }
+    } finally {
+        if (Test-Path $tempGitDir) {
+            Remove-Item -Path $tempGitDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
-}
-
-Write-Host "Downloading Tirmidhi chapters (1-50)..."
-New-Item -ItemType Directory -Force -Path (Join-Path $dataDir "sunni\tirmidhi") | Out-Null
-for ($i = 1; $i -le 50; $i++) {
-    $url = "$repoBaseUrl/app/data/sunni/tirmidhi/$i.json"
-    $dest = Join-Path $dataDir "sunni\tirmidhi\$i.json"
-    try {
-        Invoke-WebRequest -Uri $url -OutFile $dest -ErrorAction Stop
-    } catch {
-        # File might not exist, silently ignore
+} else {
+    Write-Host "Git not found. Falling back to HTTP download for all books..." -ForegroundColor Yellow
+    foreach ($book in $sunniBooks) {
+        $bookDir = Join-Path $dataDir "sunni\$book"
+        New-Item -ItemType Directory -Force -Path $bookDir | Out-Null
+        
+        $idxUrl = "$repoBaseUrl/app/data/sunni/$book/index.json"
+        $idxDest = Join-Path $bookDir "index.json"
+        try {
+            Invoke-WebRequest -Uri $idxUrl -OutFile $idxDest -ErrorAction Stop
+            $index = Get-Content $idxDest -Raw | ConvertFrom-Json
+            Write-Host "Downloading $($book) ($($index.Count) chapters)..."
+            foreach ($ch in $index) {
+                $chFile = $ch.file
+                $chUrl = "$repoBaseUrl/app/data/sunni/$book/$chFile"
+                $chDest = Join-Path $bookDir $chFile
+                Invoke-WebRequest -Uri $chUrl -OutFile $chDest -ErrorAction SilentlyContinue
+            }
+        } catch {
+            Write-Warning "Could not fetch index for $book"
+        }
     }
 }
 
 Write-Host "Download complete!" -ForegroundColor Green
+
