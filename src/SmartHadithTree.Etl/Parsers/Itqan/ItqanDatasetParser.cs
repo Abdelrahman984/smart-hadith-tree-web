@@ -128,13 +128,16 @@ public class ItqanDatasetParser : IDataSourceParser
                 var fileName = Path.GetFileNameWithoutExtension(file);
                 var chapterName = getChapterName(fileName);
 
+                var matn = element.TryGetProperty("arabic", out var arProp) ? arProp.GetString() ?? "" : "";
                 var hadith = new HadithText
                 {
                     Id = Guid.NewGuid(),
                     BookName = bookName,
+                    NormalizedBookName = SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize(bookName),
                     HadithNumber = element.TryGetProperty("idInBook", out var idProp) ? idProp.GetInt32() : 0,
                     Chapter = chapterName,
-                    MatnArabic = element.TryGetProperty("arabic", out var arProp) ? arProp.GetString() ?? "" : ""
+                    MatnArabic = matn,
+                    NormalizedMatn = SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize(matn)
                 };
                 
                 dataset.Hadiths.Add(hadith);
@@ -158,13 +161,24 @@ public class ItqanDatasetParser : IDataSourceParser
                         {
                             "صحيح البخاري" => "محمد بن إسماعيل بن إبراهيم بن المغيرة",
                             "صحيح مسلم" => "مسلم بن الحجاج بن مسلم",
-                            "سنن أبي داود" => "سليمان بن الأشعث بن إسحاق بن بشير بن شداد",
+                            "سنن أبي داود" => "سليمان بن الأشعث",
                             "جامع الترمذي" => "محمد بن عيسى بن سورة بن موسى بن الضحاك",
                             _ => ""
                         };
 
-                        if (nameToItqanMap.TryGetValue(compilerName, out var compilerItqanId) 
-                            && itqanToGuidMap.TryGetValue(compilerItqanId, out var cGuid))
+                        if (!nameToItqanMap.TryGetValue(compilerName, out var compilerItqanId))
+                        {
+                            compilerItqanId = bookName switch
+                            {
+                                "صحيح البخاري" => 55562,
+                                "صحيح مسلم" => 618,
+                                "سنن أبي داود" => 74,
+                                "جامع الترمذي" => 69584,
+                                _ => 0
+                            };
+                        }
+
+                        if (compilerItqanId != 0 && itqanToGuidMap.TryGetValue(compilerItqanId, out var cGuid))
                         {
                             studentId = cGuid;
                         }
