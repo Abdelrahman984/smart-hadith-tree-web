@@ -40,10 +40,17 @@ const SCHOLAR_AR: Record<string, string> = {
 const getVerdictAr = (en: string) => VERDICT_AR[en.toLowerCase()] || en;
 const getScholarAr = (en: string) => SCHOLAR_AR[en.toLowerCase()] || en;
 
+interface ExtractedAiEvaluation {
+  verbatimQuote: string;
+  sourceBook: string;
+  tier: string;
+  justification: string;
+}
+
 export default function NarratorDrawer() {
   const { isOpen, selectedNarratorId, closeDrawer } = useNarratorDrawerStore();
   const [isAiLoading, setIsAiLoading] = useState(false);
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiSummary, setAiSummary] = useState<ExtractedAiEvaluation | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
 
   const { data: narrator, isLoading, isError } = useQuery({
@@ -58,9 +65,9 @@ export default function NarratorDrawer() {
     setAiError(null);
     try {
       const res = await fetch(`http://localhost:5147/api/Narrators/${selectedNarratorId}/ai-summary`);
-      if (!res.ok) throw new Error("فشل توليد الخلاصة. تأكد من إعداد مفتاح OpenAI.");
+      if (!res.ok) throw new Error("فشل استخراج البيانات. تأكد من إعداد مفتاح OpenAI.");
       const data = await res.json();
-      setAiSummary(data.summary);
+      setAiSummary(data);
     } catch (err) {
       if (err instanceof Error) {
         setAiError(err.message);
@@ -163,7 +170,7 @@ export default function NarratorDrawer() {
                 <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
                   <div className="flex items-center gap-2 mb-3">
                     <Sparkles className="w-5 h-5 text-purple-600" />
-                    <h4 className="text-purple-900 font-bold">خلاصة الذكاء الاصطناعي</h4>
+                    <h4 className="text-purple-900 font-bold">الاستخراج الذكي (AI)</h4>
                   </div>
                   
                   {!aiSummary && !isAiLoading && !aiError && (
@@ -171,13 +178,13 @@ export default function NarratorDrawer() {
                       onClick={handleGenerateSummary}
                       className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold transition-colors"
                     >
-                      توليد الخلاصة الآن
+                      استخراج التقييم الأكاديمي
                     </button>
                   )}
 
                   {isAiLoading && (
                     <div className="text-sm text-purple-600 animate-pulse text-center py-2">
-                      جاري تحليل الأقوال واستنتاج الخلاصة...
+                      جاري البحث واستخراج الأقوال...
                     </div>
                   )}
 
@@ -189,8 +196,19 @@ export default function NarratorDrawer() {
                   )}
 
                   {aiSummary && (
-                    <div className="text-sm text-purple-900 leading-relaxed font-arabic">
-                      {aiSummary}
+                    <div className="text-sm text-purple-900 leading-relaxed font-arabic space-y-2">
+                      <div className="bg-white p-3 rounded shadow-sm border border-purple-100">
+                        <p className="font-bold text-lg mb-1">"{aiSummary.verbatimQuote}"</p>
+                        <p className="text-xs text-purple-600 mb-3">— {aiSummary.sourceBook}</p>
+                        <div className="flex gap-2 items-center bg-purple-50 p-2 rounded">
+                          <span className="px-2 py-1 bg-purple-200 text-purple-900 rounded text-xs font-bold shadow-sm">
+                            {aiSummary.tier}
+                          </span>
+                          <span className="text-xs text-slate-700">
+                            {aiSummary.justification}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

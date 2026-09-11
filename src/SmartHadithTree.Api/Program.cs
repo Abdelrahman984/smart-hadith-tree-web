@@ -39,6 +39,7 @@ builder.Services.AddScoped<IHadithChainRepository, HadithChainRepository>();
 builder.Services.AddScoped<IHadithSearchService, HadithSearchService>();
 builder.Services.AddScoped<INarratorService, NarratorService>();
 builder.Services.AddScoped<IBooksService, BooksService>();
+builder.Services.AddScoped<ITaqwiyahService, TaqwiyahService>();
 
 // ── Controllers ────────────────────────────────────────────────────
 builder.Services.AddControllers()

@@ -17,6 +17,7 @@ import NarratorNode from "./NarratorNode";
 import { IsnadTreeResponseDto, NarratorSummaryDto } from "@/types/api";
 import { useNarratorDrawerStore } from "@/features/narrator-details/store/useNarratorDrawerStore";
 import GraphControls from './GraphControls';
+import BookLegend from './BookLegend';
 
 const nodeTypes = {
   narrator: NarratorNode,
@@ -144,6 +145,7 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
         className="bg-slate-50"
       >
         <GraphControls showWeakOnly={showWeakOnly} setShowWeakOnly={setShowWeakOnly} />
+        <BookLegend />
         <Background color="#cbd5e1" gap={16} />
         <Controls />
       </ReactFlow>

@@ -66,9 +66,13 @@ export interface ComparativeHadithSourceDto {
 export interface ComparativeIsnadNodeDto extends IsnadNodeDto {
   sourceHadithIds: string[];
   sourceBooks: string[];
+  hasMatnVariation?: boolean;
+  matnVariationSnippet?: string;
 }
 
 export interface ComparativeTreeResponseDto {
   sources: ComparativeHadithSourceDto[];
   nodes: ComparativeIsnadNodeDto[];
+  calculatedGrade?: string;
+  taqwiyahDetails?: string;
 }

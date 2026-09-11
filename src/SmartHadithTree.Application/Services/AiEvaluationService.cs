@@ -1,46 +1,83 @@
 using SmartHadithTree.Application.Interfaces;
 using SmartHadithTree.Application.DTOs;
 using Microsoft.SemanticKernel;
+using System.Text.Json;
 
 namespace SmartHadithTree.Application.Services;
 
 public interface IAiEvaluationService
 {
-    Task<string> GenerateNarratorEvaluationSummaryAsync(NarratorDetailDto narrator, CancellationToken ct = default);
+    Task<ExtractedAiEvaluationDto> GenerateNarratorEvaluationSummaryAsync(NarratorDetailDto narrator, CancellationToken ct = default);
 }
 
 public class AiEvaluationService(Kernel kernel) : IAiEvaluationService
 {
-    public async Task<string> GenerateNarratorEvaluationSummaryAsync(NarratorDetailDto narrator, CancellationToken ct = default)
+    public async Task<ExtractedAiEvaluationDto> GenerateNarratorEvaluationSummaryAsync(NarratorDetailDto narrator, CancellationToken ct = default)
     {
         if (narrator.Evaluations == null || narrator.Evaluations.Count == 0)
         {
-            return "لا توجد أقوال مسجلة لهذا الراوي لاستنتاج حكم عام.";
+            return new ExtractedAiEvaluationDto
+            {
+                VerbatimQuote = "لا توجد أقوال مسجلة.",
+                Tier = "T7", // Default to weak if unknown
+                Justification = "No evaluations found."
+            };
         }
 
         var prompt = $@"
-أنت عالم جرح وتعديل متخصص في علم الحديث النبوي.
-لديك قائمة بأقوال العلماء (الجرح والتعديل) في راوٍ معين.
-مهمتك هي قراءة هذه الأقوال، وتلخيص حال الراوي في فقرة واحدة موجزة ودقيقة باللغة العربية.
-يجب أن تعطي الحكم النهائي (مثال: ثقة، صدوق، ضعيف، متروك) بناءً على أغلبية الأقوال وقوتها، ثم تبرر ذلك باختصار شديد.
+أنت باحث محقق في علم الجرح والتعديل.
+مهمتك هي قراءة أقوال العلماء التالية واستخراج الاقتباس الأكثر دقة وحسماً (يفضل أقوال ابن حجر في تقريب التهذيب أو الذهبي).
+يجب عليك عدم التأليف أو التلخيص، بل استخراج النص الحرفي.
+ثم، قم بتعيين الطبقة (Tier) من T1 إلى T12 بناءً على هذا القول.
+
+T1 = صحابي
+T2 = ثقة متقن
+T3 = ثقة
+T4 = صدوق
+T5 = صدوق يهم
+T6 = مقبول
+T7 = ضعيف / مجهول
+T8 = ضعيف جدا
+T9-T11 = متروك / متهم
+T12 = كذاب / وضاع
 
 معلومات الراوي:
 الاسم: {narrator.KnownAs ?? narrator.FullName}
 الطبقة: {narrator.GenerationTier ?? "غير محددة"}
 
 أقوال العلماء:
-{string.Join("\n", narrator.Evaluations.Select(e => $"- {e.ScholarName}: {e.EvaluationText} (الحكم: {e.VerdictRating ?? "غير محدد"})"))}
+{string.Join("\n", narrator.Evaluations.Select(e => $"- {e.ScholarName} (في كتاب {e.SourceBook ?? "غير محدد"}): {e.EvaluationText}"))}
 
-اكتب الخلاصة مباشرة دون مقدمات:";
+استخرج البيانات وقم بإرجاعها ككائن JSON صالح فقط بالشكل التالي بدون أي نصوص إضافية أو علامات Markdown:
+{{
+  ""VerbatimQuote"": ""النص الحرفي للقول"",
+  ""SourceBook"": ""اسم الكتاب أو العالم"",
+  ""Tier"": ""مثال: T4"",
+  ""Justification"": ""سبب اختيار هذه الطبقة باختصار شديد""
+}}";
 
         try
         {
             var result = await kernel.InvokePromptAsync(prompt, cancellationToken: ct);
-            return result.GetValue<string>() ?? "تعذر توليد الخلاصة.";
+            var json = result.GetValue<string>()?.Trim();
+            
+            if (json != null)
+            {
+                // Remove markdown block if present
+                if (json.StartsWith("```json")) json = json.Substring(7);
+                if (json.StartsWith("```")) json = json.Substring(3);
+                if (json.EndsWith("```")) json = json.Substring(0, json.Length - 3);
+                json = json.Trim();
+
+                var dto = JsonSerializer.Deserialize<ExtractedAiEvaluationDto>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (dto != null) return dto;
+            }
+            
+            return new ExtractedAiEvaluationDto { VerbatimQuote = "تعذر استخراج البيانات." };
         }
         catch (Exception ex)
         {
-            return $"حدث خطأ أثناء تقييم الذكاء الاصطناعي: {ex.Message}";
+            return new ExtractedAiEvaluationDto { VerbatimQuote = $"حدث خطأ: {ex.Message}" };
         }
     }
 }

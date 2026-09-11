@@ -55,6 +55,10 @@ function TakhreejContent() {
       case 'صحيح مسلم': return 'bg-green-100 text-green-800 border-green-200';
       case 'سنن أبي داود': return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'جامع الترمذي': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'سنن النسائي': return 'bg-sky-100 text-sky-800 border-sky-200';
+      case 'سنن ابن ماجه': return 'bg-rose-100 text-rose-800 border-rose-200';
+      case 'مسند أحمد': return 'bg-amber-100 text-amber-900 border-amber-300';
+      case 'موطأ مالك': return 'bg-teal-100 text-teal-800 border-teal-200';
       default: return 'bg-slate-100 text-slate-800 border-slate-200';
     }
   };
@@ -90,6 +94,20 @@ function TakhreejContent() {
         {/* Sidebar for Matn texts */}
         <div className={`transition-all duration-300 ease-in-out border-r border-slate-200 bg-white z-10 flex flex-col overflow-hidden ${isSidebarOpen ? 'w-80' : 'w-0 border-r-0'}`}>
           <div className="flex-1 overflow-y-auto p-4 space-y-6 min-w-[20rem]">
+            {data.calculatedGrade && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mb-6">
+                <h3 className="font-bold text-emerald-900 mb-1 flex items-center gap-2">
+                  <span>الحكم الكلي:</span>
+                  <span className="text-emerald-700">{data.calculatedGrade}</span>
+                </h3>
+                {data.taqwiyahDetails && (
+                  <p className="text-xs text-emerald-800 leading-relaxed">
+                    {data.taqwiyahDetails}
+                  </p>
+                )}
+              </div>
+            )}
+
             <h2 className="font-bold text-lg text-slate-800 mb-4 whitespace-nowrap">المتون</h2>
             {data.sources.map((source, idx) => (
               <div key={idx} className="space-y-2">

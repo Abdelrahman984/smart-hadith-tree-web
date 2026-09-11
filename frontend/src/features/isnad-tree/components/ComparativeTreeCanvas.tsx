@@ -29,6 +29,10 @@ const getBookColor = (book: string) => {
     case 'صحيح مسلم': return '#16a34a';
     case 'سنن أبي داود': return '#d97706';
     case 'جامع الترمذي': return '#9333ea';
+    case 'سنن النسائي': return '#0284c7';
+    case 'سنن ابن ماجه': return '#e11d48';
+    case 'مسند أحمد': return '#b45309';
+    case 'موطأ مالك': return '#0d9488';
     default: return '#94a3b8';
   }
 };
@@ -100,6 +104,9 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
             if (n.isAnomaly) {
                edgeColor = "#ef4444";
                strokeWidth = 3;
+            } else if (n.hasMatnVariation) {
+               edgeColor = "#f59e0b"; // Amber for variation
+               strokeWidth = 3;
             }
 
             uniqueEdges.set(edgeId, {
@@ -114,11 +121,11 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
               style: { 
                 stroke: edgeColor, 
                 strokeWidth: strokeWidth,
-                strokeDasharray: n.isAnomaly ? "5 5" : undefined 
+                strokeDasharray: n.isAnomaly || n.hasMatnVariation ? "5 5" : undefined 
               },
-              animated: n.isAnomaly,
-              label: n.isAnomaly ? "انقطاع" : undefined,
-              labelStyle: { fill: "#ef4444", fontWeight: "bold" },
+              animated: n.isAnomaly || n.hasMatnVariation,
+              label: n.isAnomaly ? "انقطاع" : n.hasMatnVariation ? "اختلاف باللفظ" : undefined,
+              labelStyle: { fill: edgeColor, fontWeight: "bold" },
             });
           } else {
              // If edge exists (which shouldn't usually happen with same nodes unless duplicate transmissions), we could merge properties if needed

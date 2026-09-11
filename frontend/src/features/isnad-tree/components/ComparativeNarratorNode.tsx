@@ -22,6 +22,10 @@ const getBookBadge = (book: string) => {
     case 'صحيح مسلم': return { text: 'م', color: '#16a34a' };
     case 'سنن أبي داود': return { text: 'د', color: '#d97706' };
     case 'جامع الترمذي': return { text: 'ت', color: '#9333ea' };
+    case 'سنن النسائي': return { text: 'س', color: '#0284c7' };
+    case 'سنن ابن ماجه': return { text: 'ق', color: '#e11d48' };
+    case 'مسند أحمد': return { text: 'حم', color: '#b45309' };
+    case 'موطأ مالك': return { text: 'ط', color: '#0d9488' };
     default: return { text: book.substring(0, 1), color: '#475569' };
   }
 };

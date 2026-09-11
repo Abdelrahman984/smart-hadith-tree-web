@@ -40,7 +40,7 @@ public class NarratorController(INarratorService narratorService) : ControllerBa
     }
 
     [HttpGet("{id:guid}/ai-summary")]
-    public async Task<ActionResult<string>> GetNarratorAiSummary(Guid id, [FromServices] IAiEvaluationService aiService, CancellationToken ct)
+    public async Task<ActionResult<ExtractedAiEvaluationDto>> GetNarratorAiSummary(Guid id, [FromServices] IAiEvaluationService aiService, CancellationToken ct)
     {
         var narrator = await narratorService.GetNarratorDetailsAsync(id, ct);
         if (narrator == null)
@@ -49,7 +49,7 @@ public class NarratorController(INarratorService narratorService) : ControllerBa
         try
         {
             var summary = await aiService.GenerateNarratorEvaluationSummaryAsync(narrator, ct);
-            return Ok(new { summary });
+            return Ok(summary);
         }
         catch (Exception ex)
         {

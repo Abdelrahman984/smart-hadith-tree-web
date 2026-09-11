@@ -4,7 +4,7 @@ using SmartHadithTree.Application.Interfaces;
 
 namespace SmartHadithTree.Application.Services;
 
-public class HadithSearchService(IHadithTreeDbContext context, IHadithChainRepository chainRepository) : IHadithSearchService
+public class HadithSearchService(IHadithTreeDbContext context, IHadithChainRepository chainRepository, ITaqwiyahService taqwiyahService) : IHadithSearchService
 {
     public async Task<List<HadithSearchResultDto>> SearchHadithsAsync(string query, CancellationToken ct = default)
     {
@@ -83,11 +83,37 @@ public class HadithSearchService(IHadithTreeDbContext context, IHadithChainRepos
         // Get merged chain nodes
         var nodes = await chainRepository.GetComparativeIsnadTreeAsync(hadithIds, ct);
 
-        return new ComparativeTreeResponseDto
+        var response = new ComparativeTreeResponseDto
         {
             Sources = sources,
             Nodes = nodes
         };
+
+        // Basic Matn Variation Detection
+        if (sources.Count > 1)
+        {
+            var baseSource = sources.First();
+            var baseMatn = hadiths.First(h => h.Id == baseSource.HadithId).NormalizedMatn;
+
+            foreach (var source in sources.Skip(1))
+            {
+                var compareMatn = hadiths.First(h => h.Id == source.HadithId).NormalizedMatn;
+                if (baseMatn != compareMatn)
+                {
+                    // Find the compiler node for this source
+                    var compilerNode = nodes.FirstOrDefault(n => n.StepOrder == 1 && n.SourceHadithIds.Contains(source.HadithId));
+                    if (compilerNode != null)
+                    {
+                        compilerNode.HasMatnVariation = true;
+                        compilerNode.MatnVariationSnippet = "يوجد اختلاف في لفظ المتن مقارنة بالرواية الأساسية.";
+                    }
+                }
+            }
+        }
+
+        taqwiyahService.CalculateTreeStrength(response);
+
+        return response;
     }
 
     /// <summary>
