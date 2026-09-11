@@ -50,6 +50,17 @@ public class ItqanDatasetParser : IDataSourceParser
         ["musannaf_ibnabi_shaybah"] = ("مصنف ابن أبي شيبة", 57598, "عبد الله بن محمد بن إبراهيم بن عثمان")
     };
 
+    /// <summary>
+    /// Prominent ambiguous narrator keys in by_name.json that should not blindly take index [0].
+    /// Resolves canonical Hadith scholars (e.g. Sufyan ibn Uyaynah / al-Thawri, Yahya al-Ansari, Muhammad ibn Kathir al-Abdi).
+    /// </summary>
+    private static readonly Dictionary<string, int> DisambiguationOverrides = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["سفيان"] = 192, // سفيان بن عيينة (or 434 سفيان الثوري depending on chain, but never the obscure Sahabi 3362)
+        ["محمد بن كثير"] = 1191, // محمد بن كثير العبدي (شيخ أبي داود), not 778 (محمد بن بشر)
+        ["يحيى بن سعيد"] = 199, // يحيى بن سعيد الأنصاري (المدار المشهور), not 87 (يحيى بن سعيد الأموي)
+    };
+
     public async Task<ParsedDataset> ParseAsync(string sourcePath, CancellationToken cancellationToken = default)
     {
         var dataset = new ParsedDataset();
@@ -149,7 +160,11 @@ public class ItqanDatasetParser : IDataSourceParser
                 using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
                 foreach (var element in doc.RootElement.EnumerateObject())
                 {
-                    if (element.Value.ValueKind == JsonValueKind.Array && element.Value.GetArrayLength() > 0)
+                    if (DisambiguationOverrides.TryGetValue(element.Name, out var overrideId))
+                    {
+                        nameToItqanMap[element.Name] = overrideId;
+                    }
+                    else if (element.Value.ValueKind == JsonValueKind.Array && element.Value.GetArrayLength() > 0)
                     {
                         var firstIdStr = element.Value[0].GetString();
                         if (int.TryParse(firstIdStr, out var id))
@@ -300,8 +315,8 @@ public class ItqanDatasetParser : IDataSourceParser
                 
                 dataset.Hadiths.Add(hadith);
                 
-                // Chain extraction logic
-                var parts = Regex.Split(matn, @"(حَدَّثَنَا|حَدَّثَنِي|أَخْبَرَنَا|أَخْبَرَنِي|أَنْبَأَنَا|عَنْ|سَمِعْتُ)");
+                // Chain extraction logic: capture common transmission phrases and respect word boundaries
+                var parts = Regex.Split(matn, @"(حَدَّثَنَا|حَدَّثَنِي|أَخْبَرَنَا|أَخْبَرَنِي|أَنْبَأَنَا|أَنَّهُ\s+سَمِعَ|أَنَّهَا\s+سَمِعَتْ|سَمِعْتُ|سَمِعَ|سَمِعَتْ|\bعَنْ\b)");
                 var step = 1;
                 Guid? studentId = null;
 
@@ -317,8 +332,17 @@ public class ItqanDatasetParser : IDataSourceParser
                 for (int i = 1; i < parts.Length - 1; i += 2)
                 {
                     var term = parts[i].Trim();
-                    var nameRaw = parts[i + 1].Split("قَالَ")[0].Trim(' ', '،', ',', '.', ':');
+                    var nameRaw = parts[i + 1];
+
+                    // Remove honorific and prayer expressions
+                    nameRaw = Regex.Replace(nameRaw, @"(رَضِيَ\s+اللَّهُ\s+عَنْهُ|رَضِيَ\s+اللَّهُ\s+عَنْهُمَا|رَضِيَ\s+اللَّهُ\s+عَنْهَا|رَضِيَ\s+اللَّهُ\s+عَنْهُمْ|صَلَّى\s+اللَّهُ\s+عَلَيْهِ\s+وَسَلَّمَ|عَلَيْهِ\s+السَّلَامُ|رَحِمَهُ\s+اللَّهُ)", "");
+
+                    // Split on narrative and speech boundaries
+                    nameRaw = Regex.Split(nameRaw, @"(قَالَ|يَقُولُ|أَنَّهُ|أَنَّ|أَنَّهَا|عَلَى\s+الْمِنْبَرِ|وَهُوَ\s+عَلَى\s+الْمِنْبَرِ)")[0];
+
+                    nameRaw = nameRaw.Trim(' ', '،', ',', '.', ':', '؛');
                     var nameClean = Regex.Replace(nameRaw, @"[^\p{L}\s]", "").Trim();
+                    nameClean = Regex.Replace(nameClean, @"\s+", " ");
 
                     Guid? sheikhId = null;
                     if (nameToItqanMap.TryGetValue(nameClean, out var itqanId) && itqanToGuidMap.TryGetValue(itqanId, out var sGuid))
