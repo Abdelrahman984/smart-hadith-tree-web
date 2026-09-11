@@ -60,6 +60,7 @@ export interface ComparativeHadithSourceDto {
   hadithId: string;
   bookName: string;
   hadithNumber: number;
+  matnArabic?: string;
   matnSnippet: string;
 }
 

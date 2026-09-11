@@ -75,6 +75,7 @@ public class HadithSearchService(IHadithTreeDbContext context, IHadithChainRepos
             HadithId = h.Id,
             BookName = h.BookName,
             HadithNumber = h.HadithNumber,
+            MatnArabic = h.MatnArabic,
             MatnSnippet = h.MatnArabic.Length > 150
                 ? h.MatnArabic.Substring(0, 150) + "..."
                 : h.MatnArabic

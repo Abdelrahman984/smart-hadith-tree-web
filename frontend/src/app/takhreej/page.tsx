@@ -6,7 +6,7 @@ import { useTakhreej } from "@/features/isnad-tree/hooks/useTakhreej";
 import ComparativeTreeCanvas from "@/features/isnad-tree/components/ComparativeTreeCanvas";
 import NarratorDrawer from "@/features/narrator-details/components/NarratorDrawer";
 import Link from "next/link";
-import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Copy, Check, BookOpen } from "lucide-react";
 
 function TakhreejContent() {
   const searchParams = useSearchParams();
@@ -18,6 +18,13 @@ function TakhreejContent() {
 
   const { data, isLoading, isError } = useTakhreej(hadithIds);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+
+  const handleCopy = (text: string, idx: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIdx(idx);
+    setTimeout(() => setCopiedIdx(null), 2000);
+  };
 
   if (!idsParam || hadithIds.length < 2) {
     return (
@@ -92,34 +99,59 @@ function TakhreejContent() {
         </div>
 
         {/* Sidebar for Matn texts */}
-        <div className={`transition-all duration-300 ease-in-out border-r border-slate-200 bg-white z-10 flex flex-col overflow-hidden ${isSidebarOpen ? 'w-80' : 'w-0 border-r-0'}`}>
-          <div className="flex-1 overflow-y-auto p-4 space-y-6 min-w-[20rem]">
+        <div className={`transition-all duration-300 ease-in-out border-r border-slate-200 bg-white z-10 flex flex-col overflow-hidden ${isSidebarOpen ? 'w-96' : 'w-0 border-r-0'}`}>
+          <div className="flex-1 overflow-y-auto p-4 space-y-5 min-w-[24rem]">
             {data.calculatedGrade && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mb-6">
-                <h3 className="font-bold text-emerald-900 mb-1 flex items-center gap-2">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5">
+                <h3 className="font-bold text-emerald-900 mb-1 flex items-center gap-2 text-sm">
                   <span>الحكم الكلي:</span>
-                  <span className="text-emerald-700">{data.calculatedGrade}</span>
+                  <span className="text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md">{data.calculatedGrade}</span>
                 </h3>
                 {data.taqwiyahDetails && (
-                  <p className="text-xs text-emerald-800 leading-relaxed">
+                  <p className="text-xs text-emerald-800 leading-relaxed mt-1">
                     {data.taqwiyahDetails}
                   </p>
                 )}
               </div>
             )}
 
-            <h2 className="font-bold text-lg text-slate-800 mb-4 whitespace-nowrap">المتون</h2>
-            {data.sources.map((source, idx) => (
-              <div key={idx} className="space-y-2">
-                <div className={`inline-block px-2 py-1 rounded border text-xs font-bold ${getBookColorClass(source.bookName)}`}>
-                  {source.bookName} - {source.hadithNumber}
-                </div>
-                <p className="text-slate-700 leading-relaxed font-arabic text-sm text-justify">
-                  {source.matnSnippet}
-                </p>
-                <hr className="border-slate-100" />
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-brand-blue" />
+                <h2 className="font-bold text-base text-slate-800">متون الروايات</h2>
               </div>
-            ))}
+              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">
+                {data.sources.length} {data.sources.length === 1 ? 'رواية' : 'روايات'}
+              </span>
+            </div>
+
+            <div className="space-y-4">
+              {data.sources.map((source, idx) => (
+                <div key={idx} className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/80 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-bold ${getBookColorClass(source.bookName)}`}>
+                      <span>{source.bookName}</span>
+                      <span className="opacity-50">•</span>
+                      <span>حديث رقم {source.hadithNumber}</span>
+                    </div>
+                    <button
+                      onClick={() => handleCopy(source.matnArabic || source.matnSnippet, idx)}
+                      className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+                      title="نسخ نص المتن"
+                    >
+                      {copiedIdx === idx ? (
+                        <Check className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-slate-800 leading-loose font-arabic text-sm text-justify whitespace-pre-wrap select-text">
+                    {source.matnArabic || source.matnSnippet}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -127,7 +159,7 @@ function TakhreejContent() {
         <button 
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           className="absolute top-1/2 -translate-y-1/2 bg-white border border-l-0 border-slate-200 p-2 rounded-r-lg shadow-md z-20 text-slate-500 hover:text-brand-blue transition-all duration-300 ease-in-out flex items-center justify-center cursor-pointer"
-          style={{ left: isSidebarOpen ? '20rem' : '0' }}
+          style={{ left: isSidebarOpen ? '24rem' : '0' }}
           title={isSidebarOpen ? "إخفاء المتون" : "إظهار المتون"}
           aria-label={isSidebarOpen ? "إخفاء المتون" : "إظهار المتون"}
         >

@@ -82,6 +82,7 @@ public class ComparativeHadithSourceDto
     public Guid HadithId { get; set; }
     public string BookName { get; set; } = string.Empty;
     public int HadithNumber { get; set; }
+    public string MatnArabic { get; set; } = string.Empty;
     public string MatnSnippet { get; set; } = string.Empty;
 }
 
