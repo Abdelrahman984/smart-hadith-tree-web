@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { HadithSearchResultDto } from "@/types/api";
 import { getBookMeta } from "@/lib/bookTheme";
 import {
@@ -24,58 +24,7 @@ interface HadithCardProps {
   onAutoTakhreej: (id: string) => void;
 }
 
-/**
- * Escapes regex special characters
- */
-function escapeRegExp(string: string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/**
- * Highlights matching query terms in text
- */
-function HighlightedText({ text, query }: { text: string; query: string }) {
-  const parts = useMemo(() => {
-    const trimmed = query.trim();
-    if (!trimmed || trimmed.length < 2) {
-      return [{ text, match: false }];
-    }
-
-    const keywords = trimmed
-      .split(/\s+/)
-      .filter((w) => w.length > 1)
-      .map(escapeRegExp);
-
-    if (keywords.length === 0) {
-      return [{ text, match: false }];
-    }
-
-    const regex = new RegExp(`(${keywords.join("|")})`, "gi");
-    const tokens = text.split(regex);
-
-    return tokens.map((token) => ({
-      text: token,
-      match: keywords.some((kw) => new RegExp(`^${kw}$`, "i").test(token)),
-    }));
-  }, [text, query]);
-
-  return (
-    <>
-      {parts.map((part, index) =>
-        part.match ? (
-          <mark
-            key={index}
-            className="bg-amber-100 text-amber-900 rounded-xs px-0.5 py-0.5 font-medium"
-          >
-            {part.text}
-          </mark>
-        ) : (
-          <span key={index}>{part.text}</span>
-        )
-      )}
-    </>
-  );
-}
+import HighlightedText from "./HighlightedText";
 
 export default function HadithCard({
   hadith,
@@ -157,7 +106,7 @@ export default function HadithCard({
               className="text-xs text-slate-600 bg-slate-50 border border-slate-200/70 px-2.5 py-1 rounded-lg font-medium truncate max-w-xs"
               title={hadith.chapter}
             >
-              {hadith.chapter}
+              <HighlightedText text={hadith.chapter} query={searchQuery} />
             </span>
           )}
         </div>
