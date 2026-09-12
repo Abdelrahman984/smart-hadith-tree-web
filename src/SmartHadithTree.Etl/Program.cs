@@ -27,7 +27,9 @@ builder.Services.AddTransient<IDataSourceParser, SmartHadithTree.Etl.Parsers.Itq
 builder.Services.AddTransient<IDataSourceParser, SeedDataGenerator>();
 
 // Services
+builder.Services.AddSingleton<SmartHadithTree.Etl.Parsers.Itqan.ContextualDisambiguator>();
 builder.Services.AddTransient<BulkDataIngestionService>();
+builder.Services.AddTransient<ChainReprocessingService>();
 builder.Services.AddTransient<EtlOrchestrator>();
 
 var host = builder.Build();
@@ -36,6 +38,7 @@ var host = builder.Build();
 using var scope = host.Services.CreateScope();
 var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 var orchestrator = scope.ServiceProvider.GetRequiredService<EtlOrchestrator>();
+var reprocessor = scope.ServiceProvider.GetRequiredService<ChainReprocessingService>();
 
 // Determine the data source from command-line args or default to "seed"
 var source = args.Length > 0 ? args[0] : "seed";
@@ -48,7 +51,17 @@ logger.LogInformation("Source: {Source}", source);
 
 try
 {
-    await orchestrator.RunAsync(source, CancellationToken.None);
+    if (source.Equals("reprocess-chains", StringComparison.OrdinalIgnoreCase))
+    {
+        // Require the path to itqan data. E.g. dotnet run reprocess-chains data/itqan
+        var itqanPath = args.Length > 1 ? args[1] : "data/itqan";
+        await reprocessor.ReprocessChainsAsync(itqanPath, CancellationToken.None);
+    }
+    else
+    {
+        await orchestrator.RunAsync(source, CancellationToken.None);
+    }
+    
     logger.LogInformation("ETL completed successfully. ✓");
     return 0;
 }

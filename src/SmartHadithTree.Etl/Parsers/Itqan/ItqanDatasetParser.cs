@@ -11,13 +11,18 @@ namespace SmartHadithTree.Etl.Parsers.Itqan;
 public class ItqanDatasetParser : IDataSourceParser
 {
     private readonly HadithTreeDbContext? _dbContext;
+    private readonly ContextualDisambiguator? _disambiguator;
     private readonly ILogger<ItqanDatasetParser>? _logger;
 
-    public ItqanDatasetParser() : this(null, null) { }
+    public ItqanDatasetParser() : this(null, null, null) { }
 
-    public ItqanDatasetParser(HadithTreeDbContext? dbContext = null, ILogger<ItqanDatasetParser>? logger = null)
+    public ItqanDatasetParser(
+        HadithTreeDbContext? dbContext = null,
+        ContextualDisambiguator? disambiguator = null,
+        ILogger<ItqanDatasetParser>? logger = null)
     {
         _dbContext = dbContext;
+        _disambiguator = disambiguator;
         _logger = logger;
     }
 
@@ -63,6 +68,11 @@ public class ItqanDatasetParser : IDataSourceParser
 
     public async Task<ParsedDataset> ParseAsync(string sourcePath, CancellationToken cancellationToken = default)
     {
+        if (_disambiguator != null)
+        {
+            await _disambiguator.InitializeAsync(sourcePath, cancellationToken);
+        }
+
         var dataset = new ParsedDataset();
         var itqanToGuidMap = new Dictionary<int, Guid>();
         var nameToItqanMap = new Dictionary<string, int>();
@@ -319,14 +329,17 @@ public class ItqanDatasetParser : IDataSourceParser
                 var parts = Regex.Split(matn, @"(حَدَّثَنَا|حَدَّثَنِي|أَخْبَرَنَا|أَخْبَرَنِي|أَنْبَأَنَا|أَنَّهُ\s+سَمِعَ|أَنَّهَا\s+سَمِعَتْ|سَمِعْتُ|سَمِعَ|سَمِعَتْ|\bعَنْ\b)");
                 var step = 1;
                 Guid? studentId = null;
+                int? studentItqanId = null;
 
                 if (compilerItqanId != 0 && itqanToGuidMap.TryGetValue(compilerItqanId, out var cGuid))
                 {
                     studentId = cGuid;
+                    studentItqanId = compilerItqanId;
                 }
                 else if (!string.IsNullOrEmpty(compilerName) && nameToItqanMap.TryGetValue(compilerName, out var cId) && itqanToGuidMap.TryGetValue(cId, out var cGuid2))
                 {
                     studentId = cGuid2;
+                    studentItqanId = cId;
                 }
 
                 for (int i = 1; i < parts.Length - 1; i += 2)
@@ -345,9 +358,23 @@ public class ItqanDatasetParser : IDataSourceParser
                     nameClean = Regex.Replace(nameClean, @"\s+", " ");
 
                     Guid? sheikhId = null;
-                    if (nameToItqanMap.TryGetValue(nameClean, out var itqanId) && itqanToGuidMap.TryGetValue(itqanId, out var sGuid))
+                    int? sheikhItqanId = null;
+
+                    if (_disambiguator != null)
                     {
-                        sheikhId = sGuid;
+                        sheikhItqanId = _disambiguator.ResolveSheikh(nameClean, studentItqanId);
+                        if (sheikhItqanId.HasValue && itqanToGuidMap.TryGetValue(sheikhItqanId.Value, out var sGuid))
+                        {
+                            sheikhId = sGuid;
+                        }
+                    }
+                    else
+                    {
+                        if (nameToItqanMap.TryGetValue(nameClean, out var itqanId) && itqanToGuidMap.TryGetValue(itqanId, out var sGuid))
+                        {
+                            sheikhItqanId = itqanId;
+                            sheikhId = sGuid;
+                        }
                     }
 
                     if (sheikhId.HasValue)
@@ -366,6 +393,7 @@ public class ItqanDatasetParser : IDataSourceParser
                             step++;
                         }
                         studentId = sheikhId;
+                        studentItqanId = sheikhItqanId;
                     }
                 }
             }
