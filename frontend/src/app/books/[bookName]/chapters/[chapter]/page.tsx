@@ -60,8 +60,8 @@ export default function ChapterHadithsPage({ params }: { params: Promise<{ bookN
                   <span>حديث رقم {hadith.hadithNumber}</span>
                 </div>
               </div>
-              <p className="text-slate-700 text-lg leading-relaxed font-arabic mt-3">
-                {hadith.matnSnippet}
+              <p className="text-slate-800 text-base md:text-lg leading-loose font-arabic mt-3 text-justify select-text whitespace-pre-wrap">
+                {hadith.matnArabic || hadith.matnSnippet}
               </p>
             </div>
           ))}

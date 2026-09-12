@@ -3,6 +3,7 @@ export interface HadithSearchResultDto {
   bookName: string;
   hadithNumber: number;
   chapter: string | null;
+  matnArabic?: string;
   matnSnippet: string;
 }
 

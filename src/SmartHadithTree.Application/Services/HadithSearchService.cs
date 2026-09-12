@@ -25,6 +25,7 @@ public class HadithSearchService(IHadithTreeDbContext context, IHadithChainRepos
                 BookName = h.BookName,
                 HadithNumber = h.HadithNumber,
                 Chapter = h.Chapter,
+                MatnArabic = h.MatnArabic,
                 MatnSnippet = h.MatnArabic.Length > 150 
                     ? h.MatnArabic.Substring(0, 150) + "..." 
                     : h.MatnArabic
@@ -151,6 +152,7 @@ public class HadithSearchService(IHadithTreeDbContext context, IHadithChainRepos
                 BookName = h.BookName,
                 HadithNumber = h.HadithNumber,
                 Chapter = h.Chapter,
+                MatnArabic = h.MatnArabic,
                 MatnSnippet = h.MatnArabic.Length > 150
                     ? h.MatnArabic.Substring(0, 150) + "..."
                     : h.MatnArabic

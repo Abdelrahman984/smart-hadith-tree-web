@@ -1,7 +1,7 @@
 "use client";
 
 import { useHadithSearch } from "@/features/search/hooks/useHadithSearch";
-import { Search, Book, GitCompareArrows, CheckSquare, Square, Loader2 } from "lucide-react";
+import { Search, Book, GitCompareArrows, CheckSquare, Square, Loader2, Copy, Check } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -14,6 +14,14 @@ export default function SearchPage() {
   const [takhreejMode, setTakhreejMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isAutoTakhreejLoading, setIsAutoTakhreejLoading] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopy = (e: React.MouseEvent, text: string, id: string) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const toggleSelection = (id: string) => {
     const newSet = new Set(selectedIds);
@@ -123,15 +131,32 @@ export default function SearchPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {hadith.chapter && (
-                        <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">
+                        <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md font-medium">
                           {hadith.chapter}
                         </span>
                       )}
+                      <button
+                        onClick={(e) => handleCopy(e, hadith.matnArabic || hadith.matnSnippet, hadith.id)}
+                        className="flex items-center gap-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded transition-colors cursor-pointer"
+                        title="نسخ نص الحديث كاملاً"
+                      >
+                        {copiedId === hadith.id ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <span className="text-emerald-600 font-semibold">تم النسخ</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>نسخ</span>
+                          </>
+                        )}
+                      </button>
                       {!takhreejMode && (
                         <button
                           onClick={(e) => handleAutoTakhreej(e, hadith.id)}
                           disabled={isAutoTakhreejLoading === hadith.id}
-                          className="flex items-center gap-1 text-xs bg-brand-blue/10 text-brand-blue px-2 py-1 rounded hover:bg-brand-blue/20 transition-colors"
+                          className="flex items-center gap-1 text-xs bg-brand-blue/10 text-brand-blue px-2.5 py-1 rounded hover:bg-brand-blue/20 transition-colors cursor-pointer"
                           title="البحث عن أحاديث متعلقة وعرض التخريج"
                         >
                           {isAutoTakhreejLoading === hadith.id ? (
@@ -144,8 +169,8 @@ export default function SearchPage() {
                       )}
                     </div>
                   </div>
-                  <p className="text-slate-700 text-lg leading-relaxed font-arabic mt-3">
-                    {hadith.matnSnippet}
+                  <p className="text-slate-800 text-base md:text-lg leading-loose font-arabic mt-3.5 text-justify select-text whitespace-pre-wrap">
+                    {hadith.matnArabic || hadith.matnSnippet}
                   </p>
                 </div>
               );
