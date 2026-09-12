@@ -14,13 +14,13 @@ import {
   Search,
   X,
   Loader2,
-  GitCompareArrows,
   Network,
   BookOpen,
   Home,
   AlertCircle,
   RotateCcw,
   FilterX,
+  CheckSquare,
 } from "lucide-react";
 
 function SearchContent() {
@@ -40,7 +40,6 @@ function SearchContent() {
   } = useHadithSearch(initialQueryFromUrl);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const [takhreejMode, setTakhreejMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isAutoTakhreejLoading, setIsAutoTakhreejLoading] = useState<string | null>(null);
   const [selectedBook, setSelectedBook] = useState<string | null>(null);
@@ -88,7 +87,7 @@ function SearchContent() {
     return results.filter((h) => h.bookName === selectedBook);
   }, [results, selectedBook]);
 
-  // Takhreej item selection
+  // Takhreej selection handlers
   const toggleSelection = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -113,15 +112,7 @@ function SearchContent() {
     setSelectedIds(new Set());
   };
 
-  const handleTakhreejModeToggle = () => {
-    const nextMode = !takhreejMode;
-    setTakhreejMode(nextMode);
-    if (!nextMode) {
-      setSelectedIds(new Set());
-    }
-  };
-
-  const handleOpenTree = (hadithId: string) => {
+  const handleOpenSingleTree = (hadithId: string) => {
     router.push(`/tree/${hadithId}`);
   };
 
@@ -139,9 +130,13 @@ function SearchContent() {
     }
   };
 
-  const handleViewComparativeTree = () => {
-    if (selectedIds.size < 2) return;
-    router.push(`/takhreej?ids=${Array.from(selectedIds).join(",")}`);
+  const handleViewTree = () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 1) {
+      router.push(`/tree/${ids[0]}`);
+    } else if (ids.length >= 2) {
+      router.push(`/takhreej?ids=${ids.join(",")}`);
+    }
   };
 
   const isSearchActive = debouncedQuery.trim().length > 2;
@@ -163,11 +158,11 @@ function SearchContent() {
                 <span className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
                   شجرة الأسانيد <span className="text-brand-teal">الذكية</span>
                 </span>
-                <span className="text-[10px] text-slate-400 font-normal">البحث في السنة النبوية</span>
+                <span className="text-[10px] text-slate-400 font-normal">منصة التخريج ودراسة الأسانيد</span>
               </div>
             </Link>
 
-            <nav className="hidden md:flex items-center gap-1 text-xs font-semibold text-slate-600">
+            <nav className="hidden sm:flex items-center gap-1 text-xs font-semibold text-slate-600">
               <Link
                 href="/"
                 className="px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-1.5"
@@ -185,26 +180,12 @@ function SearchContent() {
             </nav>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleTakhreejModeToggle}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                takhreejMode
-                  ? "bg-brand-blue text-white shadow-md ring-2 ring-brand-blue/30"
-                  : "bg-slate-100 hover:bg-slate-200 text-slate-700"
-              }`}
-              title="تفعيل وضع تحديد الأحاديث للمقارنة والتخريج"
-            >
-              <GitCompareArrows className="w-4 h-4" />
-              <span>وضع التخريج</span>
-              {takhreejMode && selectedIds.size > 0 && (
-                <span className="w-5 h-5 rounded-full bg-brand-teal text-slate-900 text-xs flex items-center justify-center font-bold">
-                  {selectedIds.size}
-                </span>
-              )}
-            </button>
-          </div>
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-2 text-xs font-bold bg-brand-blue/10 text-brand-blue px-3 py-1.5 rounded-xl animate-in fade-in">
+              <CheckSquare className="w-4 h-4" />
+              <span>{selectedIds.size} محدد للتخريج</span>
+            </div>
+          )}
         </div>
       </header>
 
@@ -213,10 +194,10 @@ function SearchContent() {
         {/* Search Hero */}
         <section className="text-center mb-8 space-y-2.5">
           <h1 className="text-2xl sm:text-4xl font-extrabold text-brand-dark tracking-tight">
-            ابحث في الأحاديث والأسانيد
+            ابحث وخرّج الأحاديث النبوية
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 max-w-xl mx-auto font-arabic leading-relaxed">
-            استكشف متون الأحاديث النبوية وتراجم الرواة مع عرض تفاعلي لشبكة الأسانيد وطرق التخريج.
+            ابحث في المتون والرواة، وحدد الروايات من مختلف كتب السنة لرسم شجرة التخريج المقارنة وبيان مدار الإسناد.
           </p>
         </section>
 
@@ -276,54 +257,40 @@ function SearchContent() {
           )}
         </div>
 
-        {/* Takhreej Mode Helper Banner */}
-        {takhreejMode && (
-          <div className="mb-6 p-4 rounded-2xl bg-blue-50/80 border border-blue-200/80 text-blue-900 flex items-center justify-between gap-4 flex-wrap animate-in fade-in slide-in-from-top-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-brand-blue text-white flex items-center justify-center shrink-0">
-                <GitCompareArrows className="w-4 h-4" />
-              </div>
-              <div className="text-xs sm:text-sm">
-                <span className="font-bold block">وضع التخريج والمقارنة مفعّل</span>
-                <span className="text-blue-700 text-xs">
-                  حدد حديثين أو أكثر من القائمة لعرض شجرة أسانيدها المشتركة وتفردات الطرق.
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 mr-auto">
-              {filteredResults.length > 0 && (
-                <button
-                  type="button"
-                  onClick={selectAllFiltered}
-                  className="text-xs font-bold text-brand-blue hover:underline px-2 py-1 cursor-pointer"
-                >
-                  تحديد نتائج الصفحة ({filteredResults.length})
-                </button>
-              )}
-              {selectedIds.size > 0 && (
-                <button
-                  type="button"
-                  onClick={clearSelection}
-                  className="text-xs font-semibold text-slate-500 hover:text-slate-800 px-2 py-1 cursor-pointer"
-                >
-                  إلغاء التحديد
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Filter Pills & Result Summary */}
         {isSearchActive && !isLoading && results && results.length > 0 && (
           <div className="mb-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                <span>نتائج البحث</span>
-                <span className="px-2 py-0.5 rounded-full bg-slate-200/70 text-slate-700 text-xs font-bold">
-                  {results.length}
-                </span>
-              </h2>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-3">
+                <h2 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                  <span>نتائج البحث</span>
+                  <span className="px-2 py-0.5 rounded-full bg-slate-200/70 text-slate-700 text-xs font-bold">
+                    {results.length}
+                  </span>
+                </h2>
+
+                <div className="flex items-center gap-2 text-xs border-r border-slate-200 pr-3">
+                  <button
+                    type="button"
+                    onClick={selectAllFiltered}
+                    className="text-brand-blue hover:underline font-semibold cursor-pointer"
+                  >
+                    تحديد المعروض ({filteredResults.length})
+                  </button>
+                  {selectedIds.size > 0 && (
+                    <>
+                      <span className="text-slate-300">•</span>
+                      <button
+                        type="button"
+                        onClick={clearSelection}
+                        className="text-slate-500 hover:text-slate-800 font-semibold cursor-pointer"
+                      >
+                        إلغاء التحديد ({selectedIds.size})
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
 
               {selectedBook && (
                 <button
@@ -421,10 +388,9 @@ function SearchContent() {
                       hadith={hadith}
                       searchQuery={debouncedQuery}
                       isSelected={selectedIds.has(hadith.id)}
-                      takhreejMode={takhreejMode}
                       isAutoTakhreejLoading={isAutoTakhreejLoading === hadith.id}
                       onToggleSelect={toggleSelection}
-                      onOpenTree={handleOpenTree}
+                      onOpenSingleTree={handleOpenSingleTree}
                       onAutoTakhreej={handleAutoTakhreej}
                     />
                   ))}
@@ -435,15 +401,12 @@ function SearchContent() {
         </div>
       </main>
 
-      {/* Floating Action Bar for Takhreej Mode */}
-      {takhreejMode && (
-        <TakhreejFloatingBar
-          selectedCount={selectedIds.size}
-          onViewTree={handleViewComparativeTree}
-          onClearSelection={clearSelection}
-          onExitTakhreejMode={handleTakhreejModeToggle}
-        />
-      )}
+      {/* Floating Action Bar for Takhreej */}
+      <TakhreejFloatingBar
+        selectedCount={selectedIds.size}
+        onViewTree={handleViewTree}
+        onClearSelection={clearSelection}
+      />
     </div>
   );
 }
