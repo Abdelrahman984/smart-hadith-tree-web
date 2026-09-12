@@ -2,8 +2,13 @@ import { HadithSearchResultDto, IsnadTreeResponseDto, NarratorDetailDto, Narrato
 
 const API_BASE = "http://localhost:5147/api"; // Default ASP.NET Core dev port
 
-export async function searchHadiths(query: string): Promise<HadithSearchResultDto[]> {
-  const res = await fetch(`${API_BASE}/Search?q=${encodeURIComponent(query)}`);
+export async function searchHadiths(query: string, scope: number = 0, match: number = 0): Promise<HadithSearchResultDto[]> {
+  const url = new URL(`${API_BASE}/Search`);
+  url.searchParams.append("query", query);
+  url.searchParams.append("scope", scope.toString());
+  url.searchParams.append("match", match.toString());
+  
+  const res = await fetch(url.toString());
   if (!res.ok) throw new Error("Failed to search hadiths");
   return res.json();
 }

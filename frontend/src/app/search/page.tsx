@@ -21,40 +21,52 @@ import {
   RotateCcw,
   FilterX,
   CheckSquare,
+  SlidersHorizontal,
 } from "lucide-react";
 
 function SearchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialQueryFromUrl = searchParams.get("q") || "";
+  const initialScopeFromUrl = parseInt(searchParams.get("scope") || "0", 10);
+  const initialMatchFromUrl = parseInt(searchParams.get("match") || "0", 10);
 
   const {
     query,
     setQuery,
+    scope,
+    setScope,
+    match,
+    setMatch,
     debouncedQuery,
     data: results,
     isLoading,
     isFetching,
     isError,
     refetch,
-  } = useHadithSearch(initialQueryFromUrl);
+  } = useHadithSearch(initialQueryFromUrl, initialScopeFromUrl, initialMatchFromUrl);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isAutoTakhreejLoading, setIsAutoTakhreejLoading] = useState<string | null>(null);
   const [selectedBook, setSelectedBook] = useState<string | null>(null);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
-  // Sync URL when debounced query updates
+  // Sync URL when debounced query, scope, or match updates
   useEffect(() => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
     if (debouncedQuery.trim().length > 2) {
       url.searchParams.set("q", debouncedQuery.trim());
+      url.searchParams.set("scope", scope.toString());
+      url.searchParams.set("match", match.toString());
     } else {
       url.searchParams.delete("q");
+      url.searchParams.delete("scope");
+      url.searchParams.delete("match");
     }
     window.history.replaceState(null, "", url.toString());
-  }, [debouncedQuery]);
+  }, [debouncedQuery, scope, match]);
 
   // Global shortcut "/" or "Ctrl+K" to focus search bar
   useEffect(() => {
@@ -241,6 +253,19 @@ function SearchContent() {
                 </button>
               )}
 
+              <button
+                type="button"
+                onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                className={`p-1.5 rounded-xl transition-colors cursor-pointer border ${
+                  showAdvancedOptions || scope !== 0 || match !== 0
+                    ? "bg-brand-blue/10 text-brand-blue border-brand-blue/20"
+                    : "text-slate-400 hover:text-slate-600 hover:bg-slate-100 border-transparent"
+                }`}
+                title="خيارات البحث المتقدم"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+              </button>
+
               {query.length === 0 && (
                 <kbd className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 bg-slate-100 border border-slate-200 px-2 py-1 rounded-md">
                   /
@@ -248,6 +273,57 @@ function SearchContent() {
               )}
             </div>
           </div>
+
+          {/* Advanced Search Options Panel */}
+          {showAdvancedOptions && (
+            <div className="absolute top-full mt-2 w-full sm:w-auto sm:min-w-[400px] sm:end-0 z-10 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+              <div className="p-4 space-y-4">
+                {/* Search Scope */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 block">نطاق البحث</label>
+                  <div className="flex bg-slate-100 p-1 rounded-xl">
+                    {["الكل", "المتن", "السند"].map((label, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setScope(index)}
+                        className={`flex-1 text-xs py-1.5 px-3 rounded-lg font-medium transition-all ${
+                          scope === index
+                            ? "bg-white text-brand-blue shadow-sm"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Match Type */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 block">طريقة المطابقة</label>
+                  <div className="flex bg-slate-100 p-1 rounded-xl">
+                    {[
+                      { label: "جميع الكلمات", value: 0 },
+                      { label: "أي كلمة", value: 1 },
+                      { label: "تطابق تام", value: 2 },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setMatch(opt.value)}
+                        className={`flex-1 text-xs py-1.5 px-3 rounded-lg font-medium transition-all ${
+                          match === opt.value
+                            ? "bg-white text-brand-blue shadow-sm"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Under-input helper if short query */}
           {query.trim().length > 0 && query.trim().length <= 2 && (

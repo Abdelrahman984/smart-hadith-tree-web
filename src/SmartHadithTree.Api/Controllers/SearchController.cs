@@ -9,12 +9,12 @@ namespace SmartHadithTree.Api.Controllers;
 public class SearchController(IHadithSearchService searchService) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<List<HadithSearchResultDto>>> Search([FromQuery] string q, CancellationToken ct)
+    public async Task<ActionResult<List<HadithSearchResultDto>>> Search([FromQuery] SearchRequestDto request, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(q))
+        if (string.IsNullOrWhiteSpace(request.Query))
             return BadRequest("Search query cannot be empty.");
 
-        var results = await searchService.SearchHadithsAsync(q, ct);
+        var results = await searchService.SearchHadithsAsync(request, ct);
         return Ok(results);
     }
 }

@@ -4,7 +4,7 @@ namespace SmartHadithTree.Application.Interfaces;
 
 public interface IHadithSearchService
 {
-    Task<List<HadithSearchResultDto>> SearchHadithsAsync(string query, CancellationToken ct = default);
+    Task<List<HadithSearchResultDto>> SearchHadithsAsync(SearchRequestDto request, CancellationToken ct = default);
     Task<IsnadTreeResponseDto?> GetIsnadTreeAsync(Guid hadithId, CancellationToken ct = default);
 
     /// <summary>

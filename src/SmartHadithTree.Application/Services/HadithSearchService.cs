@@ -6,18 +6,73 @@ namespace SmartHadithTree.Application.Services;
 
 public class HadithSearchService(IHadithTreeDbContext context, IHadithChainRepository chainRepository, ITaqwiyahService taqwiyahService) : IHadithSearchService
 {
-    public async Task<List<HadithSearchResultDto>> SearchHadithsAsync(string query, CancellationToken ct = default)
+    public async Task<List<HadithSearchResultDto>> SearchHadithsAsync(SearchRequestDto request, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(query))
+        if (string.IsNullOrWhiteSpace(request.Query))
             return [];
 
+        var query = request.Query.Trim();
         var normalizedQuery = SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize(query);
+        var words = normalizedQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-        var hadiths = await context.Hadiths
-            .Where(h => h.NormalizedMatn.Contains(normalizedQuery) || 
-                        h.NormalizedBookName.Contains(normalizedQuery) ||
-                        h.Transmissions.Any(t => t.Student.FullName.Contains(query) || 
-                                                 t.Sheikh.FullName.Contains(query)))
+        var queryable = context.Hadiths.AsQueryable();
+
+        if (request.Match == SearchMatchType.Exact)
+        {
+            if (request.Scope == SearchScope.All)
+            {
+                queryable = queryable.Where(h => h.NormalizedMatn.Contains(normalizedQuery) ||
+                                                 h.NormalizedBookName.Contains(normalizedQuery) ||
+                                                 h.Transmissions.Any(t => t.Student.FullName.Contains(query) ||
+                                                                          t.Sheikh.FullName.Contains(query)));
+            }
+            else if (request.Scope == SearchScope.Matn)
+            {
+                queryable = queryable.Where(h => h.NormalizedMatn.Contains(normalizedQuery));
+            }
+            else if (request.Scope == SearchScope.Isnad)
+            {
+                queryable = queryable.Where(h => h.Transmissions.Any(t => t.Student.FullName.Contains(query) ||
+                                                                          t.Sheikh.FullName.Contains(query)));
+            }
+        }
+        else if (request.Match == SearchMatchType.AnyWord)
+        {
+            // For AnyWord, EF Core needs dynamic building, but we can do a simplified version for demonstration or use PredicateBuilder.
+            // A simpler EF Core compatible approach without third-party libs for "AnyWord" when max words is small:
+            // Since EF Core translates `.Any` over a local array in `Where`, we can try:
+            if (request.Scope == SearchScope.All)
+            {
+                queryable = queryable.Where(h => words.Any(w => h.NormalizedMatn.Contains(w) || h.NormalizedBookName.Contains(w)) ||
+                                                 h.Transmissions.Any(t => words.Any(w => t.Student.FullName.Contains(w) || t.Sheikh.FullName.Contains(w))));
+            }
+            else if (request.Scope == SearchScope.Matn)
+            {
+                queryable = queryable.Where(h => words.Any(w => h.NormalizedMatn.Contains(w)));
+            }
+            else if (request.Scope == SearchScope.Isnad)
+            {
+                queryable = queryable.Where(h => h.Transmissions.Any(t => words.Any(w => t.Student.FullName.Contains(w) || t.Sheikh.FullName.Contains(w))));
+            }
+        }
+        else // AllWords
+        {
+            if (request.Scope == SearchScope.All)
+            {
+                queryable = queryable.Where(h => words.All(w => h.NormalizedMatn.Contains(w) || h.NormalizedBookName.Contains(w) ||
+                                                 h.Transmissions.Any(t => t.Student.FullName.Contains(w) || t.Sheikh.FullName.Contains(w))));
+            }
+            else if (request.Scope == SearchScope.Matn)
+            {
+                queryable = queryable.Where(h => words.All(w => h.NormalizedMatn.Contains(w)));
+            }
+            else if (request.Scope == SearchScope.Isnad)
+            {
+                queryable = queryable.Where(h => words.All(w => h.Transmissions.Any(t => t.Student.FullName.Contains(w) || t.Sheikh.FullName.Contains(w))));
+            }
+        }
+
+        var hadiths = await queryable
             .Take(50)
             .Select(h => new HadithSearchResultDto
             {
