@@ -1,6 +1,8 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using SmartHadithTree.Application.DTOs;
 using SmartHadithTree.Application.Interfaces;
+using SmartHadithTree.Domain.Entities;
 
 namespace SmartHadithTree.Application.Services;
 
@@ -8,68 +10,137 @@ public class HadithSearchService(IHadithTreeDbContext context, IHadithChainRepos
 {
     public async Task<List<HadithSearchResultDto>> SearchHadithsAsync(SearchRequestDto request, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(request.Query))
+        // 1. Determine phrases
+        var rawPhrases = request.Phrases != null && request.Phrases.Count > 0
+            ? request.Phrases.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()).ToList()
+            : [];
+
+        if (rawPhrases.Count == 0 && !string.IsNullOrWhiteSpace(request.Query))
+        {
+            rawPhrases = [request.Query.Trim()];
+        }
+
+        if (rawPhrases.Count == 0)
             return [];
 
-        var query = request.Query.Trim();
-        var normalizedQuery = SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize(query);
-        var words = normalizedQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var normalizedPhrases = rawPhrases
+            .Select(SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize)
+            .ToList();
+
+        var excludePhrases = (request.ExcludePhrases ?? [])
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Select(p => SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize(p.Trim()))
+            .ToList();
 
         var queryable = context.Hadiths.AsQueryable();
 
-        if (request.Match == SearchMatchType.Exact)
+        // 2. Exclude phrases (NOT / ليس)
+        foreach (var excluded in excludePhrases)
         {
-            if (request.Scope == SearchScope.All)
+            queryable = queryable.Where(h => !h.NormalizedMatn.Contains(excluded));
+        }
+
+        // 3. Multi-phrase or Single-query application
+        if (rawPhrases.Count == 1 && request.Match != SearchMatchType.Exact)
+        {
+            var singleNormalized = normalizedPhrases[0];
+            var words = singleNormalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            if (request.Match == SearchMatchType.AnyWord && words.Length > 1)
             {
-                queryable = queryable.Where(h => h.NormalizedMatn.Contains(normalizedQuery) ||
-                                                 h.NormalizedBookName.Contains(normalizedQuery) ||
-                                                 h.Transmissions.Any(t => t.Student.FullName.Contains(query) ||
-                                                                          t.Sheikh.FullName.Contains(query)));
+                queryable = ApplyOrPhrases(queryable, words.ToList(), request.Scope);
             }
-            else if (request.Scope == SearchScope.Matn)
+            else // AllWords or single word
             {
-                queryable = queryable.Where(h => h.NormalizedMatn.Contains(normalizedQuery));
-            }
-            else if (request.Scope == SearchScope.Isnad)
-            {
-                queryable = queryable.Where(h => h.Transmissions.Any(t => t.Student.FullName.Contains(query) ||
-                                                                          t.Sheikh.FullName.Contains(query)));
+                foreach (var w in words)
+                {
+                    if (request.Scope == SearchScope.All)
+                    {
+                        queryable = queryable.Where(h => h.NormalizedMatn.Contains(w) ||
+                                                         h.NormalizedBookName.Contains(w) ||
+                                                         h.Transmissions.Any(t => t.Student.FullName.Contains(w) || t.Sheikh.FullName.Contains(w)));
+                    }
+                    else if (request.Scope == SearchScope.Matn)
+                    {
+                        queryable = queryable.Where(h => h.NormalizedMatn.Contains(w));
+                    }
+                    else if (request.Scope == SearchScope.Isnad)
+                    {
+                        queryable = queryable.Where(h => h.Transmissions.Any(t => t.Student.FullName.Contains(w) || t.Sheikh.FullName.Contains(w)));
+                    }
+                }
             }
         }
-        else if (request.Match == SearchMatchType.AnyWord)
+        else
         {
-            // For AnyWord, EF Core needs dynamic building, but we can do a simplified version for demonstration or use PredicateBuilder.
-            // A simpler EF Core compatible approach without third-party libs for "AnyWord" when max words is small:
-            // Since EF Core translates `.Any` over a local array in `Where`, we can try:
-            if (request.Scope == SearchScope.All)
+            // Multi-phrase or Exact
+            if (request.Operator == SearchLogicalOperator.Or)
             {
-                queryable = queryable.Where(h => words.Any(w => h.NormalizedMatn.Contains(w) || h.NormalizedBookName.Contains(w)) ||
-                                                 h.Transmissions.Any(t => words.Any(w => t.Student.FullName.Contains(w) || t.Sheikh.FullName.Contains(w))));
+                queryable = ApplyOrPhrases(queryable, normalizedPhrases, request.Scope);
             }
-            else if (request.Scope == SearchScope.Matn)
+            else // And (Default)
             {
-                queryable = queryable.Where(h => words.Any(w => h.NormalizedMatn.Contains(w)));
-            }
-            else if (request.Scope == SearchScope.Isnad)
-            {
-                queryable = queryable.Where(h => h.Transmissions.Any(t => words.Any(w => t.Student.FullName.Contains(w) || t.Sheikh.FullName.Contains(w))));
+                foreach (var np in normalizedPhrases)
+                {
+                    if (request.Scope == SearchScope.All)
+                    {
+                        queryable = queryable.Where(h => h.NormalizedMatn.Contains(np) ||
+                                                         h.NormalizedBookName.Contains(np) ||
+                                                         h.Transmissions.Any(t => t.Student.FullName.Contains(np) || t.Sheikh.FullName.Contains(np)));
+                    }
+                    else if (request.Scope == SearchScope.Matn)
+                    {
+                        queryable = queryable.Where(h => h.NormalizedMatn.Contains(np));
+                    }
+                    else if (request.Scope == SearchScope.Isnad)
+                    {
+                        queryable = queryable.Where(h => h.Transmissions.Any(t => t.Student.FullName.Contains(np) || t.Sheikh.FullName.Contains(np)));
+                    }
+                }
             }
         }
-        else // AllWords
+
+        // 4. In-Order (مرتبة) and Proximity (متقاربة) evaluation
+        if ((request.IsOrdered || request.IsProximity) && normalizedPhrases.Count > 1)
         {
-            if (request.Scope == SearchScope.All)
+            var candidates = await queryable
+                .Take(100)
+                .Select(h => new
+                {
+                    h.Id,
+                    h.BookName,
+                    h.HadithNumber,
+                    h.Chapter,
+                    h.MatnArabic,
+                    h.NormalizedMatn
+                })
+                .ToListAsync(ct);
+
+            var filtered = candidates.Where(h =>
             {
-                queryable = queryable.Where(h => words.All(w => h.NormalizedMatn.Contains(w) || h.NormalizedBookName.Contains(w) ||
-                                                 h.Transmissions.Any(t => t.Student.FullName.Contains(w) || t.Sheikh.FullName.Contains(w))));
-            }
-            else if (request.Scope == SearchScope.Matn)
+                if (request.IsOrdered && !CheckOrdered(h.NormalizedMatn, normalizedPhrases))
+                    return false;
+
+                if (request.IsProximity && !CheckProximity(h.NormalizedMatn, normalizedPhrases, request.ProximityWords))
+                    return false;
+
+                return true;
+            })
+            .Take(50)
+            .Select(h => new HadithSearchResultDto
             {
-                queryable = queryable.Where(h => words.All(w => h.NormalizedMatn.Contains(w)));
-            }
-            else if (request.Scope == SearchScope.Isnad)
-            {
-                queryable = queryable.Where(h => words.All(w => h.Transmissions.Any(t => t.Student.FullName.Contains(w) || t.Sheikh.FullName.Contains(w))));
-            }
+                Id = h.Id,
+                BookName = h.BookName,
+                HadithNumber = h.HadithNumber,
+                Chapter = h.Chapter,
+                MatnArabic = h.MatnArabic,
+                MatnSnippet = h.MatnArabic.Length > 150 
+                    ? h.MatnArabic.Substring(0, 150) + "..." 
+                    : h.MatnArabic
+            })
+            .ToList();
+
+            return filtered;
         }
 
         var hadiths = await queryable
@@ -88,6 +159,88 @@ public class HadithSearchService(IHadithTreeDbContext context, IHadithChainRepos
             .ToListAsync(ct);
 
         return hadiths;
+    }
+
+    private static IQueryable<HadithText> ApplyOrPhrases(IQueryable<HadithText> queryable, List<string> phrases, SearchScope scope)
+    {
+        if (phrases.Count == 0) return queryable;
+
+        var parameter = Expression.Parameter(typeof(HadithText), "h");
+        var containsMethod = typeof(string).GetMethod(nameof(string.Contains), [typeof(string)])!;
+        Expression? combined = null;
+
+        foreach (var phrase in phrases)
+        {
+            var phraseConst = Expression.Constant(phrase);
+            Expression predicate;
+
+            if (scope == SearchScope.Matn)
+            {
+                var matnProp = Expression.Property(parameter, nameof(HadithText.NormalizedMatn));
+                predicate = Expression.Call(matnProp, containsMethod, phraseConst);
+            }
+            else
+            {
+                var matnProp = Expression.Property(parameter, nameof(HadithText.NormalizedMatn));
+                var matnContains = Expression.Call(matnProp, containsMethod, phraseConst);
+
+                var bookProp = Expression.Property(parameter, nameof(HadithText.NormalizedBookName));
+                var bookContains = Expression.Call(bookProp, containsMethod, phraseConst);
+
+                predicate = Expression.OrElse(matnContains, bookContains);
+            }
+
+            combined = combined == null ? predicate : Expression.OrElse(combined, predicate);
+        }
+
+        if (combined != null)
+        {
+            var lambda = Expression.Lambda<Func<HadithText, bool>>(combined, parameter);
+            queryable = queryable.Where(lambda);
+        }
+
+        return queryable;
+    }
+
+    private static bool CheckOrdered(string text, List<string> phrases)
+    {
+        int lastIdx = -1;
+        foreach (var phrase in phrases)
+        {
+            int idx = text.IndexOf(phrase, lastIdx == -1 ? 0 : lastIdx + phrase.Length, StringComparison.Ordinal);
+            if (idx == -1 || (lastIdx != -1 && idx <= lastIdx))
+                return false;
+            lastIdx = idx;
+        }
+        return true;
+    }
+
+    private static bool CheckProximity(string text, List<string> phrases, int maxWords)
+    {
+        var words = text.Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+        var wordIndices = new List<int>();
+
+        foreach (var phrase in phrases)
+        {
+            var firstWord = phrase.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+            if (string.IsNullOrEmpty(firstWord)) continue;
+
+            int foundIdx = -1;
+            for (int i = 0; i < words.Length; i++)
+            {
+                if (words[i].Contains(firstWord, StringComparison.Ordinal))
+                {
+                    foundIdx = i;
+                    break;
+                }
+            }
+
+            if (foundIdx == -1) return false;
+            wordIndices.Add(foundIdx);
+        }
+
+        if (wordIndices.Count < 2) return true;
+        return (wordIndices.Max() - wordIndices.Min()) <= maxWords;
     }
 
     public async Task<IsnadTreeResponseDto?> GetIsnadTreeAsync(Guid hadithId, CancellationToken ct = default)

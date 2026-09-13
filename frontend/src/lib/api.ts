@@ -1,4 +1,11 @@
-import { HadithSearchResultDto, IsnadTreeResponseDto, NarratorDetailDto, NarratorSummaryDto, ComparativeTreeResponseDto } from "@/types/api";
+import {
+  HadithSearchResultDto,
+  IsnadTreeResponseDto,
+  NarratorDetailDto,
+  NarratorSummaryDto,
+  ComparativeTreeResponseDto,
+  SearchRequestDto,
+} from "@/types/api";
 
 const API_BASE = "http://localhost:5147/api"; // Default ASP.NET Core dev port
 
@@ -10,6 +17,18 @@ export async function searchHadiths(query: string, scope: number = 0, match: num
   
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error("Failed to search hadiths");
+  return res.json();
+}
+
+export async function advancedSearchHadiths(req: SearchRequestDto): Promise<HadithSearchResultDto[]> {
+  const res = await fetch(`${API_BASE}/Search/advanced`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) throw new Error("Failed to execute advanced search");
   return res.json();
 }
 

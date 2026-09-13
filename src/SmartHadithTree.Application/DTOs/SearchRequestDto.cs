@@ -14,9 +14,23 @@ public enum SearchMatchType
     Exact = 2
 }
 
+public enum SearchLogicalOperator
+{
+    And = 0,
+    Or = 1
+}
+
 public class SearchRequestDto
 {
     public string Query { get; set; } = string.Empty;
     public SearchScope Scope { get; set; } = SearchScope.All;
     public SearchMatchType Match { get; set; } = SearchMatchType.AllWords;
+
+    // ── Shamela Advanced Search Properties ──────────────────────────
+    public List<string> Phrases { get; set; } = [];
+    public SearchLogicalOperator Operator { get; set; } = SearchLogicalOperator.And;
+    public List<string> ExcludePhrases { get; set; } = [];
+    public bool IsOrdered { get; set; } = false;
+    public bool IsProximity { get; set; } = false;
+    public int ProximityWords { get; set; } = 15;
 }

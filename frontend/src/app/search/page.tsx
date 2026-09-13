@@ -22,7 +22,9 @@ import {
   FilterX,
   CheckSquare,
   SlidersHorizontal,
+  Sliders,
 } from "lucide-react";
+import ShamelaSearchModal from "@/features/search/components/ShamelaSearchModal";
 
 function SearchContent() {
   const router = useRouter();
@@ -34,11 +36,9 @@ function SearchContent() {
   const {
     query,
     setQuery,
-    scope,
-    setScope,
-    match,
-    setMatch,
     debouncedQuery,
+    advancedRequest,
+    setAdvancedRequest,
     data: results,
     isLoading,
     isFetching,
@@ -50,23 +50,19 @@ function SearchContent() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isAutoTakhreejLoading, setIsAutoTakhreejLoading] = useState<string | null>(null);
   const [selectedBook, setSelectedBook] = useState<string | null>(null);
-  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [isShamelaModalOpen, setIsShamelaModalOpen] = useState(false);
 
-  // Sync URL when debounced query, scope, or match updates
+  // Sync URL when debounced query updates
   useEffect(() => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
     if (debouncedQuery.trim().length > 2) {
       url.searchParams.set("q", debouncedQuery.trim());
-      url.searchParams.set("scope", scope.toString());
-      url.searchParams.set("match", match.toString());
     } else {
       url.searchParams.delete("q");
-      url.searchParams.delete("scope");
-      url.searchParams.delete("match");
     }
     window.history.replaceState(null, "", url.toString());
-  }, [debouncedQuery, scope, match]);
+  }, [debouncedQuery]);
 
   // Global shortcut "/" or "Ctrl+K" to focus search bar
   useEffect(() => {
@@ -151,7 +147,7 @@ function SearchContent() {
     }
   };
 
-  const isSearchActive = debouncedQuery.trim().length > 2;
+  const isSearchActive = !!advancedRequest || debouncedQuery.trim().length > 2;
 
   return (
     <div className="min-h-screen bg-slate-50/60 flex flex-col selection:bg-brand-teal/20 selection:text-brand-dark">
@@ -255,13 +251,14 @@ function SearchContent() {
 
               <button
                 type="button"
-                onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-                className={`p-1.5 rounded-xl transition-colors cursor-pointer border ${
-                  showAdvancedOptions || scope !== 0 || match !== 0
-                    ? "bg-brand-blue/10 text-brand-blue border-brand-blue/20"
-                    : "text-slate-400 hover:text-slate-600 hover:bg-slate-100 border-transparent"
+                onClick={() => setIsShamelaModalOpen(true)}
+                className={`p-2 rounded-xl transition-all cursor-pointer border ${
+                  advancedRequest
+                    ? "bg-brand-blue text-brand-teal border-brand-blue/30 shadow-xs"
+                    : "text-slate-400 hover:text-brand-blue hover:bg-slate-100 border-transparent"
                 }`}
-                title="خيارات البحث المتقدم"
+                title="خيارات البحث المتقدم (نمط المكتبة الشاملة)"
+                aria-label="خيارات البحث المتقدم"
               >
                 <SlidersHorizontal className="w-4 h-4" />
               </button>
@@ -274,57 +271,6 @@ function SearchContent() {
             </div>
           </div>
 
-          {/* Advanced Search Options Panel */}
-          {showAdvancedOptions && (
-            <div className="absolute top-full mt-2 w-full sm:w-auto sm:min-w-[400px] sm:end-0 z-10 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2">
-              <div className="p-4 space-y-4">
-                {/* Search Scope */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-700 block">نطاق البحث</label>
-                  <div className="flex bg-slate-100 p-1 rounded-xl">
-                    {["الكل", "المتن", "السند"].map((label, index) => (
-                      <button
-                        key={index}
-                        onClick={() => setScope(index)}
-                        className={`flex-1 text-xs py-1.5 px-3 rounded-lg font-medium transition-all ${
-                          scope === index
-                            ? "bg-white text-brand-blue shadow-sm"
-                            : "text-slate-500 hover:text-slate-700"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Match Type */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-700 block">طريقة المطابقة</label>
-                  <div className="flex bg-slate-100 p-1 rounded-xl">
-                    {[
-                      { label: "جميع الكلمات", value: 0 },
-                      { label: "أي كلمة", value: 1 },
-                      { label: "تطابق تام", value: 2 },
-                    ].map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => setMatch(opt.value)}
-                        className={`flex-1 text-xs py-1.5 px-3 rounded-lg font-medium transition-all ${
-                          match === opt.value
-                            ? "bg-white text-brand-blue shadow-sm"
-                            : "text-slate-500 hover:text-slate-700"
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Under-input helper if short query */}
           {query.trim().length > 0 && query.trim().length <= 2 && (
             <p className="text-xs text-amber-600 mt-2 pr-1 font-medium animate-in fade-in">
@@ -332,6 +278,59 @@ function SearchContent() {
             </p>
           )}
         </div>
+
+        {/* Active Shamela Advanced Query Banner */}
+        {advancedRequest && (
+          <div className="mb-5 p-3.5 bg-brand-blue/5 border border-brand-blue/20 rounded-2xl flex items-center justify-between gap-3 flex-wrap animate-in fade-in">
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <span className="font-bold text-brand-blue flex items-center gap-1.5">
+                <Sliders className="w-4 h-4 text-brand-teal" />
+                <span>بحث الشاملة النشط:</span>
+              </span>
+              <span className="bg-brand-blue text-white font-bold px-2 py-0.5 rounded-md">
+                {advancedRequest.operator === 0 ? "كل العبارات [و]" : "أي عبارة [أو]"}
+              </span>
+              {advancedRequest.phrases?.map((p, i) => (
+                <span key={i} className="bg-white border border-slate-200 text-slate-800 px-2 py-0.5 rounded-md font-semibold shadow-2xs">
+                  «{p}»
+                </span>
+              ))}
+              {advancedRequest.excludePhrases && advancedRequest.excludePhrases.length > 0 && (
+                <span className="bg-rose-50 border border-rose-200 text-rose-700 px-2 py-0.5 rounded-md font-semibold">
+                  [ليس]: {advancedRequest.excludePhrases.join("، ")}
+                </span>
+              )}
+              {advancedRequest.isOrdered && (
+                <span className="bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5 rounded-md font-semibold">
+                  مرتبة
+                </span>
+              )}
+              {advancedRequest.isProximity && (
+                <span className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-2 py-0.5 rounded-md font-semibold">
+                  متقاربة ({advancedRequest.proximityWords || 15} كلمة)
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 mr-auto">
+              <button
+                type="button"
+                onClick={() => setIsShamelaModalOpen(true)}
+                className="text-xs font-bold text-brand-blue hover:underline cursor-pointer"
+              >
+                تعديل الشروط
+              </button>
+              <span className="text-slate-300">•</span>
+              <button
+                type="button"
+                onClick={() => setAdvancedRequest(null)}
+                className="text-xs font-bold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Filter Pills & Result Summary */}
         {isSearchActive && !isLoading && results && results.length > 0 && (
@@ -463,6 +462,7 @@ function SearchContent() {
                       key={hadith.id}
                       hadith={hadith}
                       searchQuery={debouncedQuery}
+                      highlightPhrases={advancedRequest?.phrases}
                       isSelected={selectedIds.has(hadith.id)}
                       isAutoTakhreejLoading={isAutoTakhreejLoading === hadith.id}
                       onToggleSelect={toggleSelection}
@@ -483,6 +483,20 @@ function SearchContent() {
         onViewTree={handleViewTree}
         onClearSelection={clearSelection}
       />
+
+      {/* Shamela Advanced Search Modal */}
+      {isShamelaModalOpen && (
+        <ShamelaSearchModal
+          isOpen={isShamelaModalOpen}
+          onClose={() => setIsShamelaModalOpen(false)}
+          onSearch={(req) => {
+            setQuery("");
+            setAdvancedRequest(req);
+          }}
+          initialRequest={advancedRequest ?? undefined}
+          initialQuery={query}
+        />
+      )}
     </div>
   );
 }

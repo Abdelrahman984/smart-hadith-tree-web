@@ -17,6 +17,7 @@ import {
 interface HadithCardProps {
   hadith: HadithSearchResultDto;
   searchQuery: string;
+  highlightPhrases?: string[];
   isSelected: boolean;
   isAutoTakhreejLoading: boolean;
   onToggleSelect: (id: string) => void;
@@ -29,6 +30,7 @@ import HighlightedText from "./HighlightedText";
 export default function HadithCard({
   hadith,
   searchQuery,
+  highlightPhrases,
   isSelected,
   isAutoTakhreejLoading,
   onToggleSelect,
@@ -106,7 +108,7 @@ export default function HadithCard({
               className="text-xs text-slate-600 bg-slate-50 border border-slate-200/70 px-2.5 py-1 rounded-lg font-medium truncate max-w-xs"
               title={hadith.chapter}
             >
-              <HighlightedText text={hadith.chapter} query={searchQuery} />
+              <HighlightedText text={hadith.chapter} query={searchQuery} phrases={highlightPhrases} />
             </span>
           )}
         </div>
@@ -145,7 +147,7 @@ export default function HadithCard({
             !isExpanded && isLongText ? "line-clamp-4" : ""
           }`}
         >
-          <HighlightedText text={fullText} query={searchQuery} />
+          <HighlightedText text={fullText} query={searchQuery} phrases={highlightPhrases} />
         </p>
 
         {isLongText && (

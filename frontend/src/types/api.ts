@@ -78,3 +78,19 @@ export interface ComparativeTreeResponseDto {
   calculatedGrade?: string;
   taqwiyahDetails?: string;
 }
+
+export type SearchScope = 0 | 1 | 2; // 0: All, 1: Matn, 2: Isnad
+export type SearchMatchType = 0 | 1 | 2; // 0: AllWords, 1: AnyWord, 2: Exact
+export type SearchLogicalOperator = 0 | 1; // 0: And, 1: Or
+
+export interface SearchRequestDto {
+  query?: string;
+  scope?: SearchScope;
+  match?: SearchMatchType;
+  phrases?: string[];
+  operator?: SearchLogicalOperator;
+  excludePhrases?: string[];
+  isOrdered?: boolean;
+  isProximity?: boolean;
+  proximityWords?: number;
+}

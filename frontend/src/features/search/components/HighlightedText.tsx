@@ -4,7 +4,8 @@ import { useMemo } from "react";
 
 interface HighlightedTextProps {
   text: string;
-  query: string;
+  query?: string;
+  phrases?: string[];
   className?: string;
   highlightClassName?: string;
 }
@@ -65,38 +66,53 @@ function buildArabicWordPattern(word: string): string {
 /**
  * Slices text into matched and non-matched segments
  */
-export function getHighlightedParts(text: string, query: string): { text: string; match: boolean }[] {
+export function getHighlightedParts(
+  text: string,
+  query?: string,
+  phrases?: string[]
+): { text: string; match: boolean }[] {
   if (!text) return [];
-  const trimmed = query.trim();
-  if (!trimmed || trimmed.length < 2) {
-    return [{ text, match: false }];
+
+  // Gather all input phrases
+  const allInputs: string[] = [];
+  if (query && query.trim().length >= 2) {
+    allInputs.push(query.trim());
   }
-
-  // Extract search terms with at least 2 characters (stripped of tashkeel)
-  const rawWords = trimmed.split(/\s+/);
-  const words = rawWords
-    .map(stripArabicDiacritics)
-    .filter((w) => w.length >= 2);
-
-  if (words.length === 0) {
-    return [{ text, match: false }];
-  }
-
-  const uniqueWords = Array.from(new Set(words));
-  const patterns: string[] = [];
-
-  // If multi-word query, prioritize exact consecutive phrase first
-  if (rawWords.length > 1) {
-    const phrasePattern = rawWords
-      .map(buildArabicWordPattern)
-      .filter(Boolean)
-      .join("\\s+");
-    if (phrasePattern) {
-      patterns.push(phrasePattern);
+  if (phrases && phrases.length > 0) {
+    for (const p of phrases) {
+      if (p && p.trim().length >= 2) {
+        allInputs.push(p.trim());
+      }
     }
   }
 
-  // Sort individual words by length descending so longer matches take precedence
+  if (allInputs.length === 0) {
+    return [{ text, match: false }];
+  }
+
+  const patterns: string[] = [];
+  const individualWords: string[] = [];
+
+  for (const input of allInputs) {
+    const rawWords = input.split(/\s+/);
+    if (rawWords.length > 1) {
+      const phrasePattern = rawWords
+        .map(buildArabicWordPattern)
+        .filter(Boolean)
+        .join("\\s+");
+      if (phrasePattern) {
+        patterns.push(phrasePattern);
+      }
+    }
+    for (const w of rawWords) {
+      const cleanW = stripArabicDiacritics(w);
+      if (cleanW.length >= 2) {
+        individualWords.push(cleanW);
+      }
+    }
+  }
+
+  const uniqueWords = Array.from(new Set(individualWords));
   uniqueWords.sort((a, b) => b.length - a.length);
   for (const w of uniqueWords) {
     const pat = buildArabicWordPattern(w);
@@ -141,10 +157,11 @@ export function getHighlightedParts(text: string, query: string): { text: string
 export default function HighlightedText({
   text,
   query,
+  phrases,
   className,
   highlightClassName = "bg-amber-200/90 text-amber-950 font-bold px-1 py-0.5 rounded-sm shadow-2xs",
 }: HighlightedTextProps) {
-  const parts = useMemo(() => getHighlightedParts(text, query), [text, query]);
+  const parts = useMemo(() => getHighlightedParts(text, query, phrases), [text, query, phrases]);
 
   if (!text) return null;
 

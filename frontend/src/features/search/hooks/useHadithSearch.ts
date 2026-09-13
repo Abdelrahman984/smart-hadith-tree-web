@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { searchHadiths } from "@/lib/api";
+import { searchHadiths, advancedSearchHadiths } from "@/lib/api";
 import { useState, useEffect } from "react";
+import { SearchRequestDto } from "@/types/api";
 
 export function useHadithSearch(
   initialQuery: string = "",
@@ -10,6 +11,7 @@ export function useHadithSearch(
   const [query, setQuery] = useState(initialQuery);
   const [scope, setScope] = useState(initialScope);
   const [match, setMatch] = useState(initialMatch);
+  const [advancedRequest, setAdvancedRequest] = useState<SearchRequestDto | null>(null);
 
   const [prevInitialQuery, setPrevInitialQuery] = useState(initialQuery);
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
@@ -28,14 +30,23 @@ export function useHadithSearch(
     return () => clearTimeout(timer);
   }, [query]);
 
-  // Optionally we can update the URL when query/scope/match changes, but we'll handle URL sync at the page level.
-
-  const queryResult = useQuery({
+  // Standard Query
+  const standardQuery = useQuery({
     queryKey: ["search", debouncedQuery, scope, match],
     queryFn: () => searchHadiths(debouncedQuery, scope, match),
-    enabled: debouncedQuery.trim().length > 2,
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    enabled: !advancedRequest && debouncedQuery.trim().length > 2,
+    staleTime: 1000 * 60 * 5,
   });
+
+  // Advanced / Shamela Query
+  const advancedQuery = useQuery({
+    queryKey: ["advanced-search", advancedRequest],
+    queryFn: () => advancedSearchHadiths(advancedRequest!),
+    enabled: !!advancedRequest && (advancedRequest.phrases?.length ?? 0) > 0,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const activeQueryResult = advancedRequest ? advancedQuery : standardQuery;
 
   return {
     query,
@@ -45,6 +56,8 @@ export function useHadithSearch(
     match,
     setMatch,
     debouncedQuery,
-    ...queryResult,
+    advancedRequest,
+    setAdvancedRequest,
+    ...activeQueryResult,
   };
 }
