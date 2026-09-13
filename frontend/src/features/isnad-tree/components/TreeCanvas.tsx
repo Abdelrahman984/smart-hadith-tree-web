@@ -109,7 +109,7 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
               id: edgeId,
               source: n.narratorId, // Sheikh
               target: parentNode.narratorId, // Student
-              type: "smoothstep",
+              type: "bezier",
               markerEnd: {
                 type: MarkerType.ArrowClosed,
                 width: 20,
@@ -123,7 +123,9 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
               },
               animated: n.isAnomaly,
               label: n.isAnomaly ? "انقطاع" : undefined,
-              labelStyle: { fill: "#ef4444", fontWeight: "bold" },
+              labelStyle: { fill: "#ef4444", fontWeight: "bold", fontSize: 11 },
+              labelBgStyle: { fill: "#fef2f2", stroke: "#fca5a5", strokeWidth: 1, rx: 4, ry: 4 },
+              labelBgPadding: [4, 8],
             });
           }
         }

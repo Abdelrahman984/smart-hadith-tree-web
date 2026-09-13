@@ -5,9 +5,19 @@ const elk = new ELK();
 
 const elkOptions = {
   'elk.algorithm': 'layered',
-  'elk.layered.spacing.nodeNodeBetweenLayers': '70',
-  'elk.spacing.nodeNode': '40',
-  'elk.direction': 'DOWN', // Top-to-bottom layout
+  'elk.direction': 'DOWN', // Top-to-bottom transmission flow
+  'elk.spacing.nodeNode': '85', // Generous horizontal spacing between nodes
+  'elk.layered.spacing.nodeNodeBetweenLayers': '115', // Vertical spacing between generational tiers
+  'elk.spacing.edgeNode': '35', // Clearance between edges and nodes
+  'elk.spacing.edgeEdge': '25', // Separation between edges to avoid clustering
+  'elk.layered.spacing.edgeNodeBetweenLayers': '45',
+  'elk.layered.spacing.edgeEdgeBetweenLayers': '25',
+  'elk.layered.layering.strategy': 'LONGEST_PATH', // Aligns terminal compilers/reference nodes cleanly at bottom
+  'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
+  'elk.layered.nodePlacement.favorStraightEdges': 'true', // Keeps vertical teacher-student chains straight
+  'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP', // Minimizes line crossings
+  'elk.layered.crossingMinimization.greedySwitchCrossingMinimizer.activationThreshold': '1',
+  'elk.layered.thoroughness': '7',
   'elk.alignment': 'CENTER',
 };
 

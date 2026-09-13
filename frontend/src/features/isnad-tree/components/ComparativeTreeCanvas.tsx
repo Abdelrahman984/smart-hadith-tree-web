@@ -139,11 +139,20 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
                strokeWidth = 3;
             }
 
+            const isAnomaly = n.isAnomaly;
+            const hasVariation = n.hasMatnVariation;
+            const labelText = isAnomaly ? "انقطاع" : hasVariation ? "اختلاف باللفظ" : undefined;
+            const labelBg = isAnomaly 
+              ? { fill: "#fef2f2", stroke: "#fca5a5", strokeWidth: 1, rx: 4, ry: 4 }
+              : hasVariation 
+              ? { fill: "#fffbeb", stroke: "#fcd34d", strokeWidth: 1, rx: 4, ry: 4 }
+              : undefined;
+
             uniqueEdges.set(edgeId, {
               id: edgeId,
               source: n.narratorId, // Sheikh
               target: parentNode.narratorId, // Student
-              type: "smoothstep",
+              type: "bezier",
               markerEnd: {
                 type: MarkerType.ArrowClosed,
                 width: 20,
@@ -153,11 +162,13 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
               style: { 
                 stroke: edgeColor, 
                 strokeWidth: strokeWidth,
-                strokeDasharray: n.isAnomaly || n.hasMatnVariation ? "5 5" : undefined 
+                strokeDasharray: isAnomaly || hasVariation ? "5 5" : undefined 
               },
-              animated: n.isAnomaly || n.hasMatnVariation,
-              label: n.isAnomaly ? "انقطاع" : n.hasMatnVariation ? "اختلاف باللفظ" : undefined,
-              labelStyle: { fill: edgeColor, fontWeight: "bold" },
+              animated: isAnomaly || hasVariation,
+              label: labelText,
+              labelStyle: { fill: edgeColor, fontWeight: "bold", fontSize: 11 },
+              labelBgStyle: labelBg,
+              labelBgPadding: [4, 8],
             });
           } else {
              // If edge exists (which shouldn't usually happen with same nodes unless duplicate transmissions), we could merge properties if needed
