@@ -5,7 +5,7 @@ const elk = new ELK();
 
 const elkOptions = {
   'elk.algorithm': 'layered',
-  'elk.layered.spacing.nodeNodeBetweenLayers': '60',
+  'elk.layered.spacing.nodeNodeBetweenLayers': '70',
   'elk.spacing.nodeNode': '40',
   'elk.direction': 'DOWN', // Top-to-bottom layout
   'elk.alignment': 'CENTER',
@@ -18,8 +18,8 @@ export const getLayoutedElements = async (nodes: Node[], edges: Edge[]) => {
     children: nodes.map((node) => ({
       ...node,
       // Target widths and heights for ELK to compute layout
-      width: 250, 
-      height: 80,
+      width: node.type === 'reference' ? 260 : 250, 
+      height: node.type === 'reference' ? 120 : 85,
     })),
     edges: edges.map((edge) => ({
       id: edge.id,

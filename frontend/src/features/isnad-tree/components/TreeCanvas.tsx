@@ -14,6 +14,8 @@ import {
 import { getLayoutedElements } from "../utils/elkLayout";
 import { formatTwoPartNarratorName } from "../utils/formatNarratorName";
 import NarratorNode from "./NarratorNode";
+import ReferenceNode from "./ReferenceNode";
+import { getFamousReferenceOwnerName } from "../utils/formatFamousReferenceName";
 import { IsnadTreeResponseDto, NarratorSummaryDto } from "@/types/api";
 import { useNarratorDrawerStore } from "@/features/narrator-details/store/useNarratorDrawerStore";
 import GraphControls from './GraphControls';
@@ -21,6 +23,7 @@ import BookLegend from './BookLegend';
 
 const nodeTypes = {
   narrator: NarratorNode,
+  reference: ReferenceNode,
 };
 
 interface TreeCanvasProps {
@@ -48,22 +51,42 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
     
     treeData.nodes.forEach((n) => {
       if (!uniqueNarrators.has(n.narratorId)) {
+        const isReference = n.stepOrder === 0;
         const tooltip = narratorsTooltips?.[n.narratorId];
-        uniqueNarrators.set(n.narratorId, {
-          id: n.narratorId,
-          type: "narrator",
-          position: { x: 0, y: 0 },
-          data: {
-            narratorName: formatTwoPartNarratorName(n.narratorName || n.knownAs),
-            fullName: n.narratorName,
-            generationTier: n.generationTier,
-            transmissionTerm: n.transmissionTerm,
-            gradeSummary: tooltip?.gradeSummary,
-            gradeEn: n.gradeEn,
-            isAnomaly: n.isAnomaly,
-            anomalyReason: n.anomalyReason,
-          },
-        });
+
+        if (isReference) {
+          uniqueNarrators.set(n.narratorId, {
+            id: n.narratorId,
+            type: "reference",
+            position: { x: 0, y: 0 },
+            data: {
+              famousName: getFamousReferenceOwnerName(n.narratorName, n.knownAs, treeData.bookName),
+              fullName: n.narratorName,
+              twoPartName: formatTwoPartNarratorName(n.narratorName || n.knownAs),
+              bookName: treeData.bookName,
+              hadithNumber: treeData.hadithNumber,
+              generationTier: n.generationTier,
+              gradeSummary: tooltip?.gradeSummary,
+              gradeEn: n.gradeEn,
+            },
+          });
+        } else {
+          uniqueNarrators.set(n.narratorId, {
+            id: n.narratorId,
+            type: "narrator",
+            position: { x: 0, y: 0 },
+            data: {
+              narratorName: formatTwoPartNarratorName(n.narratorName || n.knownAs),
+              fullName: n.narratorName,
+              generationTier: n.generationTier,
+              transmissionTerm: n.transmissionTerm,
+              gradeSummary: tooltip?.gradeSummary,
+              gradeEn: n.gradeEn,
+              isAnomaly: n.isAnomaly,
+              anomalyReason: n.anomalyReason,
+            },
+          });
+        }
       }
     });
 
@@ -81,6 +104,7 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
         if (parentNode) {
           const edgeId = `e-${n.narratorId}-${parentNode.narratorId}`;
           if (!uniqueEdges.has(edgeId)) {
+            const edgeColor = n.isAnomaly ? "#ef4444" : "#64748b";
             uniqueEdges.set(edgeId, {
               id: edgeId,
               source: n.narratorId, // Sheikh
@@ -88,10 +112,12 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
               type: "smoothstep",
               markerEnd: {
                 type: MarkerType.ArrowClosed,
-                color: n.isAnomaly ? "#ef4444" : "#94a3b8",
+                width: 20,
+                height: 20,
+                color: edgeColor,
               },
               style: { 
-                stroke: n.isAnomaly ? "#ef4444" : "#cbd5e1", 
+                stroke: edgeColor, 
                 strokeWidth: n.isAnomaly ? 3 : 2,
                 strokeDasharray: n.isAnomaly ? "5 5" : undefined 
               },

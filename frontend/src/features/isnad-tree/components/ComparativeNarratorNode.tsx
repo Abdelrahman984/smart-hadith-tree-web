@@ -92,16 +92,16 @@ const ComparativeNarratorNode = ({ data, selected }: { data: ComparativeNarrator
       )}
 
       {/* Top Handle - Input from Sheikh */}
-      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-slate-400" />
+      <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-transparent !border-none opacity-0 pointer-events-none" />
       
       {data.sourceBooks && data.sourceBooks.length > 0 && (
-        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 flex gap-1 bg-white rounded-full px-1 shadow-sm border border-slate-200">
+        <div className="absolute -top-3 left-2 flex items-center gap-0.5 bg-white rounded-full px-1.5 py-0.5 shadow-xs border border-slate-200 z-10">
           {data.sourceBooks.map((book, idx) => {
             const badge = getBookBadge(book);
             return (
               <span 
                 key={idx} 
-                className="w-5 h-5 flex items-center justify-center text-[10px] text-white rounded-full font-bold"
+                className="w-4.5 h-4.5 flex items-center justify-center text-[9px] text-white rounded-full font-bold shrink-0"
                 style={{ backgroundColor: badge.color }}
                 title={book}
               >
@@ -129,7 +129,7 @@ const ComparativeNarratorNode = ({ data, selected }: { data: ComparativeNarrator
       )}
       
       {/* Bottom Handle - Output to Student */}
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-slate-400" />
+      <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-transparent !border-none opacity-0 pointer-events-none" />
     </div>
   );
 };

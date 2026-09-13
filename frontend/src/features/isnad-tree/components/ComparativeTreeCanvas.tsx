@@ -14,6 +14,8 @@ import {
 import { getLayoutedElements } from "../utils/elkLayout";
 import { formatTwoPartNarratorName } from "../utils/formatNarratorName";
 import ComparativeNarratorNode from "./ComparativeNarratorNode";
+import ReferenceNode from "./ReferenceNode";
+import { getFamousReferenceOwnerName } from "../utils/formatFamousReferenceName";
 import { ComparativeTreeResponseDto, NarratorSummaryDto } from "@/types/api";
 import { useNarratorDrawerStore } from "@/features/narrator-details/store/useNarratorDrawerStore";
 import GraphControls from './GraphControls';
@@ -21,6 +23,7 @@ import BookLegend from './BookLegend';
 
 const nodeTypes = {
   comparativeNarrator: ComparativeNarratorNode,
+  reference: ReferenceNode,
 };
 
 const getBookColor = (book: string) => {
@@ -33,7 +36,7 @@ const getBookColor = (book: string) => {
     case 'سنن ابن ماجه': return '#e11d48';
     case 'مسند أحمد': return '#b45309';
     case 'موطأ مالك': return '#0d9488';
-    default: return '#94a3b8';
+    default: return '#64748b';
   }
 };
 
@@ -55,28 +58,55 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
     
     treeData.nodes.forEach((n) => {
       if (!uniqueNarrators.has(n.narratorId)) {
+        const isReference = n.stepOrder === 0;
         const tooltip = narratorsTooltips?.[n.narratorId];
-        uniqueNarrators.set(n.narratorId, {
-          id: n.narratorId,
-          type: "comparativeNarrator",
-          position: { x: 0, y: 0 },
-          data: {
-            narratorName: formatTwoPartNarratorName(n.narratorName || n.knownAs),
-            fullName: n.narratorName,
-            generationTier: n.generationTier,
-            transmissionTerm: n.transmissionTerm,
-            gradeSummary: tooltip?.gradeSummary,
-            gradeEn: n.gradeEn,
-            isAnomaly: n.isAnomaly,
-            anomalyReason: n.anomalyReason,
-            sourceBooks: n.sourceBooks || [],
-          },
-        });
+
+        if (isReference) {
+          const matchedSources = (treeData.sources || []).filter(s => n.sourceHadithIds?.includes(s.hadithId));
+          const bookName = matchedSources.map(s => s.bookName).join(' / ') || n.sourceBooks?.join(' / ') || 'المصدر';
+          const hadithNumbers = matchedSources.map(s => s.hadithNumber).filter(Boolean);
+          const hadithNumberText = hadithNumbers.length > 0 ? hadithNumbers.join(', ') : undefined;
+          const famousName = getFamousReferenceOwnerName(n.narratorName, n.knownAs, bookName);
+
+          uniqueNarrators.set(n.narratorId, {
+            id: n.narratorId,
+            type: "reference",
+            position: { x: 0, y: 0 },
+            data: {
+              famousName,
+              fullName: n.narratorName,
+              twoPartName: formatTwoPartNarratorName(n.narratorName || n.knownAs),
+              bookName,
+              hadithNumber: hadithNumberText,
+              generationTier: n.generationTier,
+              gradeSummary: tooltip?.gradeSummary,
+              gradeEn: n.gradeEn,
+              sourceBooks: n.sourceBooks || [],
+            },
+          });
+        } else {
+          uniqueNarrators.set(n.narratorId, {
+            id: n.narratorId,
+            type: "comparativeNarrator",
+            position: { x: 0, y: 0 },
+            data: {
+              narratorName: formatTwoPartNarratorName(n.narratorName || n.knownAs),
+              fullName: n.narratorName,
+              generationTier: n.generationTier,
+              transmissionTerm: n.transmissionTerm,
+              gradeSummary: tooltip?.gradeSummary,
+              gradeEn: n.gradeEn,
+              isAnomaly: n.isAnomaly,
+              anomalyReason: n.anomalyReason,
+              sourceBooks: n.sourceBooks || [],
+            },
+          });
+        }
       } else {
         // Merge source books if seen again
         const existingNode = uniqueNarrators.get(n.narratorId)!;
         const newBooks = n.sourceBooks || [];
-        const mergedBooks = Array.from(new Set([...(existingNode.data.sourceBooks as string[]), ...newBooks]));
+        const mergedBooks = Array.from(new Set([...((existingNode.data.sourceBooks as string[]) || []), ...newBooks]));
         existingNode.data.sourceBooks = mergedBooks;
       }
     });
@@ -91,13 +121,13 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
         if (parentNode) {
           const edgeId = `e-${n.narratorId}-${parentNode.narratorId}`;
           if (!uniqueEdges.has(edgeId)) {
-            let edgeColor = '#cbd5e1';
+            let edgeColor = '#64748b';
             let strokeWidth = 2;
             
             if (n.sourceBooks && n.sourceBooks.length === 1) {
               edgeColor = getBookColor(n.sourceBooks[0]);
             } else if (n.sourceBooks && n.sourceBooks.length > 1) {
-              edgeColor = '#475569';
+              edgeColor = '#334155';
               strokeWidth = 3;
             }
 
@@ -116,6 +146,8 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
               type: "smoothstep",
               markerEnd: {
                 type: MarkerType.ArrowClosed,
+                width: 20,
+                height: 20,
                 color: edgeColor,
               },
               style: { 
@@ -141,7 +173,6 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [treeData, narratorsTooltips, setNodes, setEdges]);
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {

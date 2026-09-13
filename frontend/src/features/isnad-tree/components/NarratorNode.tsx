@@ -69,7 +69,7 @@ const NarratorNode = ({ data, selected }: { data: NarratorNodeData; selected?: b
       )}
 
       {/* Top Handle - Input from Sheikh */}
-      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-slate-400" />
+      <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-transparent !border-none opacity-0 pointer-events-none" />
       
       {data.transmissionTerm && (
         <div className="text-xs text-slate-500 mb-1 border-b pb-1">
@@ -88,7 +88,7 @@ const NarratorNode = ({ data, selected }: { data: NarratorNodeData; selected?: b
       )}
       
       {/* Bottom Handle - Output to Student */}
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-slate-400" />
+      <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-transparent !border-none opacity-0 pointer-events-none" />
     </div>
   );
 };
