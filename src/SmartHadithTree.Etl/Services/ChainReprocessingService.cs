@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SmartHadithTree.Domain.Entities;
@@ -47,12 +48,12 @@ public class ChainReprocessingService
         var compilerMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
         {
             ["صحيح البخاري"] = 55562,
-            ["صحيح مسلم"] = 618,
-            ["سنن أبي داود"] = 74,
-            ["جامع الترمذي"] = 69584,
-            ["سنن النسائي"] = 57802,
-            ["سنن ابن ماجه"] = 64080,
-            ["مسند أحمد"] = 12657,
+            ["صحيح مسلم"] = 74,
+            ["سنن أبي داود"] = 618,
+            ["جامع الترمذي"] = 673,
+            ["سنن النسائي"] = 617,
+            ["سنن ابن ماجه"] = 1218,
+            ["مسند أحمد"] = 353,
             ["موطأ مالك"] = 60209,
             ["سنن الدارمي"] = 56570,
             ["الأربعون النووية"] = 58153,
@@ -66,7 +67,21 @@ public class ChainReprocessingService
         _logger.LogWarning("Truncating existing Transmissions table...");
         await _dbContext.Database.ExecuteSqlRawAsync("TRUNCATE TABLE [Transmissions]", ct);
 
-        // 4. Load all Hadiths
+        // 4. Load father map
+        var fatherMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var fatherMapPath = Path.Combine(itqanSourcePath, "isnad_father_map.json");
+        if (File.Exists(fatherMapPath))
+        {
+            var content = await File.ReadAllTextAsync(fatherMapPath, ct);
+            using var doc = JsonDocument.Parse(content);
+            foreach (var element in doc.RootElement.EnumerateObject())
+            {
+                if (element.Name.StartsWith("_comment")) continue;
+                fatherMap[element.Name] = element.Value.GetString() ?? "";
+            }
+        }
+
+        // 5. Load all Hadiths
         _logger.LogInformation("Loading Hadiths from database...");
         var hadiths = await _dbContext.Hadiths.AsNoTracking().ToListAsync(ct);
 
@@ -79,7 +94,8 @@ public class ChainReprocessingService
         {
             if (string.IsNullOrWhiteSpace(hadith.MatnArabic)) continue;
 
-            var parts = Regex.Split(hadith.MatnArabic, @"(حَدَّثَنَا|حَدَّثَنِي|أَخْبَرَنَا|أَخْبَرَنِي|أَنْبَأَنَا|أَنَّهُ\s+سَمِعَ|أَنَّهَا\s+سَمِعَتْ|سَمِعْتُ|سَمِعَ|سَمِعَتْ|\bعَنْ\b)");
+            var matnNoVowels = Regex.Replace(hadith.MatnArabic, @"\p{Mn}", "");
+            var parts = Regex.Split(matnNoVowels, @"(حدثنا|حدثني|أخبرنا|أخبرني|أنبأنا|أنه\s+سمع|أنها\s+سمعت|سمعت|سمع|سمعت|قرأت\s+على|\bعن\b)");
             var step = 1;
             
             Guid? studentGuid = null;
@@ -99,17 +115,56 @@ public class ChainReprocessingService
                 var term = parts[i].Trim();
                 var nameRaw = parts[i + 1];
 
-                // Remove honorifics
-                nameRaw = Regex.Replace(nameRaw, @"(رَضِيَ\s+اللَّهُ\s+عَنْهُ|رَضِيَ\s+اللَّهُ\s+عَنْهُمَا|رَضِيَ\s+اللَّهُ\s+عَنْهَا|رَضِيَ\s+اللَّهُ\s+عَنْهُمْ|صَلَّى\s+اللَّهُ\s+عَلَيْهِ\s+وَسَلَّمَ|عَلَيْهِ\s+السَّلَامُ|رَحِمَهُ\s+اللَّهُ)", "");
+                // split by wao + comma for multiple sheikhs and take first
+                var multipleNames = Regex.Split(nameRaw, @"،\s*و");
+                if (multipleNames.Length > 1) {
+                    nameRaw = multipleNames[0].Trim();
+                }
+
+                // Remove honorifics (unvoweled)
+                nameRaw = Regex.Replace(nameRaw, @"(رضي\s+الله\s+عنه|رضى\s+الله\s+عنه|رضي\s+الله\s+عنهما|رضى\s+الله\s+عنهما|رضي\s+الله\s+عنها|رضى\s+الله\s+عنها|رضي\s+الله\s+عنهم|رضى\s+الله\s+عنهم|صلى\s+الله\s+عليه\s+وسلم|عليه\s+السلام|رحمه\s+الله)", "");
                 
-                // Split on speech boundaries
-                nameRaw = Regex.Split(nameRaw, @"(قَالَ|يَقُولُ|أَنَّهُ|أَنَّ|أَنَّهَا|عَلَى\s+الْمِنْبَرِ|وَهُوَ\s+عَلَى\s+الْمِنْبَرِ)")[0];
+                // Split on speech boundaries (unvoweled)
+                nameRaw = Regex.Split(nameRaw, @"(قال|يقول|أنه|أن|أنها|على\s+المنبر|وهو\s+على\s+المنبر)")[0];
                 nameRaw = nameRaw.Trim(' ', '،', ',', '.', ':', '؛');
 
                 var nameClean = Regex.Replace(nameRaw, @"[^\p{L}\s]", "").Trim();
-                nameClean = Regex.Replace(nameClean, @"\s+", " ");
+                nameClean = Regex.Replace(nameClean, "ـ", ""); // Remove Kashida
+                nameClean = Regex.Replace(nameClean, @"\s+", " ").Trim();
+                nameClean = Regex.Replace(nameClean, @"\bأبي\b", "أبو");
+                nameClean = Regex.Replace(nameClean, @"\bأبا\b", "أبو");
+                nameClean = nameClean.Trim();
 
                 if (string.IsNullOrWhiteSpace(nameClean)) continue;
+
+                string previousNameClean = "";
+                if (i >= 3)
+                {
+                    var prevRaw = parts[i - 1];
+                    // split by wao + comma
+                    var multiplePrevNames = Regex.Split(prevRaw, @"،\s*و");
+                    if (multiplePrevNames.Length > 1) {
+                        prevRaw = multiplePrevNames[0].Trim();
+                    }
+                    prevRaw = Regex.Replace(prevRaw, @"(رضي\s+الله\s+عنه|رضى\s+الله\s+عنه|رضي\s+الله\s+عنهما|رضى\s+الله\s+عنهما|رضي\s+الله\s+عنها|رضى\s+الله\s+عنها|رضي\s+الله\s+عنهم|رضى\s+الله\s+عنهم|صلى\s+الله\s+عليه\s+وسلم|عليه\s+السلام|رحمه\s+الله)", "");
+                    prevRaw = Regex.Split(prevRaw, @"(قال|يقول|أنه|أن|أنها|على\s+المنبر|وهو\s+على\s+المنبر)")[0];
+                    prevRaw = prevRaw.Trim(' ', '،', ',', '.', ':', '؛');
+                    previousNameClean = Regex.Replace(prevRaw, @"[^\p{L}\s]", "").Trim();
+                    previousNameClean = Regex.Replace(previousNameClean, "ـ", ""); // Remove Kashida
+                    previousNameClean = Regex.Replace(previousNameClean, @"\s+", " ").Trim();
+                    previousNameClean = Regex.Replace(previousNameClean, @"\bأبي\b", "أبو");
+                    previousNameClean = Regex.Replace(previousNameClean, @"\bأبا\b", "أبو");
+                    previousNameClean = previousNameClean.Trim();
+                }
+
+                if (nameClean.Equals("أبيه", StringComparison.OrdinalIgnoreCase) || 
+                    nameClean.Equals("ابيه", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (fatherMap.TryGetValue(previousNameClean, out var fatherName))
+                    {
+                        nameClean = fatherName;
+                    }
+                }
 
                 // Resolve using the Contextual Disambiguator
                 var sheikhItqanId = _disambiguator.ResolveSheikh(nameClean, studentItqanId);

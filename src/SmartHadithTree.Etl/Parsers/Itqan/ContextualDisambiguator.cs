@@ -215,6 +215,24 @@ public class ContextualDisambiguator
             return 199; // يحيى بن سعيد الأنصاري
         }
 
+        if (rawName.Equals("شقيق", StringComparison.OrdinalIgnoreCase))
+        {
+            return 250; // شقيق بن سلمة (أبو وائل)
+        }
+
+        if (rawName.Equals("ابن نمير", StringComparison.OrdinalIgnoreCase))
+        {
+            return 818; // عبد الله بن نمير
+        }
+
+        if (rawName.Equals("عبد الله", StringComparison.OrdinalIgnoreCase))
+        {
+            if (studentItqanId == 250) // شقيق بن سلمة يروي عن عبد الله بن مسعود
+            {
+                return 529; // عبد الله بن مسعود
+            }
+        }
+
         return null;
     }
 
