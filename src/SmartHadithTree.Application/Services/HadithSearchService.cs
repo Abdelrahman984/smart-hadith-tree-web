@@ -11,19 +11,44 @@ public class HadithSearchService(IHadithTreeDbContext context, IHadithChainRepos
     public async Task<List<HadithSearchResultDto>> SearchHadithsAsync(SearchRequestDto request, CancellationToken ct = default)
     {
         // 1. Determine phrases
-        var rawPhrases = request.Phrases != null && request.Phrases.Count > 0
-            ? request.Phrases.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()).ToList()
+        var rawAndPhrases = request.AndPhrases != null && request.AndPhrases.Count > 0
+            ? request.AndPhrases.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()).ToList()
             : [];
 
-        if (rawPhrases.Count == 0 && !string.IsNullOrWhiteSpace(request.Query))
+        var rawOrPhrases = request.OrPhrases != null && request.OrPhrases.Count > 0
+            ? request.OrPhrases.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()).ToList()
+            : [];
+
+        // Backward compatibility with legacy request.Phrases and request.Operator
+        if (rawAndPhrases.Count == 0 && rawOrPhrases.Count == 0)
         {
-            rawPhrases = [request.Query.Trim()];
+            var legacyPhrases = request.Phrases != null && request.Phrases.Count > 0
+                ? request.Phrases.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()).ToList()
+                : [];
+
+            if (legacyPhrases.Count == 0 && !string.IsNullOrWhiteSpace(request.Query))
+            {
+                legacyPhrases = [request.Query.Trim()];
+            }
+
+            if (request.Operator == SearchLogicalOperator.Or)
+            {
+                rawOrPhrases = legacyPhrases;
+            }
+            else
+            {
+                rawAndPhrases = legacyPhrases;
+            }
         }
 
-        if (rawPhrases.Count == 0)
+        if (rawAndPhrases.Count == 0 && rawOrPhrases.Count == 0)
             return [];
 
-        var normalizedPhrases = rawPhrases
+        var normalizedAndPhrases = rawAndPhrases
+            .Select(SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize)
+            .ToList();
+
+        var normalizedOrPhrases = rawOrPhrases
             .Select(SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize)
             .ToList();
 
@@ -40,10 +65,10 @@ public class HadithSearchService(IHadithTreeDbContext context, IHadithChainRepos
             queryable = queryable.Where(h => !h.NormalizedMatn.Contains(excluded));
         }
 
-        // 3. Multi-phrase or Single-query application
-        if (rawPhrases.Count == 1 && request.Match != SearchMatchType.Exact)
+        // 3. Apply AND phrases
+        if (normalizedAndPhrases.Count == 1 && normalizedOrPhrases.Count == 0 && request.Match != SearchMatchType.Exact)
         {
-            var singleNormalized = normalizedPhrases[0];
+            var singleNormalized = normalizedAndPhrases[0];
             var words = singleNormalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
             if (request.Match == SearchMatchType.AnyWord && words.Length > 1)
@@ -73,35 +98,34 @@ public class HadithSearchService(IHadithTreeDbContext context, IHadithChainRepos
         }
         else
         {
-            // Multi-phrase or Exact
-            if (request.Operator == SearchLogicalOperator.Or)
+            foreach (var np in normalizedAndPhrases)
             {
-                queryable = ApplyOrPhrases(queryable, normalizedPhrases, request.Scope);
-            }
-            else // And (Default)
-            {
-                foreach (var np in normalizedPhrases)
+                if (request.Scope == SearchScope.All)
                 {
-                    if (request.Scope == SearchScope.All)
-                    {
-                        queryable = queryable.Where(h => h.NormalizedMatn.Contains(np) ||
-                                                         h.NormalizedBookName.Contains(np) ||
-                                                         h.Transmissions.Any(t => t.Student.FullName.Contains(np) || t.Sheikh.FullName.Contains(np)));
-                    }
-                    else if (request.Scope == SearchScope.Matn)
-                    {
-                        queryable = queryable.Where(h => h.NormalizedMatn.Contains(np));
-                    }
-                    else if (request.Scope == SearchScope.Isnad)
-                    {
-                        queryable = queryable.Where(h => h.Transmissions.Any(t => t.Student.FullName.Contains(np) || t.Sheikh.FullName.Contains(np)));
-                    }
+                    queryable = queryable.Where(h => h.NormalizedMatn.Contains(np) ||
+                                                     h.NormalizedBookName.Contains(np) ||
+                                                     h.Transmissions.Any(t => t.Student.FullName.Contains(np) || t.Sheikh.FullName.Contains(np)));
+                }
+                else if (request.Scope == SearchScope.Matn)
+                {
+                    queryable = queryable.Where(h => h.NormalizedMatn.Contains(np));
+                }
+                else if (request.Scope == SearchScope.Isnad)
+                {
+                    queryable = queryable.Where(h => h.Transmissions.Any(t => t.Student.FullName.Contains(np) || t.Sheikh.FullName.Contains(np)));
                 }
             }
         }
 
-        // 4. In-Order (مرتبة) and Proximity (متقاربة) evaluation
-        if ((request.IsOrdered || request.IsProximity) && normalizedPhrases.Count > 1)
+        // 4. Apply OR phrases (if any)
+        if (normalizedOrPhrases.Count > 0)
+        {
+            queryable = ApplyOrPhrases(queryable, normalizedOrPhrases, request.Scope);
+        }
+
+        // 5. In-Order (مرتبة) and Proximity (متقاربة) evaluation on AND phrases
+        var orderingPhrases = normalizedAndPhrases.Count > 1 ? normalizedAndPhrases : normalizedOrPhrases;
+        if ((request.IsOrdered || request.IsProximity) && orderingPhrases.Count > 1)
         {
             var candidates = await queryable
                 .Take(100)
@@ -118,10 +142,10 @@ public class HadithSearchService(IHadithTreeDbContext context, IHadithChainRepos
 
             var filtered = candidates.Where(h =>
             {
-                if (request.IsOrdered && !CheckOrdered(h.NormalizedMatn, normalizedPhrases))
+                if (request.IsOrdered && !CheckOrdered(h.NormalizedMatn, orderingPhrases))
                     return false;
 
-                if (request.IsProximity && !CheckProximity(h.NormalizedMatn, normalizedPhrases, request.ProximityWords))
+                if (request.IsProximity && !CheckProximity(h.NormalizedMatn, orderingPhrases, request.ProximityWords))
                     return false;
 
                 return true;

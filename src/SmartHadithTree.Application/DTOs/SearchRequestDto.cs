@@ -27,9 +27,27 @@ public class SearchRequestDto
     public SearchMatchType Match { get; set; } = SearchMatchType.AllWords;
 
     // ── Shamela Advanced Search Properties ──────────────────────────
+    /// <summary>
+    /// Legacy phrases list (retained for backward compatibility).
+    /// </summary>
     public List<string> Phrases { get; set; } = [];
     public SearchLogicalOperator Operator { get; set; } = SearchLogicalOperator.And;
+
+    /// <summary>
+    /// Phrases that MUST all be present (AND).
+    /// </summary>
+    public List<string> AndPhrases { get; set; } = [];
+
+    /// <summary>
+    /// Phrases where AT LEAST ONE must be present (OR).
+    /// </summary>
+    public List<string> OrPhrases { get; set; } = [];
+
+    /// <summary>
+    /// Phrases that MUST NOT be present (NOT / ليس).
+    /// </summary>
     public List<string> ExcludePhrases { get; set; } = [];
+
     public bool IsOrdered { get; set; } = false;
     public bool IsProximity { get; set; } = false;
     public int ProximityWords { get; set; } = 15;

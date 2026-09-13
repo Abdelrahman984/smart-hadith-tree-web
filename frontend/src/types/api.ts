@@ -89,6 +89,8 @@ export interface SearchRequestDto {
   match?: SearchMatchType;
   phrases?: string[];
   operator?: SearchLogicalOperator;
+  andPhrases?: string[];
+  orPhrases?: string[];
   excludePhrases?: string[];
   isOrdered?: boolean;
   isProximity?: boolean;

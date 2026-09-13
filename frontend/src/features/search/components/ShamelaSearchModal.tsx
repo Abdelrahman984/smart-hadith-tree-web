@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SearchRequestDto, SearchLogicalOperator, SearchScope } from "@/types/api";
+import { SearchRequestDto, SearchScope } from "@/types/api";
 import {
   X,
   Plus,
@@ -9,6 +9,7 @@ import {
   Sliders,
   RotateCcw,
   Search,
+  Layers,
 } from "lucide-react";
 
 interface ShamelaSearchModalProps {
@@ -19,6 +20,8 @@ interface ShamelaSearchModalProps {
   initialQuery?: string;
 }
 
+type TabType = "and" | "or" | "exclude";
+
 export default function ShamelaSearchModal({
   isOpen,
   onClose,
@@ -26,11 +29,15 @@ export default function ShamelaSearchModal({
   initialRequest,
   initialQuery,
 }: ShamelaSearchModalProps) {
-  const [operator, setOperator] = useState<SearchLogicalOperator>(
-    initialRequest?.operator ?? 0 // 0 = AND, 1 = OR
-  );
-  const [phrases, setPhrases] = useState<string[]>(() => {
-    if (initialRequest?.phrases && initialRequest.phrases.length > 0) {
+  const [activeTab, setActiveTab] = useState<TabType>("and");
+
+  // AND phrases (یلزم وجود کل العبارات)
+  const [andPhrases, setAndPhrases] = useState<string[]>(() => {
+    if (initialRequest?.andPhrases && initialRequest.andPhrases.length > 0) {
+      return initialRequest.andPhrases;
+    }
+    // Backward compat check
+    if (initialRequest?.operator === 0 && initialRequest.phrases && initialRequest.phrases.length > 0) {
       return initialRequest.phrases;
     }
     if (initialQuery && initialQuery.trim().length > 0) {
@@ -38,9 +45,26 @@ export default function ShamelaSearchModal({
     }
     return ["", ""];
   });
-  const [excludeText, setExcludeText] = useState<string>(
-    initialRequest?.excludePhrases?.join(", ") ?? ""
-  );
+
+  // OR phrases (یکفی وجود أي من العبارات)
+  const [orPhrases, setOrPhrases] = useState<string[]>(() => {
+    if (initialRequest?.orPhrases && initialRequest.orPhrases.length > 0) {
+      return initialRequest.orPhrases;
+    }
+    if (initialRequest?.operator === 1 && initialRequest.phrases && initialRequest.phrases.length > 0) {
+      return initialRequest.phrases;
+    }
+    return [""];
+  });
+
+  // Exclude phrases (لیس)
+  const [excludePhrases, setExcludePhrases] = useState<string[]>(() => {
+    if (initialRequest?.excludePhrases && initialRequest.excludePhrases.length > 0) {
+      return initialRequest.excludePhrases;
+    }
+    return [""];
+  });
+
   const [isOrdered, setIsOrdered] = useState<boolean>(
     initialRequest?.isOrdered ?? false
   );
@@ -51,53 +75,76 @@ export default function ShamelaSearchModal({
     initialRequest?.proximityWords ?? 15
   );
   const [scope, setScope] = useState<SearchScope>(
-    initialRequest?.scope ?? 1 // Default to Matn in Shamela style
+    initialRequest?.scope ?? 1 // Default to Matn
   );
 
   if (!isOpen) return null;
 
-  const handleAddPhrase = () => {
-    if (phrases.length < 6) {
-      setPhrases([...phrases, ""]);
-    }
+  // Handlers for AND phrases
+  const handleAddAnd = () => {
+    if (andPhrases.length < 6) setAndPhrases([...andPhrases, ""]);
+  };
+  const handleRemoveAnd = (idx: number) => {
+    if (andPhrases.length > 1) setAndPhrases(andPhrases.filter((_, i) => i !== idx));
+  };
+  const handleAndChange = (idx: number, val: string) => {
+    const next = [...andPhrases];
+    next[idx] = val;
+    setAndPhrases(next);
   };
 
-  const handleRemovePhrase = (index: number) => {
-    if (phrases.length > 1) {
-      setPhrases(phrases.filter((_, i) => i !== index));
-    }
+  // Handlers for OR phrases
+  const handleAddOr = () => {
+    if (orPhrases.length < 6) setOrPhrases([...orPhrases, ""]);
+  };
+  const handleRemoveOr = (idx: number) => {
+    if (orPhrases.length > 1) setOrPhrases(orPhrases.filter((_, i) => i !== idx));
+  };
+  const handleOrChange = (idx: number, val: string) => {
+    const next = [...orPhrases];
+    next[idx] = val;
+    setOrPhrases(next);
   };
 
-  const handlePhraseChange = (index: number, val: string) => {
-    const updated = [...phrases];
-    updated[index] = val;
-    setPhrases(updated);
+  // Handlers for Exclude phrases
+  const handleAddExclude = () => {
+    if (excludePhrases.length < 6) setExcludePhrases([...excludePhrases, ""]);
+  };
+  const handleRemoveExclude = (idx: number) => {
+    if (excludePhrases.length > 1) setExcludePhrases(excludePhrases.filter((_, i) => i !== idx));
+  };
+  const handleExcludeChange = (idx: number, val: string) => {
+    const next = [...excludePhrases];
+    next[idx] = val;
+    setExcludePhrases(next);
   };
 
   const handleReset = () => {
-    setOperator(0);
-    setPhrases(["", ""]);
-    setExcludeText("");
+    setAndPhrases(["", ""]);
+    setOrPhrases([""]);
+    setExcludePhrases([""]);
     setIsOrdered(false);
     setIsProximity(false);
     setProximityWords(15);
     setScope(1);
+    setActiveTab("and");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanPhrases = phrases.map((p) => p.trim()).filter((p) => p.length > 0);
-    if (cleanPhrases.length === 0) return;
+    const cleanAnd = andPhrases.map((p) => p.trim()).filter((p) => p.length > 0);
+    const cleanOr = orPhrases.map((p) => p.trim()).filter((p) => p.length > 0);
+    const cleanExclude = excludePhrases.map((p) => p.trim()).filter((p) => p.length > 0);
 
-    const cleanExclude = excludeText
-      .split(/[,،]+/)
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
+    if (cleanAnd.length === 0 && cleanOr.length === 0) return;
 
     const request: SearchRequestDto = {
-      phrases: cleanPhrases,
-      operator,
+      andPhrases: cleanAnd,
+      orPhrases: cleanOr,
       excludePhrases: cleanExclude,
+      // Provide combined phrases for backward compatibility & highlighting
+      phrases: [...cleanAnd, ...cleanOr],
+      operator: cleanAnd.length > 0 ? 0 : 1,
       isOrdered,
       isProximity,
       proximityWords,
@@ -109,6 +156,10 @@ export default function ShamelaSearchModal({
   };
 
   const arabicNumbers = ["١", "٢", "٣", "٤", "٥", "٦"];
+
+  const activeAndCount = andPhrases.filter((p) => p.trim().length > 0).length;
+  const activeOrCount = orPhrases.filter((p) => p.trim().length > 0).length;
+  const activeExcludeCount = excludePhrases.filter((p) => p.trim().length > 0).length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
@@ -130,7 +181,7 @@ export default function ShamelaSearchModal({
                 </span>
               </h2>
               <p className="text-xs text-slate-300">
-                عبارات متعددة، روابط منطقية، استبعاد نصوص، وضبط ترتيب وتقارب الكلمات
+                يمكنك دمج شروط الإلزام [و] والبدائل [أو] والاستبعاد [ليس] في نفس عملية البحث
               </p>
             </div>
           </div>
@@ -146,165 +197,337 @@ export default function ShamelaSearchModal({
 
         {/* Modal Form Content */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Logical Operator Tabs ([و] / [أو]) */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-700 block">
-              العلاقة المنطقية بين العبارات:
-            </label>
-            <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80">
-              <button
-                type="button"
-                onClick={() => setOperator(0)}
-                className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                  operator === 0
-                    ? "bg-white text-brand-blue shadow-sm border border-slate-200"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                <span className="text-base font-black">[ و ]</span>
-                <span>يلزم وجود كل العبارات (AND)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setOperator(1)}
-                className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                  operator === 1
-                    ? "bg-white text-brand-blue shadow-sm border border-slate-200"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                <span className="text-base font-black">[ أو ]</span>
-                <span>يكفي وجود أي من العبارات (OR)</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Multi-Phrase Numbered Inputs (١، ٢، ٣...) */}
-          <div className="space-y-3">
+          {/* Shamela Tabs: [ و ] | [ أو ] | [ ليس ] */}
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-700 block">
-                عبارات البحث المستقلة:
+                أقسام وشروط البحث المنطقية:
               </label>
               <span className="text-[11px] text-slate-400">
-                كل سطر يُعامل كعبارة مستقلة
+                يمكن استخدام كافة الألسنة معاً
               </span>
             </div>
 
-            <div className="space-y-2.5">
-              {phrases.map((phrase, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <span className="w-7 h-9 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 font-bold text-sm flex items-center justify-center shrink-0">
-                    {arabicNumbers[idx] || idx + 1}
-                  </span>
-                  <input
-                    type="text"
-                    dir="rtl"
-                    value={phrase}
-                    onChange={(e) => handlePhraseChange(idx, e.target.value)}
-                    placeholder={
-                      idx === 0
-                        ? "العبارة الأولى (مثال: نهى رسول الله)..."
-                        : idx === 1
-                        ? "العبارة الثانية (مثال: عن بيع)..."
-                        : `العبارة ${idx + 1}...`
-                    }
-                    className="flex-1 py-2.5 px-3.5 text-sm bg-slate-50/60 border border-slate-200 rounded-xl focus:bg-white focus:border-brand-teal focus:ring-3 focus:ring-brand-teal/15 outline-none transition-all"
-                  />
-                  {phrases.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemovePhrase(idx)}
-                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                      title="حذف هذا السطر"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {phrases.length < 6 && (
+            <div className="grid grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80">
+              {/* Tab AND */}
               <button
                 type="button"
-                onClick={handleAddPhrase}
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-blue hover:text-brand-dark transition-colors cursor-pointer pt-1"
+                onClick={() => setActiveTab("and")}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  activeTab === "and"
+                    ? "bg-white text-brand-blue shadow-sm border border-slate-200"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
               >
-                <Plus className="w-4 h-4" />
-                <span>إضافة عبارة بحث أخرى ({arabicNumbers[phrases.length] || phrases.length + 1})</span>
+                <span className="text-base font-black text-brand-blue">[ و ]</span>
+                <span className="hidden sm:inline">يلزم وجودها</span>
+                {activeAndCount > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-brand-blue text-white text-[11px] flex items-center justify-center font-bold">
+                    {activeAndCount}
+                  </span>
+                )}
               </button>
-            )}
+
+              {/* Tab OR */}
+              <button
+                type="button"
+                onClick={() => setActiveTab("or")}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  activeTab === "or"
+                    ? "bg-white text-brand-blue shadow-sm border border-slate-200"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <span className="text-base font-black text-amber-600">[ أو ]</span>
+                <span className="hidden sm:inline">يكفي أحدها</span>
+                {activeOrCount > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-amber-600 text-white text-[11px] flex items-center justify-center font-bold">
+                    {activeOrCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Tab EXCLUDE */}
+              <button
+                type="button"
+                onClick={() => setActiveTab("exclude")}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  activeTab === "exclude"
+                    ? "bg-white text-rose-700 shadow-sm border border-slate-200"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <span className="text-base font-black text-rose-600">[ ليس ]</span>
+                <span className="hidden sm:inline">استبعاد</span>
+                {activeExcludeCount > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-rose-600 text-white text-[11px] flex items-center justify-center font-bold">
+                    {activeExcludeCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
 
-          {/* Modifiers (مرتبة / متقاربة) */}
-          <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3">
-            <h3 className="text-xs font-bold text-slate-700">خيارات الترتيب والسياق:</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <label className="flex items-start gap-2.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={isOrdered}
-                  onChange={(e) => setIsOrdered(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 text-brand-blue rounded-md border-slate-300 focus:ring-brand-teal"
-                />
+          {/* Active Tab Panel */}
+          {activeTab === "and" && (
+            <div className="space-y-3 p-4 bg-brand-blue/5 border border-brand-blue/15 rounded-2xl animate-in fade-in duration-150">
+              <div className="flex items-center justify-between">
                 <div>
-                  <span className="font-bold text-slate-800 block">مرتبة (In-Order)</span>
-                  <span className="text-[11px] text-slate-500">
-                    تشترط ورود العبارة (٢) بعد (١) في سياق الحديث
-                  </span>
+                  <h3 className="text-xs font-bold text-brand-blue flex items-center gap-1.5">
+                    <span className="text-base font-black">[ و ]</span>
+                    <span>يلزم وجود كل هذه العبارات معاً (AND)</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    لن تظهر النتيجة إلا إذا كانت جميع هذه العبارات واردة في الحديث
+                  </p>
                 </div>
-              </label>
-
-              <label className="flex items-start gap-2.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={isProximity}
-                  onChange={(e) => setIsProximity(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 text-brand-blue rounded-md border-slate-300 focus:ring-brand-teal"
-                />
-                <div>
-                  <span className="font-bold text-slate-800 block">متقاربة (Proximity)</span>
-                  <span className="text-[11px] text-slate-500">
-                    تشترط ورود العبارات في نفس الجملة/السياق
-                  </span>
-                </div>
-              </label>
-            </div>
-
-            {isProximity && (
-              <div className="pt-2 border-t border-slate-200/60 flex items-center gap-3 animate-in fade-in">
-                <span className="text-xs text-slate-600">أقصى مسافة فاصلة بين العبارات:</span>
-                <input
-                  type="number"
-                  min={3}
-                  max={50}
-                  value={proximityWords}
-                  onChange={(e) => setProximityWords(Number(e.target.value))}
-                  className="w-16 py-1 px-2 text-xs text-center font-bold border border-slate-300 rounded-lg bg-white"
-                />
-                <span className="text-xs text-slate-500">كلمة</span>
               </div>
-            )}
-          </div>
 
-          {/* Exclude Field ([ليس] / NOT) */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                <span className="text-rose-600 font-black">[ ليس ]</span>
-                <span>استبعاد نصوص وكلمات (NOT):</span>
-              </label>
-              <span className="text-[11px] text-slate-400">فصل الكلمات بفاصلة</span>
+              <div className="space-y-2.5">
+                {andPhrases.map((phrase, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <span className="w-7 h-9 rounded-xl bg-white border border-brand-blue/20 text-brand-blue font-bold text-sm flex items-center justify-center shrink-0 shadow-2xs">
+                      {arabicNumbers[idx] || idx + 1}
+                    </span>
+                    <input
+                      type="text"
+                      dir="rtl"
+                      value={phrase}
+                      onChange={(e) => handleAndChange(idx, e.target.value)}
+                      placeholder={
+                        idx === 0
+                          ? "العبارة الإلزامية الأولى (مثال: نهى رسول الله)..."
+                          : idx === 1
+                          ? "العبارة الإلزامية الثانية (مثال: عن بيع)..."
+                          : `عبارة إلزامية ${idx + 1}...`
+                      }
+                      className="flex-1 py-2.5 px-3.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-brand-teal focus:ring-3 focus:ring-brand-teal/15 outline-none transition-all"
+                    />
+                    {andPhrases.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAnd(idx)}
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                        title="حذف هذا السطر"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {andPhrases.length < 6 && (
+                <button
+                  type="button"
+                  onClick={handleAddAnd}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-blue hover:text-brand-dark transition-colors cursor-pointer pt-1"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>إضافة عبارة إلزامية أخرى ({arabicNumbers[andPhrases.length] || andPhrases.length + 1})</span>
+                </button>
+              )}
+
+              {/* Modifiers (مرتبة / متقاربة) under AND tab */}
+              <div className="mt-4 pt-3 border-t border-brand-blue/15 space-y-3">
+                <h4 className="text-xs font-bold text-slate-700">خيارات الترتيب والسياق لعبارات [ و ]:</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isOrdered}
+                      onChange={(e) => setIsOrdered(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 text-brand-blue rounded-md border-slate-300 focus:ring-brand-teal"
+                    />
+                    <div>
+                      <span className="font-bold text-slate-800 block">مرتبة (In-Order)</span>
+                      <span className="text-[11px] text-slate-500">
+                        تشترط ورود العبارة (٢) بعد (١) في سياق الحديث
+                      </span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isProximity}
+                      onChange={(e) => setIsProximity(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 text-brand-blue rounded-md border-slate-300 focus:ring-brand-teal"
+                    />
+                    <div>
+                      <span className="font-bold text-slate-800 block">متقاربة (Proximity)</span>
+                      <span className="text-[11px] text-slate-500">
+                        تشترط ورود العبارات في نفس الجملة/السياق
+                      </span>
+                    </div>
+                  </label>
+                </div>
+
+                {isProximity && (
+                  <div className="pt-2 border-t border-slate-200/60 flex items-center gap-3 animate-in fade-in">
+                    <span className="text-xs text-slate-600">أقصى مسافة فاصلة بين العبارات:</span>
+                    <input
+                      type="number"
+                      min={3}
+                      max={50}
+                      value={proximityWords}
+                      onChange={(e) => setProximityWords(Number(e.target.value))}
+                      className="w-16 py-1 px-2 text-xs text-center font-bold border border-slate-300 rounded-lg bg-white"
+                    />
+                    <span className="text-xs text-slate-500">كلمة</span>
+                  </div>
+                )}
+              </div>
             </div>
-            <input
-              type="text"
-              dir="rtl"
-              value={excludeText}
-              onChange={(e) => setExcludeText(e.target.value)}
-              placeholder="مثال: رمضان (لاستبعاد صيام الفريضة والبحث عن صيام التطوع فقط)..."
-              className="w-full py-2.5 px-3.5 text-sm bg-rose-50/20 border border-slate-200 rounded-xl focus:bg-white focus:border-rose-400 focus:ring-3 focus:ring-rose-400/15 outline-none transition-all placeholder:text-slate-400"
-            />
+          )}
+
+          {activeTab === "or" && (
+            <div className="space-y-3 p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl animate-in fade-in duration-150">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold text-amber-700 flex items-center gap-1.5">
+                    <span className="text-base font-black">[ أو ]</span>
+                    <span>يكفي وجود أي من هذه العبارات (OR)</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    ستظهر النتيجة إذا وردت عبارة واحدة على الأقل من هذه القائمة
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2.5">
+                {orPhrases.map((phrase, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <span className="w-7 h-9 rounded-xl bg-white border border-amber-500/25 text-amber-700 font-bold text-sm flex items-center justify-center shrink-0 shadow-2xs">
+                      {arabicNumbers[idx] || idx + 1}
+                    </span>
+                    <input
+                      type="text"
+                      dir="rtl"
+                      value={phrase}
+                      onChange={(e) => handleOrChange(idx, e.target.value)}
+                      placeholder={
+                        idx === 0
+                          ? "عبارة بديلة أولى (مثال: الغرر)..."
+                          : idx === 1
+                          ? "عبارة بديلة ثانية (مثال: الملامسة)..."
+                          : `عبارة بديلة ${idx + 1}...`
+                      }
+                      className="flex-1 py-2.5 px-3.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-amber-500 focus:ring-3 focus:ring-amber-500/15 outline-none transition-all"
+                    />
+                    {orPhrases.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveOr(idx)}
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                        title="حذف هذا السطر"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {orPhrases.length < 6 && (
+                <button
+                  type="button"
+                  onClick={handleAddOr}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 hover:text-amber-900 transition-colors cursor-pointer pt-1"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>إضافة عبارة بديلة أخرى ({arabicNumbers[orPhrases.length] || orPhrases.length + 1})</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {activeTab === "exclude" && (
+            <div className="space-y-3 p-4 bg-rose-500/5 border border-rose-500/20 rounded-2xl animate-in fade-in duration-150">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold text-rose-700 flex items-center gap-1.5">
+                    <span className="text-base font-black">[ ليس ]</span>
+                    <span>استبعاد نصوص وكلمات (NOT)</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    أي حديث يحتوي على أي من هذه العبارات سيتم استبعاده تماماً من النتائج
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2.5">
+                {excludePhrases.map((phrase, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <span className="w-7 h-9 rounded-xl bg-white border border-rose-500/25 text-rose-700 font-bold text-sm flex items-center justify-center shrink-0 shadow-2xs">
+                      {arabicNumbers[idx] || idx + 1}
+                    </span>
+                    <input
+                      type="text"
+                      dir="rtl"
+                      value={phrase}
+                      onChange={(e) => handleExcludeChange(idx, e.target.value)}
+                      placeholder={
+                        idx === 0
+                          ? "عبارة مستبعدة أولى (مثال: رمضان)..."
+                          : `عبارة مستبعدة ${idx + 1}...`
+                      }
+                      className="flex-1 py-2.5 px-3.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-rose-500 focus:ring-3 focus:ring-rose-500/15 outline-none transition-all"
+                    />
+                    {excludePhrases.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveExclude(idx)}
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                        title="حذف هذا السطر"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {excludePhrases.length < 6 && (
+                <button
+                  type="button"
+                  onClick={handleAddExclude}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 hover:text-rose-900 transition-colors cursor-pointer pt-1"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>إضافة عبارة مستبعدة أخرى ({arabicNumbers[excludePhrases.length] || excludePhrases.length + 1})</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Combined Summary Preview Bar */}
+          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl flex items-center gap-2 text-xs text-slate-600 flex-wrap">
+            <Layers className="w-4 h-4 text-brand-blue shrink-0" />
+            <span className="font-bold text-slate-700">المعادلة المنطقية الحالية:</span>
+            {activeAndCount > 0 ? (
+              <span className="bg-brand-blue/10 text-brand-blue px-2 py-0.5 rounded-md font-semibold">
+                [و]: {activeAndCount} عبارة إلزامية
+              </span>
+            ) : (
+              <span className="text-slate-400">لا يوجد إلزام</span>
+            )}
+            <span className="text-slate-300">•</span>
+            {activeOrCount > 0 ? (
+              <span className="bg-amber-500/10 text-amber-800 px-2 py-0.5 rounded-md font-semibold">
+                [أو]: {activeOrCount} بدائل
+              </span>
+            ) : (
+              <span className="text-slate-400">لا توجد بدائل</span>
+            )}
+            <span className="text-slate-300">•</span>
+            {activeExcludeCount > 0 ? (
+              <span className="bg-rose-500/10 text-rose-700 px-2 py-0.5 rounded-md font-semibold">
+                [ليس]: {activeExcludeCount} مستبعد
+              </span>
+            ) : (
+              <span className="text-slate-400">لا يوجد استبعاد</span>
+            )}
           </div>
 
           {/* Search Scope */}

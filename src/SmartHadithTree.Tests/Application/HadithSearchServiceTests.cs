@@ -162,4 +162,75 @@ public class HadithSearchServiceTests
         result.Should().HaveCount(1);
         result[0].HadithNumber.Should().Be(201);
     }
+
+    [Fact]
+    public async Task SearchHadithsAsync_WithBothAndAndOrPhrases_MatchesCorrectly()
+    {
+        // Arrange:
+        // Hadith 301: Contains "نهى" (AND) + "الغرر" (OR match 1)
+        // Hadith 302: Contains "نهى" (AND) + "النجش" (OR match 2)
+        // Hadith 303: Contains "نهى" (AND) + "السلم" (neither OR matches)
+        // Hadith 304: Contains "الغرر" (OR match) but NOT "نهى"
+        var context = GetInMemoryDbContext();
+        context.Hadiths.AddRange(
+            new HadithText
+            {
+                Id = Guid.NewGuid(),
+                BookName = "صحيح مسلم",
+                HadithNumber = 301,
+                MatnArabic = "نهى رسول الله عن بيع الغرر",
+                NormalizedMatn = "نهى رسول الله عن بيع الغرر",
+                NormalizedBookName = "صحيح مسلم"
+            },
+            new HadithText
+            {
+                Id = Guid.NewGuid(),
+                BookName = "صحيح مسلم",
+                HadithNumber = 302,
+                MatnArabic = "نهى رسول الله عن النجش",
+                NormalizedMatn = "نهى رسول الله عن النجش",
+                NormalizedBookName = "صحيح مسلم"
+            },
+            new HadithText
+            {
+                Id = Guid.NewGuid(),
+                BookName = "صحيح مسلم",
+                HadithNumber = 303,
+                MatnArabic = "نهى عن بيع السلم في التمر",
+                NormalizedMatn = "نهى عن بيع السلم في التمر",
+                NormalizedBookName = "صحيح مسلم"
+            },
+            new HadithText
+            {
+                Id = Guid.NewGuid(),
+                BookName = "صحيح مسلم",
+                HadithNumber = 304,
+                MatnArabic = "في بيع الغرر أحكام متعددة",
+                NormalizedMatn = "في بيع الغرر احكام متعدده",
+                NormalizedBookName = "صحيح مسلم"
+            }
+        );
+        await context.SaveChangesAsync();
+
+        var chainRepo = new Mock<IHadithChainRepository>();
+        var taqwiyah = new Mock<ITaqwiyahService>();
+        var service = new HadithSearchService(context, chainRepo.Object, taqwiyah.Object);
+
+        // Search for (AND: "نهى") + (OR: "الغرر" OR "النجش")
+        var request = new SearchRequestDto
+        {
+            AndPhrases = new List<string> { "نهى" },
+            OrPhrases = new List<string> { "الغرر", "النجش" },
+            Scope = SearchScope.Matn
+        };
+
+        // Act
+        var result = await service.SearchHadithsAsync(request);
+
+        // Assert:
+        // Must match 301 and 302, but NOT 303 (missing OR) and NOT 304 (missing AND)
+        result.Should().HaveCount(2);
+        result.Select(r => r.HadithNumber).Should().BeEquivalentTo(new[] { 301, 302 });
+    }
 }
+

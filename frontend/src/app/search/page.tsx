@@ -285,21 +285,54 @@ function SearchContent() {
             <div className="flex items-center gap-2 flex-wrap text-xs">
               <span className="font-bold text-brand-blue flex items-center gap-1.5">
                 <Sliders className="w-4 h-4 text-brand-teal" />
-                <span>بحث الشاملة النشط:</span>
+                <span>شروط الشاملة النشطة:</span>
               </span>
-              <span className="bg-brand-blue text-white font-bold px-2 py-0.5 rounded-md">
-                {advancedRequest.operator === 0 ? "كل العبارات [و]" : "أي عبارة [أو]"}
-              </span>
-              {advancedRequest.phrases?.map((p, i) => (
-                <span key={i} className="bg-white border border-slate-200 text-slate-800 px-2 py-0.5 rounded-md font-semibold shadow-2xs">
-                  «{p}»
-                </span>
-              ))}
-              {advancedRequest.excludePhrases && advancedRequest.excludePhrases.length > 0 && (
-                <span className="bg-rose-50 border border-rose-200 text-rose-700 px-2 py-0.5 rounded-md font-semibold">
-                  [ليس]: {advancedRequest.excludePhrases.join("، ")}
-                </span>
+
+              {/* AND Phrases Badges */}
+              {advancedRequest.andPhrases && advancedRequest.andPhrases.length > 0 && (
+                <div className="inline-flex items-center gap-1.5 bg-brand-blue/10 border border-brand-blue/25 text-brand-blue px-2 py-0.5 rounded-lg">
+                  <span className="font-black">[و]:</span>
+                  {advancedRequest.andPhrases.map((p, i) => (
+                    <span key={i} className="bg-white text-slate-800 px-1.5 py-0.5 rounded font-semibold text-[11px] shadow-2xs">
+                      «{p}»
+                    </span>
+                  ))}
+                </div>
               )}
+
+              {/* OR Phrases Badges */}
+              {advancedRequest.orPhrases && advancedRequest.orPhrases.length > 0 && (
+                <div className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/25 text-amber-800 px-2 py-0.5 rounded-lg">
+                  <span className="font-black">[أو]:</span>
+                  {advancedRequest.orPhrases.map((p, i) => (
+                    <span key={i} className="bg-white text-slate-800 px-1.5 py-0.5 rounded font-semibold text-[11px] shadow-2xs">
+                      «{p}»
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Fallback to legacy phrases if andPhrases/orPhrases empty */}
+              {(!advancedRequest.andPhrases || advancedRequest.andPhrases.length === 0) &&
+                (!advancedRequest.orPhrases || advancedRequest.orPhrases.length === 0) &&
+                advancedRequest.phrases?.map((p, i) => (
+                  <span key={i} className="bg-white border border-slate-200 text-slate-800 px-2 py-0.5 rounded-md font-semibold shadow-2xs">
+                    «{p}»
+                  </span>
+                ))}
+
+              {/* EXCLUDE Badges */}
+              {advancedRequest.excludePhrases && advancedRequest.excludePhrases.length > 0 && (
+                <div className="inline-flex items-center gap-1.5 bg-rose-500/10 border border-rose-500/25 text-rose-700 px-2 py-0.5 rounded-lg">
+                  <span className="font-black">[ليس]:</span>
+                  {advancedRequest.excludePhrases.map((p, i) => (
+                    <span key={i} className="bg-white text-rose-800 px-1.5 py-0.5 rounded font-semibold text-[11px] shadow-2xs">
+                      «{p}»
+                    </span>
+                  ))}
+                </div>
+              )}
+
               {advancedRequest.isOrdered && (
                 <span className="bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5 rounded-md font-semibold">
                   مرتبة
