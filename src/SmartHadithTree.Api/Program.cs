@@ -40,6 +40,7 @@ builder.Services.AddScoped<IHadithSearchService, HadithSearchService>();
 builder.Services.AddScoped<INarratorService, NarratorService>();
 builder.Services.AddScoped<IBooksService, BooksService>();
 builder.Services.AddScoped<ITaqwiyahService, TaqwiyahService>();
+builder.Services.AddScoped<IGawamiImporterService, SmartHadithTree.Infrastructure.Data.Gawami.GawamiImporterService>();
 
 // ── Controllers ────────────────────────────────────────────────────
 builder.Services.AddControllers()

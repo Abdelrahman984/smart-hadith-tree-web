@@ -9,6 +9,7 @@ public interface IHadithTreeDbContext
     DbSet<Narrator> Narrators { get; }
     DbSet<Transmission> Transmissions { get; }
     DbSet<ScholarEvaluation> ScholarEvaluations { get; }
+    DbSet<HadithCluster> HadithClusters { get; }
     
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

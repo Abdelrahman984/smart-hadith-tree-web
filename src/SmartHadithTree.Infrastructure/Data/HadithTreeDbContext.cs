@@ -19,6 +19,7 @@ public class HadithTreeDbContext : DbContext, IHadithTreeDbContext
     public DbSet<HadithText> Hadiths => Set<HadithText>();
     public DbSet<Transmission> Transmissions => Set<Transmission>();
     public DbSet<ScholarEvaluation> ScholarEvaluations => Set<ScholarEvaluation>();
+    public DbSet<HadithCluster> HadithClusters => Set<HadithCluster>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -16,6 +16,9 @@ public class ScholarEvaluation
     /// <summary>Navigation to the evaluated narrator.</summary>
     public Narrator Narrator { get; set; } = null!;
 
+    public int? GawamiAlemId { get; set; }
+    public int? GawamiRawyId { get; set; }
+
     // ── Evaluation Data ────────────────────────────────────────────
 
     /// <summary>اسم الناقد — The scholar/critic's name (e.g., ابن حجر، الذهبي، يحيى بن معين).</summary>

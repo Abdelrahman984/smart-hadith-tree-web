@@ -13,6 +13,8 @@ type NarratorNodeData = {
   anomalyReason?: string;
   isSelected?: boolean;
   showWeakOnly?: boolean;
+  isMudallis?: boolean;
+  hasMukhtalit?: boolean;
 };
 
 const NarratorNode = ({ data, selected }: { data: NarratorNodeData; selected?: boolean }) => {
@@ -84,6 +86,17 @@ const NarratorNode = ({ data, selected }: { data: NarratorNodeData; selected?: b
       {data.generationTier && (
         <div className="text-sm text-slate-500 mt-1">
           {data.generationTier}
+        </div>
+      )}
+
+      {(data.isMudallis || data.hasMukhtalit) && (
+        <div className="flex gap-1 justify-center mt-2 flex-wrap">
+          {data.isMudallis && (
+            <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-red-500 rounded-full">مدلس</span>
+          )}
+          {data.hasMukhtalit && (
+            <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-yellow-500 rounded-full">اختلط</span>
+          )}
         </div>
       )}
       

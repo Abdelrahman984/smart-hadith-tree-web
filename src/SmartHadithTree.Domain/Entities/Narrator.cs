@@ -47,6 +47,10 @@ public class Narrator
     /// </summary>
     public int? ItqanId { get; set; }
 
+    public int? GawamiId { get; set; }
+    public bool IsMudallis { get; set; }
+    public bool HasMukhtalit { get; set; }
+
     /// <summary>
     /// Standardized English grade from Itqan (reliable, weak, etc.) for UI color mapping.
     /// </summary>

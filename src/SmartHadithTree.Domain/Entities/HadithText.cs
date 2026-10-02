@@ -31,4 +31,7 @@ public class HadithText
 
     /// <summary>All transmission links (chain steps) for this Hadith.</summary>
     public ICollection<Transmission> Transmissions { get; set; } = [];
+
+    public Guid? HadithClusterId { get; set; }
+    public HadithCluster? Cluster { get; set; }
 }
