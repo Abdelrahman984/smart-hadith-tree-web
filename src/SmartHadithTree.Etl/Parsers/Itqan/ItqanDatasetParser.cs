@@ -33,20 +33,27 @@ public class ItqanDatasetParser : IDataSourceParser
         return Directory.Exists(sourcePath) && sourcePath.Contains("itqan", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static readonly Dictionary<string, (string ArabicName, int CompilerItqanId, string CompilerName)> BookMetadata = new(StringComparer.OrdinalIgnoreCase)
+    /// <summary>
+    /// Books to ingest, keyed by Itqan directory name. Compiler IDs are the canonical Itqan rijal
+    /// profiles (the ones carrying teacher/student lists), verified against profiles_*.json:
+    /// Bukhari 336, Muslim 618, Abu Dawud 74, al-Tirmidhi 297, al-Nasa'i 134, Ibn Majah 514,
+    /// Ahmad 353, Malik 664, al-Darimi 168, Ibn Abi Shaybah 748.
+    /// Shared with <see cref="Services.ChainReprocessingService"/> so both paths agree.
+    /// </summary>
+    internal static readonly Dictionary<string, (string ArabicName, int CompilerItqanId, string CompilerName)> BookMetadata = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["bukhari"] = ("صحيح البخاري", 55562, "محمد بن إسماعيل بن إبراهيم بن المغيرة"),
+        ["bukhari"] = ("صحيح البخاري", 336, "محمد بن إسماعيل بن إبراهيم بن المغيرة"),
         ["muslim"] = ("صحيح مسلم", 618, "مسلم بن الحجاج بن مسلم"),
         ["abudawud"] = ("سنن أبي داود", 74, "سليمان بن الأشعث"),
-        ["tirmidhi"] = ("جامع الترمذي", 69584, "محمد بن عيسى بن سورة بن موسى بن الضحاك"),
-        ["nasai"] = ("سنن النسائي", 57802, "أحمد بن شعيب بن علي بن سنان بن بحر"),
-        ["ibnmajah"] = ("سنن ابن ماجه", 64080, "محمد بن يزيد بن ماجه"),
+        ["tirmidhi"] = ("جامع الترمذي", 297, "محمد بن عيسى بن سورة بن موسى بن الضحاك"),
+        ["nasai"] = ("سنن النسائي", 134, "أحمد بن شعيب بن علي بن سنان بن بحر"),
+        ["ibnmajah"] = ("سنن ابن ماجه", 514, "محمد بن يزيد بن ماجه"),
         ["ahmed"] = ("مسند أحمد", 353, "أحمد بن محمد بن حنبل"),
-        ["malik"] = ("موطأ مالك", 60209, "مالك بن أنس"),
-        ["darimi"] = ("سنن الدارمي", 56570, "عبد الله بن عبد الرحمن بن الفضل بن بهرام"),
-        ["aladab_almufrad"] = ("الأدب المفرد", 55562, "محمد بن إسماعيل بن إبراهيم بن المغيرة"),
-        ["shamail_muhammadiyah"] = ("الشمائل المحمدية", 69584, "محمد بن عيسى بن سورة بن موسى بن الضحاك"),
-        ["musannaf_ibnabi_shaybah"] = ("مصنف ابن أبي شيبة", 57598, "عبد الله بن محمد بن إبراهيم بن عثمان")
+        ["malik"] = ("موطأ مالك", 664, "مالك بن أنس"),
+        ["darimi"] = ("سنن الدارمي", 168, "عبد الله بن عبد الرحمن بن الفضل بن بهرام"),
+        ["aladab_almufrad"] = ("الأدب المفرد", 336, "محمد بن إسماعيل بن إبراهيم بن المغيرة"),
+        ["shamail_muhammadiyah"] = ("الشمائل المحمدية", 297, "محمد بن عيسى بن سورة بن موسى بن الضحاك"),
+        ["musannaf_ibnabi_shaybah"] = ("مصنف ابن أبي شيبة", 748, "عبد الله بن محمد بن إبراهيم بن عثمان")
     };
 
     /// <summary>

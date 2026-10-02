@@ -5,6 +5,8 @@ import {
   NarratorSummaryDto,
   ComparativeTreeResponseDto,
   SearchRequestDto,
+  IlalReportDto,
+  IlalExplanationDto,
 } from "@/types/api";
 
 const API_BASE = "http://localhost:5147/api"; // Default ASP.NET Core dev port
@@ -78,5 +80,27 @@ export async function getComparativeTree(hadithIds: string[]): Promise<Comparati
 export async function getRelatedHadiths(hadithId: string): Promise<HadithSearchResultDto[]> {
   const res = await fetch(`${API_BASE}/Takhreej/related/${hadithId}`);
   if (!res.ok) throw new Error('Failed to fetch related hadiths');
+  return res.json();
+}
+
+export async function getIlalReport(hadithIds: string[]): Promise<IlalReportDto> {
+  const res = await fetch(`${API_BASE}/Ilal?ids=${hadithIds.join(',')}`);
+  if (!res.ok) throw new Error('Failed to fetch ilal report');
+  return res.json();
+}
+
+export async function getIlalForHadith(hadithId: string): Promise<IlalReportDto> {
+  const res = await fetch(`${API_BASE}/Ilal/${hadithId}`);
+  if (!res.ok) throw new Error('Failed to fetch ilal report');
+  return res.json();
+}
+
+export async function explainIlal(report: IlalReportDto): Promise<IlalExplanationDto> {
+  const res = await fetch(`${API_BASE}/Ilal/explain`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(report),
+  });
+  if (!res.ok) throw new Error('Failed to explain ilal report');
   return res.json();
 }

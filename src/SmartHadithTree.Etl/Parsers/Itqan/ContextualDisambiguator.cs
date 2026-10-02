@@ -10,6 +10,9 @@ public class ContextualDisambiguator
     private readonly Dictionary<int, NarratorNode> _graph = new();
     private readonly Dictionary<string, List<int>> _nameToCandidates = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>The loaded narrator graph keyed by Itqan ID (teachers/students per narrator).</summary>
+    public IReadOnlyDictionary<int, NarratorNode> Graph => _graph;
+
     public ContextualDisambiguator(ILogger<ContextualDisambiguator>? logger = null)
     {
         _logger = logger;

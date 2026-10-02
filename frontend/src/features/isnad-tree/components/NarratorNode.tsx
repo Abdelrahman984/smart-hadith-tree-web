@@ -1,6 +1,7 @@
 import { Handle, Position } from '@xyflow/react';
 import { memo } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { useIlalStore } from '@/features/ilal/store/useIlalStore';
 
 type NarratorNodeData = {
   narratorName: string;
@@ -17,7 +18,8 @@ type NarratorNodeData = {
   hasMukhtalit?: boolean;
 };
 
-const NarratorNode = ({ data, selected }: { data: NarratorNodeData; selected?: boolean }) => {
+const NarratorNode = ({ id, data, selected }: { id: string; data: NarratorNodeData; selected?: boolean }) => {
+  const isIlalHighlighted = useIlalStore((s) => s.highlightedNarratorIds.includes(id));
   let borderColor = '#cbd5e1'; // default slate-300
   let bgColor = '#ffffff';
 
@@ -54,11 +56,16 @@ const NarratorNode = ({ data, selected }: { data: NarratorNodeData; selected?: b
 
   const isReliable = data.gradeEn === 'reliable' || data.gradeEn === 'mostly_reliable' || data.gradeEn === 'companion';
   const opacity = data.showWeakOnly && isReliable ? 0.3 : 1;
+  const ringClass = selected
+    ? 'ring-2 ring-brand-blue border-brand-blue'
+    : isIlalHighlighted
+      ? 'ring-4 ring-rose-400 ring-offset-2 scale-105'
+      : '';
 
   return (
     <div 
       dir="rtl" 
-      className={`px-4 py-3 shadow-md rounded-lg border-2 min-w-[200px] max-w-[250px] text-center transition-all break-words relative ${selected ? 'ring-2 ring-brand-blue border-brand-blue' : ''}`}
+      className={`px-4 py-3 shadow-md rounded-lg border-2 min-w-[200px] max-w-[250px] text-center transition-all break-words relative ${ringClass}`}
       style={{ backgroundColor: bgColor, borderColor: selected ? undefined : borderColor, opacity }}
     >
       {data.isAnomaly && (
@@ -92,10 +99,10 @@ const NarratorNode = ({ data, selected }: { data: NarratorNodeData; selected?: b
       {(data.isMudallis || data.hasMukhtalit) && (
         <div className="flex gap-1 justify-center mt-2 flex-wrap">
           {data.isMudallis && (
-            <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-red-500 rounded-full">مدلس</span>
+            <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-orange-500 rounded-full" title="موصوف بالتدليس">مدلس</span>
           )}
           {data.hasMukhtalit && (
-            <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-yellow-500 rounded-full">اختلط</span>
+            <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-yellow-500 rounded-full" title="اختلط في آخر عمره">اختلط</span>
           )}
         </div>
       )}

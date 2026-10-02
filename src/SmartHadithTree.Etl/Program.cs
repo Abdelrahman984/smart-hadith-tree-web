@@ -30,6 +30,7 @@ builder.Services.AddTransient<IDataSourceParser, SeedDataGenerator>();
 builder.Services.AddSingleton<SmartHadithTree.Etl.Parsers.Itqan.ContextualDisambiguator>();
 builder.Services.AddTransient<BulkDataIngestionService>();
 builder.Services.AddTransient<ChainReprocessingService>();
+builder.Services.AddTransient<IlalSeedService>();
 builder.Services.AddTransient<EtlOrchestrator>();
 
 var host = builder.Build();
@@ -56,6 +57,14 @@ try
         // Require the path to itqan data. E.g. dotnet run reprocess-chains data/itqan
         var itqanPath = args.Length > 1 ? args[1] : "data/itqan";
         await reprocessor.ReprocessChainsAsync(itqanPath, CancellationToken.None);
+    }
+    else if (source.Equals("seed-ilal", StringComparison.OrdinalIgnoreCase))
+    {
+        // Teacher/student relations + mudallisin/mukhtalitun seeds. E.g. dotnet run seed-ilal data/itqan
+        var itqanPath = args.Length > 1 ? args[1] : "data/itqan";
+        var seedsPath = Path.Combine(AppContext.BaseDirectory, "Seeds");
+        var ilalSeeder = scope.ServiceProvider.GetRequiredService<IlalSeedService>();
+        await ilalSeeder.RunAsync(itqanPath, seedsPath, CancellationToken.None);
     }
     else
     {

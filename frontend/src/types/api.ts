@@ -17,6 +17,8 @@ export interface IsnadNodeDto {
   parentNodeId: string | null;
   transmissionTerm: string | null;
   gradeEn?: string;
+  isMudallis?: boolean;
+  hasMukhtalit?: boolean;
   isAnomaly?: boolean;
   anomalyReason?: string;
 }
@@ -77,6 +79,73 @@ export interface ComparativeTreeResponseDto {
   nodes: ComparativeIsnadNodeDto[];
   calculatedGrade?: string;
   taqwiyahDetails?: string;
+  ilalReport?: IlalReportDto;
+}
+
+// ── علل الحديث (Ilal engine) ───────────────────────────────────────
+
+export type IllahType =
+  | "Tadlis"
+  | "Ikhtilat"
+  | "HiddenInqita"
+  | "Ziyadah"
+  | "Shudhudh"
+  | "Nakarah"
+  | "Idtirab"
+  | "RafWaqf"
+  | "WaslIrsal";
+
+export type IllahSeverity = "Qadihah" | "GhayrQadihah" | "Tanbih";
+
+export interface MatnSegmentDto {
+  kind: "equal" | "added" | "removed";
+  text: string;
+}
+
+export interface MatnComparisonDto {
+  referenceHadithId: string;
+  comparedHadithId: string;
+  similarity: number;
+  segments: MatnSegmentDto[];
+}
+
+export interface IlalFindingDto {
+  type: IllahType;
+  severity: IllahSeverity;
+  titleAr: string;
+  evidenceAr: string;
+  narratorIds: string[];
+  hadithIds: string[];
+  confidence: number;
+  matnComparison?: MatnComparisonDto;
+}
+
+export interface IlalMadarDto {
+  narratorId: string;
+  narratorName: string;
+  branchCount: number;
+  hadithIds: string[];
+}
+
+export interface IlalTariqDto {
+  hadithId: string;
+  bookName: string;
+  hadithNumber: number;
+  isMarfu: boolean;
+}
+
+export interface IlalReportDto {
+  analyzedHadithIds: string[];
+  turuq: IlalTariqDto[];
+  madars: IlalMadarDto[];
+  findings: IlalFindingDto[];
+  hasQadihah: boolean;
+  summaryAr: string;
+}
+
+export interface IlalExplanationDto {
+  explanationAr: string;
+  caveats: string[];
 }
 
 export type SearchScope = 0 | 1 | 2; // 0: All, 1: Matn, 2: Isnad

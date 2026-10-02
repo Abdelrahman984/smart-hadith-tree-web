@@ -45,21 +45,9 @@ public class ChainReprocessingService
         var itqanToGuidMap = narratorsDb.ToDictionary(n => n.ItqanId, n => n.Id);
         
         // Needed for starting compilers
-        var compilerMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["صحيح البخاري"] = 55562,
-            ["صحيح مسلم"] = 74,
-            ["سنن أبي داود"] = 618,
-            ["جامع الترمذي"] = 673,
-            ["سنن النسائي"] = 617,
-            ["سنن ابن ماجه"] = 1218,
-            ["مسند أحمد"] = 353,
-            ["موطأ مالك"] = 60209,
-            ["سنن الدارمي"] = 56570,
-            ["الأدب المفرد"] = 55562,
-            ["الشمائل المحمدية"] = 69584,
-            ["مصنف ابن أبي شيبة"] = 57598,
-        };
+        var compilerMap = ItqanDatasetParser.BookMetadata.Values
+            .GroupBy(m => m.ArabicName)
+            .ToDictionary(g => g.Key, g => g.First().CompilerItqanId, StringComparer.OrdinalIgnoreCase);
 
         // 3. Delete existing transmissions
         _logger.LogWarning("Truncating existing Transmissions table...");

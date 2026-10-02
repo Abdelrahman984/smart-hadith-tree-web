@@ -56,6 +56,8 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                 rc.ParentNodeId,
                 rc.TransmissionTerm,
                 n.ItqanGrade AS GradeEn,
+                n.IsMudallis,
+                n.HasMukhtalit,
                 CAST(0 AS BIT) AS IsAnomaly,
                 CAST(NULL AS NVARCHAR(MAX)) AS AnomalyReason
             FROM RecursiveChain rc
@@ -149,6 +151,8 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                 rc.ParentNodeId,
                 rc.TransmissionTerm,
                 n.ItqanGrade AS GradeEn,
+                n.IsMudallis,
+                n.HasMukhtalit,
                 CAST(0 AS BIT) AS IsAnomaly,
                 CAST(NULL AS NVARCHAR(MAX)) AS AnomalyReason,
                 rc.HadithId AS SourceHadithId,
@@ -182,6 +186,8 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                 ParentNodeId = first.ParentNodeId,
                 TransmissionTerm = first.TransmissionTerm,
                 GradeEn = first.GradeEn,
+                IsMudallis = first.IsMudallis,
+                HasMukhtalit = first.HasMukhtalit,
                 SourceHadithIds = group.Select(r => r.SourceHadithId).Distinct().ToList(),
                 SourceBooks = group.Select(r => r.SourceBookName).Distinct().ToList()
             });
@@ -294,6 +300,8 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                                 ParentNodeId = mergedParent.Id,
                                 TransmissionTerm = row.TransmissionTerm,
                                 GradeEn = row.GradeEn,
+                                IsMudallis = row.IsMudallis,
+                                HasMukhtalit = row.HasMukhtalit,
                                 SourceHadithIds = [row.SourceHadithId],
                                 SourceBooks = [row.SourceBookName]
                             });
@@ -349,6 +357,8 @@ internal class ComparativeRawRow
     public Guid? ParentNodeId { get; set; }
     public string? TransmissionTerm { get; set; }
     public string? GradeEn { get; set; }
+    public bool IsMudallis { get; set; }
+    public bool HasMukhtalit { get; set; }
     public bool IsAnomaly { get; set; }
     public string? AnomalyReason { get; set; }
     public Guid SourceHadithId { get; set; }

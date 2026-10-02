@@ -1,12 +1,14 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useTakhreej } from "@/features/isnad-tree/hooks/useTakhreej";
 import ComparativeTreeCanvas from "@/features/isnad-tree/components/ComparativeTreeCanvas";
 import NarratorDrawer from "@/features/narrator-details/components/NarratorDrawer";
 import ReturnToSearchButton from "@/features/isnad-tree/components/ReturnToSearchButton";
-import { ChevronLeft, ChevronRight, Copy, Check, BookOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, Check, BookOpen, ShieldAlert } from "lucide-react";
+import IlalPanel from "@/features/ilal/components/IlalPanel";
+import { useIlalStore } from "@/features/ilal/store/useIlalStore";
 
 function TakhreejContent() {
   const searchParams = useSearchParams();
@@ -19,6 +21,15 @@ function TakhreejContent() {
   const { data, isLoading, isError } = useTakhreej(hadithIds);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [sidebarTab, setSidebarTab] = useState<"mutun" | "ilal">("mutun");
+  const { setReport, reset } = useIlalStore();
+
+  // Share the ilal report with the canvas so it can decorate edges and highlight narrators.
+  useEffect(() => {
+    setReport(data?.ilalReport ?? null);
+  }, [data, setReport]);
+
+  useEffect(() => reset, [reset]);
 
   const handleCopy = (text: string, idx: number) => {
     navigator.clipboard.writeText(text);
@@ -109,6 +120,34 @@ function TakhreejContent() {
               </div>
             )}
 
+            {/* Sidebar tabs */}
+            <div className="flex rounded-lg bg-slate-100 p-1 text-sm font-semibold">
+              <button
+                onClick={() => setSidebarTab("mutun")}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 transition-colors cursor-pointer ${sidebarTab === "mutun" ? "bg-white text-brand-blue shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+              >
+                <BookOpen className="w-4 h-4" /> المتون
+              </button>
+              <button
+                onClick={() => setSidebarTab("ilal")}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 transition-colors cursor-pointer ${sidebarTab === "ilal" ? "bg-white text-brand-blue shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+              >
+                <ShieldAlert className="w-4 h-4" /> العلل
+                {data.ilalReport && data.ilalReport.findings.length > 0 && (
+                  <span className={`rounded-full px-1.5 text-[11px] text-white ${data.ilalReport.hasQadihah ? "bg-red-500" : "bg-amber-500"}`}>
+                    {data.ilalReport.findings.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {sidebarTab === "ilal" && (
+              data.ilalReport
+                ? <IlalPanel report={data.ilalReport} />
+                : <p className="text-sm text-slate-500">لا يتوفر فحص للعلل لهذه الطرق.</p>
+            )}
+
+            {sidebarTab === "mutun" && (<>
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <div className="flex items-center gap-2">
                 <BookOpen className="w-5 h-5 text-brand-blue" />
@@ -146,6 +185,7 @@ function TakhreejContent() {
                 </div>
               ))}
             </div>
+            </>)}
           </div>
         </div>
 

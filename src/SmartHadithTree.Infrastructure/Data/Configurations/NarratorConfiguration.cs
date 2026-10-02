@@ -63,6 +63,10 @@ public class NarratorConfiguration : IEntityTypeConfiguration<Narrator>
         builder.Property(n => n.ItqanGrade)
             .HasMaxLength(50);
 
+        builder.Property(n => n.IkhtilatNote)
+            .HasMaxLength(1000)
+            .UseCollation("Arabic_100_CI_AI");
+
         builder.HasIndex(n => n.ItqanId)
             .IsUnique()
             .HasDatabaseName("IX_Narrators_ItqanId");

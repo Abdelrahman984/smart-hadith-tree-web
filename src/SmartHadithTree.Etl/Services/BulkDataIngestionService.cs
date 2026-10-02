@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using EFCore.BulkExtensions;
 using Microsoft.Extensions.Logging;
 using SmartHadithTree.Etl.Parsers;
@@ -105,5 +106,22 @@ public class BulkDataIngestionService(
 
         logger.LogInformation("Upserting {Count} narrators...", dataset.Narrators.Count);
         await context.BulkInsertOrUpdateAsync(dataset.Narrators, upsertConfig, cancellationToken: ct);
+    }
+
+    /// <summary>
+    /// Replaces all teacher/student relations from the given source (e.g. "itqan") in one transaction.
+    /// </summary>
+    public async Task ReplaceNarratorRelationsAsync(
+        string source, List<Domain.Entities.NarratorRelation> relations, CancellationToken ct = default)
+    {
+        await using var transaction = await context.Database.BeginTransactionAsync(ct);
+
+        var deleted = await context.NarratorRelations.Where(r => r.Source == source).ExecuteDeleteAsync(ct);
+        logger.LogInformation("Removed {Count} existing '{Source}' relations.", deleted, source);
+
+        logger.LogInformation("Inserting {Count} narrator relations...", relations.Count);
+        await context.BulkInsertAsync(relations, DefaultBulkConfig, cancellationToken: ct);
+
+        await transaction.CommitAsync(ct);
     }
 }
