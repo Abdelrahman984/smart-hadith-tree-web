@@ -44,13 +44,7 @@ public class ItqanDatasetParser : IDataSourceParser
         ["ahmed"] = ("مسند أحمد", 353, "أحمد بن محمد بن حنبل"),
         ["malik"] = ("موطأ مالك", 60209, "مالك بن أنس"),
         ["darimi"] = ("سنن الدارمي", 56570, "عبد الله بن عبد الرحمن بن الفضل بن بهرام"),
-        ["nawawi40"] = ("الأربعون النووية", 58153, "يحيى بن شرف بن مري بن حسن النووي"),
-        ["qudsi40"] = ("الأربعون القدسية", 0, ""),
-        ["shahwaliullah40"] = ("أربعون شاه ولي الله", 0, ""),
-        ["riyad_assalihin"] = ("رياض الصالحين", 58153, "يحيى بن شرف بن مري بن حسن النووي"),
         ["aladab_almufrad"] = ("الأدب المفرد", 55562, "محمد بن إسماعيل بن إبراهيم بن المغيرة"),
-        ["bulugh_almaram"] = ("بلوغ المرام", 1642, "أحمد بن علي بن محمد بن محمد بن علي بن أحمد"),
-        ["mishkat_almasabih"] = ("مشكاة المصابيح", 0, ""),
         ["shamail_muhammadiyah"] = ("الشمائل المحمدية", 69584, "محمد بن عيسى بن سورة بن موسى بن الضحاك"),
         ["musannaf_ibnabi_shaybah"] = ("مصنف ابن أبي شيبة", 57598, "عبد الله بن محمد بن إبراهيم بن عثمان")
     };
@@ -230,12 +224,15 @@ public class ItqanDatasetParser : IDataSourceParser
                 var compilerItqanId = 0;
                 var compilerName = "";
 
-                if (BookMetadata.TryGetValue(dirName, out var meta))
+                if (!BookMetadata.TryGetValue(dirName, out var meta))
                 {
-                    arabicName = meta.ArabicName;
-                    compilerItqanId = meta.CompilerItqanId;
-                    compilerName = meta.CompilerName;
+                    _logger?.LogInformation("Directory '{Dir}' is not in active BookMetadata. Skipping.", dirName);
+                    continue;
                 }
+
+                arabicName = meta.ArabicName;
+                compilerItqanId = meta.CompilerItqanId;
+                compilerName = meta.CompilerName;
 
                 if (existingBooks.Contains(arabicName) || existingBooks.Contains(ArabicNormalizer.Normalize(arabicName)))
                 {
@@ -294,8 +291,12 @@ public class ItqanDatasetParser : IDataSourceParser
             .OrderBy(f => int.Parse(Path.GetFileNameWithoutExtension(f)))
             .ToList();
 
+        var cumulativeNumber = 0;
+        var fileIndex = 0;
+
         foreach (var file in hadithFiles)
         {
+            fileIndex++;
             var fileName = Path.GetFileNameWithoutExtension(file);
             string chapterName;
             if (chapterMap.TryGetValue(fileName, out var cn) || chapterMap.TryGetValue(Path.GetFileName(file), out cn))
@@ -315,16 +316,25 @@ public class ItqanDatasetParser : IDataSourceParser
             
             foreach (var element in doc.RootElement.EnumerateArray())
             {
-                int hadithNumber = 0;
-                if (element.TryGetProperty("idInBook", out var idProp) && idProp.ValueKind == JsonValueKind.Number)
-                    hadithNumber = idProp.GetInt32();
-                else if (element.TryGetProperty("hadithNumber", out var hnProp) && hnProp.ValueKind == JsonValueKind.Number)
-                    hadithNumber = hnProp.GetInt32();
-                else if (element.TryGetProperty("id", out var id2Prop) && id2Prop.ValueKind == JsonValueKind.Number)
-                    hadithNumber = id2Prop.GetInt32();
-
                 var matn = element.TryGetProperty("arabic", out var arProp) ? arProp.GetString() ?? "" : "";
                 if (string.IsNullOrWhiteSpace(matn)) continue;
+
+                cumulativeNumber++;
+                int hadithNumber = cumulativeNumber;
+
+                if (element.TryGetProperty("hadithNumber", out var hnProp) && hnProp.ValueKind == JsonValueKind.Number)
+                {
+                    hadithNumber = hnProp.GetInt32();
+                }
+                else if (element.TryGetProperty("idInBook", out var idProp) && idProp.ValueKind == JsonValueKind.Number)
+                {
+                    var rawInBook = idProp.GetInt32();
+                    // Use rawInBook only if it is already globally sequential across files (e.g. musannaf_ibnabi_shaybah)
+                    if (fileIndex == 1 || rawInBook >= cumulativeNumber)
+                    {
+                        hadithNumber = rawInBook;
+                    }
+                }
 
                 var hadith = new HadithText
                 {
@@ -581,14 +591,14 @@ public class ItqanDatasetParser : IDataSourceParser
             "4" => "كتاب الصلاة",
             "5" => "كتاب المساجد ومواضع الصلاة",
             "6" => "كتاب صلاة المسافرين وقصرها",
-            "7" => "كتاب الفضائل",
-            "8" => "كتاب الجمعة",
-            "9" => "كتاب صلاة العيدين",
-            "10" => "كتاب صلاة الاستسقاء",
-            "11" => "كتاب الكسوف",
-            "12" => "كتاب الجنائز",
-            "13" => "كتاب الزكاة",
-            "14" => "كتاب الصيام",
+            "7" => "كتاب الجمعة",
+            "8" => "كتاب صلاة العيدين",
+            "9" => "كتاب صلاة الاستسقاء",
+            "10" => "كتاب الكسوف",
+            "11" => "كتاب الجنائز",
+            "12" => "كتاب الزكاة",
+            "13" => "كتاب الصيام",
+            "14" => "كتاب الاعتكاف",
             "15" => "كتاب الحج",
             "16" => "كتاب النكاح",
             "17" => "كتاب الرضاع",
