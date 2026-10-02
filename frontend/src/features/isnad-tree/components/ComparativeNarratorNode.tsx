@@ -17,6 +17,19 @@ type ComparativeNarratorNodeData = {
   sourceBooks: string[];
   isMudallis?: boolean;
   hasMukhtalit?: boolean;
+  residencePlaces?: string | null;
+  deathPlace?: string | null;
+  gawamiRank?: string | null;
+  totalNarrationsCount?: number | null;
+  uniqueHadithCount?: number | null;
+};
+
+const getPrimaryCity = (residence?: string | null, death?: string | null) => {
+  if (residence) {
+    const first = residence.split(/[،,-]/)[0]?.trim();
+    if (first) return first;
+  }
+  return death?.trim() || null;
 };
 
 const getBookBadge = (book: string) => {
@@ -35,6 +48,7 @@ const getBookBadge = (book: string) => {
 
 const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: ComparativeNarratorNodeData; selected?: boolean }) => {
   const isIlalHighlighted = useIlalStore((s) => s.highlightedNarratorIds.includes(id));
+  const primaryCity = getPrimaryCity(data.residencePlaces, data.deathPlace);
   let borderColor = '#cbd5e1'; // default slate-300
   let bgColor = '#ffffff';
 
@@ -134,8 +148,34 @@ const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: Com
         </div>
       )}
 
-      {(data.isMudallis || data.hasMukhtalit) && (
+      {(primaryCity || data.uniqueHadithCount != null || data.isMudallis || data.hasMukhtalit) && (
         <div className="flex gap-1 justify-center mt-2 flex-wrap">
+          {primaryCity && (
+            <span
+              className="px-2 py-0.5 text-[10px] font-semibold text-slate-700 bg-slate-100 border border-slate-200 rounded-full"
+              title={`بلدان الإقامة: ${data.residencePlaces || 'غير محدد'}${data.deathPlace ? ` | الوفاة: ${data.deathPlace}` : ''}`}
+            >
+              📍 {primaryCity}
+            </span>
+          )}
+          {data.uniqueHadithCount != null && data.uniqueHadithCount > 0 && (
+            <span
+              className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${
+                data.uniqueHadithCount <= 5
+                  ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                  : data.uniqueHadithCount >= 500
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-blue-50 text-blue-700 border border-blue-200'
+              }`}
+              title={`أطراف الأحاديث: ${data.uniqueHadithCount}${data.totalNarrationsCount ? ` | إجمالي الأسانيد: ${data.totalNarrationsCount}` : ''}`}
+            >
+              {data.uniqueHadithCount <= 5
+                ? `مقل (${data.uniqueHadithCount})`
+                : data.uniqueHadithCount >= 500
+                  ? `مكثر (${data.uniqueHadithCount})`
+                  : `${data.uniqueHadithCount} حديث`}
+            </span>
+          )}
           {data.isMudallis && (
             <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-orange-500 rounded-full" title="موصوف بالتدليس">مدلس</span>
           )}

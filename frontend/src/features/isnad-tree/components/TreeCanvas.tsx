@@ -88,6 +88,11 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
               anomalyReason: n.anomalyReason,
               isMudallis: n.isMudallis,
               hasMukhtalit: n.hasMukhtalit,
+              residencePlaces: n.residencePlaces,
+              deathPlace: n.deathPlace,
+              gawamiRank: n.gawamiRank,
+              totalNarrationsCount: n.totalNarrationsCount,
+              uniqueHadithCount: n.uniqueHadithCount,
             },
           });
         }

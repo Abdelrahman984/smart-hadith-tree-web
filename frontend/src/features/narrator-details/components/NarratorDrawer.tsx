@@ -142,6 +142,11 @@ export default function NarratorDrawer() {
                       {getVerdictAr(narrator.gradeEn)}
                     </span>
                   )}
+                  {narrator.gawamiRank && (
+                    <span className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-xs font-semibold">
+                      الرتبة: {narrator.gawamiRank}
+                    </span>
+                  )}
                   {narrator.birthYearHijri && (
                     <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">
                       مواليد: {narrator.birthYearHijri} هـ
@@ -152,8 +157,90 @@ export default function NarratorDrawer() {
                       وفيات: {narrator.deathYearHijri} هـ
                     </span>
                   )}
+                  {narrator.isMudallis && (
+                    <span className="px-2 py-1 bg-orange-100 text-orange-800 border border-orange-300 rounded text-xs font-bold">
+                      موصوف بالتدليس
+                    </span>
+                  )}
+                  {narrator.hasMukhtalit && (
+                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 border border-yellow-300 rounded text-xs font-bold">
+                      اختلط بأخرة
+                    </span>
+                  )}
                 </div>
               </div>
+
+              {/* Geography & Schools of Hadith */}
+              {(narrator.residencePlaces || narrator.deathPlace) && (
+                <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-2">
+                  <h4 className="text-sm font-bold text-slate-800">🌍 البلدان والرحلة العلمية</h4>
+                  {narrator.residencePlaces && (
+                    <div>
+                      <span className="text-xs text-slate-500 block mb-1">بلدان الإقامة والرحلة:</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {narrator.residencePlaces.split(/[،,-]/).map((city, idx) => {
+                          const trimmed = city.trim();
+                          if (!trimmed) return null;
+                          return (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 bg-white border border-slate-200 rounded-full text-xs text-slate-700 font-medium shadow-2xs"
+                            >
+                              📍 {trimmed}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {narrator.deathPlace && (
+                    <div className="text-xs text-slate-600 pt-1 border-t border-slate-200/70">
+                      <span className="text-slate-500">بلد الوفاة: </span>
+                      <span className="font-semibold text-slate-800">{narrator.deathPlace}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Narration Volume & Tafarrud Indicator */}
+              {(narrator.uniqueHadithCount != null || narrator.totalNarrationsCount != null) && (
+                <div className="bg-blue-50/60 rounded-xl p-3.5 border border-blue-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-slate-800">📊 إحصائيات المرويات (جوامع الكلم)</h4>
+                    {narrator.uniqueHadithCount != null && (
+                      <span
+                        className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+                          narrator.uniqueHadithCount <= 5
+                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                            : narrator.uniqueHadithCount >= 500
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                              : 'bg-blue-100 text-blue-800 border border-blue-200'
+                        }`}
+                      >
+                        {narrator.uniqueHadithCount <= 5
+                          ? 'راوٍ مُقِلّ (يُحذر من تفرده)'
+                          : narrator.uniqueHadithCount >= 500
+                            ? 'إمام حافظ مُكثِر'
+                            : 'متوسط الرواية'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    {narrator.uniqueHadithCount != null && (
+                      <div className="bg-white p-2.5 rounded-lg border border-blue-100 text-center">
+                        <div className="text-lg font-bold text-brand-dark">{narrator.uniqueHadithCount.toLocaleString('ar-EG')}</div>
+                        <div className="text-[11px] text-slate-500">أطراف الأحاديث الفريدة</div>
+                      </div>
+                    )}
+                    {narrator.totalNarrationsCount != null && (
+                      <div className="bg-white p-2.5 rounded-lg border border-blue-100 text-center">
+                        <div className="text-lg font-bold text-brand-blue">{narrator.totalNarrationsCount.toLocaleString('ar-EG')}</div>
+                        <div className="text-[11px] text-slate-500">إجمالي الأسانيد والطرق</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Bio */}
               {narrator.biography && (

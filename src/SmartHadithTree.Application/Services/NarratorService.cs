@@ -45,6 +45,13 @@ public class NarratorService(IHadithTreeDbContext context) : INarratorService
             GenerationTier = narrator.GenerationTier,
             BirthYearHijri = narrator.BirthYearHijri,
             DeathYearHijri = narrator.DeathYearHijri,
+            ResidencePlaces = narrator.ResidencePlaces,
+            DeathPlace = narrator.DeathPlace,
+            GawamiRank = narrator.GawamiRank,
+            TotalNarrationsCount = narrator.TotalNarrationsCount,
+            UniqueHadithCount = narrator.UniqueHadithCount,
+            IsMudallis = narrator.IsMudallis,
+            HasMukhtalit = narrator.HasMukhtalit,
             Biography = narrator.Biography,
             GradeEn = narrator.ItqanGrade,
             Evaluations = narrator.ScholarEvaluations.Select(e => new ScholarEvaluationDto
@@ -66,7 +73,7 @@ public class NarratorService(IHadithTreeDbContext context) : INarratorService
                 Id = n.Id,
                 FullName = n.KnownAs ?? n.FullName,
                 GenerationTier = n.GenerationTier,
-                GradeSummary = n.ScholarEvaluations.Select(e => e.VerdictRating).FirstOrDefault() ?? "غير معروف",
+                GradeSummary = n.GawamiRank ?? n.ScholarEvaluations.Select(e => e.VerdictRating).FirstOrDefault() ?? "غير معروف",
                 GradeEn = n.ItqanGrade
             })
             .FirstOrDefaultAsync(ct);

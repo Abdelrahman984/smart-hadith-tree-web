@@ -27,6 +27,12 @@ public class IsnadNodeDto
 
     /// <summary>مختلط — the narrator's memory deteriorated late in life.</summary>
     public bool HasMukhtalit { get; set; }
+
+    public string? ResidencePlaces { get; set; }
+    public string? DeathPlace { get; set; }
+    public string? GawamiRank { get; set; }
+    public int? TotalNarrationsCount { get; set; }
+    public int? UniqueHadithCount { get; set; }
     
     public bool IsAnomaly { get; set; }
     public string? AnomalyReason { get; set; }
@@ -60,6 +66,13 @@ public class NarratorDetailDto
     public string? GenerationTier { get; set; }
     public int? BirthYearHijri { get; set; }
     public int? DeathYearHijri { get; set; }
+    public string? ResidencePlaces { get; set; }
+    public string? DeathPlace { get; set; }
+    public string? GawamiRank { get; set; }
+    public int? TotalNarrationsCount { get; set; }
+    public int? UniqueHadithCount { get; set; }
+    public bool IsMudallis { get; set; }
+    public bool HasMukhtalit { get; set; }
     public string? Biography { get; set; }
     public string? GradeEn { get; set; }
     public List<ScholarEvaluationDto> Evaluations { get; set; } = [];

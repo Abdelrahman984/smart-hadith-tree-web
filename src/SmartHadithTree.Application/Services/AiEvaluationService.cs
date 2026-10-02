@@ -44,6 +44,11 @@ T12 = كذاب / وضاع
 معلومات الراوي:
 الاسم: {narrator.KnownAs ?? narrator.FullName}
 الطبقة: {narrator.GenerationTier ?? "غير محددة"}
+بلدان الإقامة والرحلة: {narrator.ResidencePlaces ?? "غير محددة"}
+بلد الوفاة: {narrator.DeathPlace ?? "غير محدد"}
+الرتبة في جوامع الكلم: {narrator.GawamiRank ?? "غير محددة"}
+حجم المرويات: {(narrator.UniqueHadithCount.HasValue ? $"{narrator.UniqueHadithCount} حديث/طرف ({narrator.TotalNarrationsCount ?? narrator.UniqueHadithCount} إسناد)" : "غير محدد")}
+ملاحظات العلل: {(narrator.IsMudallis ? "موصوف بالتدليس. " : "")}{(narrator.HasMukhtalit ? "موصوف بالاختلاط. " : "")}
 
 أقوال العلماء:
 {string.Join("\n", narrator.Evaluations.Select(e => $"- {e.ScholarName} (في كتاب {e.SourceBook ?? "غير محدد"}): {e.EvaluationText}"))}

@@ -19,6 +19,11 @@ export interface IsnadNodeDto {
   gradeEn?: string;
   isMudallis?: boolean;
   hasMukhtalit?: boolean;
+  residencePlaces?: string | null;
+  deathPlace?: string | null;
+  gawamiRank?: string | null;
+  totalNarrationsCount?: number | null;
+  uniqueHadithCount?: number | null;
   isAnomaly?: boolean;
   anomalyReason?: string;
 }
@@ -54,6 +59,13 @@ export interface NarratorDetailDto {
   generationTier: string | null;
   birthYearHijri: number | null;
   deathYearHijri: number | null;
+  residencePlaces?: string | null;
+  deathPlace?: string | null;
+  gawamiRank?: string | null;
+  totalNarrationsCount?: number | null;
+  uniqueHadithCount?: number | null;
+  isMudallis?: boolean;
+  hasMukhtalit?: boolean;
   biography: string | null;
   gradeEn?: string;
   evaluations: ScholarEvaluationDto[];

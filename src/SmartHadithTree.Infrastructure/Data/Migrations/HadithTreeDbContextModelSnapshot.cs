@@ -161,6 +161,9 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                     b.Property<int?>("GawamiId")
                         .HasColumnType("int");
 
+                    b.Property<string>("GawamiRank")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("GenerationTier")
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)")
@@ -195,6 +198,15 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                         .UseCollation("Arabic_100_CI_AI");
 
                     b.Property<int?>("MudallisTier")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ResidencePlaces")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("TotalNarrationsCount")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UniqueHadithCount")
                         .HasColumnType("int");
 
                     b.HasKey("Id");

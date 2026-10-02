@@ -102,6 +102,11 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
               anomalyReason: n.anomalyReason,
               isMudallis: n.isMudallis,
               hasMukhtalit: n.hasMukhtalit,
+              residencePlaces: n.residencePlaces,
+              deathPlace: n.deathPlace,
+              gawamiRank: n.gawamiRank,
+              totalNarrationsCount: n.totalNarrationsCount,
+              uniqueHadithCount: n.uniqueHadithCount,
               sourceBooks: n.sourceBooks || [],
             },
           });

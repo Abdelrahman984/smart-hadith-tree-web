@@ -31,6 +31,18 @@ public class Narrator
     /// <summary>مكان الوفاة.</summary>
     public string? DeathPlace { get; set; }
 
+    /// <summary>بلدان الإقامة والرحلة (مفصولة بفاصلة، مثل: البصرة ، الكوفة ، بغداد).</summary>
+    public string? ResidencePlaces { get; set; }
+
+    /// <summary>وصف الرتبة في جوامع الكلم (مثل: ثقة ثبت مشهور بالتدليس).</summary>
+    public string? GawamiRank { get; set; }
+
+    /// <summary>إجمالي عدد الأسانيد التي ورد فيها الراوي في جوامع الكلم.</summary>
+    public int? TotalNarrationsCount { get; set; }
+
+    /// <summary>عدد أطراف الأحاديث الفريدة التي رواها في جوامع الكلم.</summary>
+    public int? UniqueHadithCount { get; set; }
+
     /// <summary>ترجمة الراوي — Biographical notes.</summary>
     public string? Biography { get; set; }
 

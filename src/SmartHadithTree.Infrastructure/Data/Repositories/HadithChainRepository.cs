@@ -58,6 +58,11 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                 n.ItqanGrade AS GradeEn,
                 n.IsMudallis,
                 n.HasMukhtalit,
+                n.ResidencePlaces,
+                n.DeathPlace,
+                n.GawamiRank,
+                n.TotalNarrationsCount,
+                n.UniqueHadithCount,
                 CAST(0 AS BIT) AS IsAnomaly,
                 CAST(NULL AS NVARCHAR(MAX)) AS AnomalyReason
             FROM RecursiveChain rc
@@ -70,27 +75,33 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
             .SqlQueryRaw<IsnadNodeDto>(sql, hadithId)
             .ToListAsync(ct);
 
-        // Fetch birth/death years for the narrators in this chain
+        // Fetch birth/death years and places for the narrators in this chain
         var narratorIds = nodes.Select(n => n.NarratorId).Distinct().ToList();
         var narratorDates = await context.Narrators
             .Where(n => narratorIds.Contains(n.Id))
-            .Select(n => new { n.Id, n.BirthYearHijri, n.DeathYearHijri })
+            .Select(n => new { n.Id, n.BirthYearHijri, n.DeathYearHijri, n.ResidencePlaces, n.DeathPlace })
             .ToDictionaryAsync(n => n.Id, ct);
 
-        // Detect anomalies (Inqita' - Disconnection)
+        // Detect anomalies (Temporal & Geographic Inqita')
         foreach (var node in nodes)
         {
             if (node.ParentNodeId.HasValue && node.ParentNodeId.Value != Guid.Empty)
             {
                 var studentNode = nodes.FirstOrDefault(n => n.Id == node.ParentNodeId.Value);
-                if (studentNode != null && narratorDates.TryGetValue(node.NarratorId, out var sheikhDates) && narratorDates.TryGetValue(studentNode.NarratorId, out var studentDates))
+                if (studentNode != null && narratorDates.TryGetValue(node.NarratorId, out var sheikhMeta) && narratorDates.TryGetValue(studentNode.NarratorId, out var studentMeta))
                 {
-                    // If student was born AFTER sheikh died
-                    if (studentDates.BirthYearHijri.HasValue && sheikhDates.DeathYearHijri.HasValue && 
-                        studentDates.BirthYearHijri.Value > sheikhDates.DeathYearHijri.Value)
+                    // 1. Temporal check: If student was born AFTER sheikh died
+                    if (studentMeta.BirthYearHijri.HasValue && sheikhMeta.DeathYearHijri.HasValue && 
+                        studentMeta.BirthYearHijri.Value > sheikhMeta.DeathYearHijri.Value)
                     {
                         node.IsAnomaly = true;
-                        node.AnomalyReason = $"انقطاع زمني: التلميذ ولد سنة {studentDates.BirthYearHijri} بعد وفاة الشيخ سنة {sheikhDates.DeathYearHijri}";
+                        node.AnomalyReason = $"انقطاع زمني: التلميذ ولد سنة {studentMeta.BirthYearHijri} بعد وفاة الشيخ سنة {sheikhMeta.DeathYearHijri}";
+                    }
+                    // 2. Geographic check: If both have known cities and zero overlap (excluding Hajj hubs)
+                    else if (HasGeographicDisconnection(sheikhMeta.ResidencePlaces, sheikhMeta.DeathPlace, studentMeta.ResidencePlaces, studentMeta.DeathPlace, out var geoReason))
+                    {
+                        node.IsAnomaly = true;
+                        node.AnomalyReason = geoReason;
                     }
                 }
             }
@@ -153,6 +164,11 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                 n.ItqanGrade AS GradeEn,
                 n.IsMudallis,
                 n.HasMukhtalit,
+                n.ResidencePlaces,
+                n.DeathPlace,
+                n.GawamiRank,
+                n.TotalNarrationsCount,
+                n.UniqueHadithCount,
                 CAST(0 AS BIT) AS IsAnomaly,
                 CAST(NULL AS NVARCHAR(MAX)) AS AnomalyReason,
                 rc.HadithId AS SourceHadithId,
@@ -188,6 +204,11 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                 GradeEn = first.GradeEn,
                 IsMudallis = first.IsMudallis,
                 HasMukhtalit = first.HasMukhtalit,
+                ResidencePlaces = first.ResidencePlaces,
+                DeathPlace = first.DeathPlace,
+                GawamiRank = first.GawamiRank,
+                TotalNarrationsCount = first.TotalNarrationsCount,
+                UniqueHadithCount = first.UniqueHadithCount,
                 SourceHadithIds = group.Select(r => r.SourceHadithId).Distinct().ToList(),
                 SourceBooks = group.Select(r => r.SourceBookName).Distinct().ToList()
             });
@@ -302,6 +323,11 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                                 GradeEn = row.GradeEn,
                                 IsMudallis = row.IsMudallis,
                                 HasMukhtalit = row.HasMukhtalit,
+                                ResidencePlaces = row.ResidencePlaces,
+                                DeathPlace = row.DeathPlace,
+                                GawamiRank = row.GawamiRank,
+                                TotalNarrationsCount = row.TotalNarrationsCount,
+                                UniqueHadithCount = row.UniqueHadithCount,
                                 SourceHadithIds = [row.SourceHadithId],
                                 SourceBooks = [row.SourceBookName]
                             });
@@ -317,7 +343,7 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
         var narratorIds = mergedNodes.Select(n => n.NarratorId).Distinct().ToList();
         var narratorDates = await context.Narrators
             .Where(n => narratorIds.Contains(n.Id))
-            .Select(n => new { n.Id, n.BirthYearHijri, n.DeathYearHijri })
+            .Select(n => new { n.Id, n.BirthYearHijri, n.DeathYearHijri, n.ResidencePlaces, n.DeathPlace })
             .ToDictionaryAsync(n => n.Id, ct);
 
         foreach (var node in mergedNodes)
@@ -326,20 +352,73 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
             {
                 var studentNode = mergedNodes.FirstOrDefault(n => n.Id == node.ParentNodeId.Value);
                 if (studentNode != null &&
-                    narratorDates.TryGetValue(node.NarratorId, out var sheikhDates) &&
-                    narratorDates.TryGetValue(studentNode.NarratorId, out var studentDates))
+                    narratorDates.TryGetValue(node.NarratorId, out var sheikhMeta) &&
+                    narratorDates.TryGetValue(studentNode.NarratorId, out var studentMeta))
                 {
-                    if (studentDates.BirthYearHijri.HasValue && sheikhDates.DeathYearHijri.HasValue &&
-                        studentDates.BirthYearHijri.Value > sheikhDates.DeathYearHijri.Value)
+                    if (studentMeta.BirthYearHijri.HasValue && sheikhMeta.DeathYearHijri.HasValue &&
+                        studentMeta.BirthYearHijri.Value > sheikhMeta.DeathYearHijri.Value)
                     {
                         node.IsAnomaly = true;
-                        node.AnomalyReason = $"انقطاع زمني: التلميذ ولد سنة {studentDates.BirthYearHijri} بعد وفاة الشيخ سنة {sheikhDates.DeathYearHijri}";
+                        node.AnomalyReason = $"انقطاع زمني: التلميذ ولد سنة {studentMeta.BirthYearHijri} بعد وفاة الشيخ سنة {sheikhMeta.DeathYearHijri}";
+                    }
+                    else if (HasGeographicDisconnection(sheikhMeta.ResidencePlaces, sheikhMeta.DeathPlace, studentMeta.ResidencePlaces, studentMeta.DeathPlace, out var geoReason))
+                    {
+                        node.IsAnomaly = true;
+                        node.AnomalyReason = geoReason;
                     }
                 }
             }
         }
 
         return mergedNodes;
+    }
+
+    private static bool HasGeographicDisconnection(
+        string? sheikhResidence,
+        string? sheikhDeath,
+        string? studentResidence,
+        string? studentDeath,
+        out string? reason)
+    {
+        reason = null;
+        var sheikhCities = ExtractCities(sheikhResidence, sheikhDeath);
+        var studentCities = ExtractCities(studentResidence, studentDeath);
+
+        if (sheikhCities.Count == 0 || studentCities.Count == 0)
+            return false;
+
+        // If they share any city or region
+        if (sheikhCities.Overlaps(studentCities))
+            return false;
+
+        // If both entered Hijaz (Mecca/Medina) where scholars commonly met during Hajj
+        var hijaz = new[] { "مكة", "المدينة", "الحجاز" };
+        if (sheikhCities.Any(c => hijaz.Contains(c)) && studentCities.Any(c => hijaz.Contains(c)))
+            return false;
+
+        reason = $"تباين مكاني (يُراجع للرحلة): بلدان الشيخ ({string.Join("، ", sheikhCities)}) تختلف عن بلدان التلميذ ({string.Join("، ", studentCities)})";
+        return true;
+    }
+
+    private static HashSet<string> ExtractCities(string? residence, string? death)
+    {
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        if (!string.IsNullOrWhiteSpace(residence))
+        {
+            foreach (var p in residence.Split(['،', ',', '-'], StringSplitOptions.RemoveEmptyEntries))
+            {
+                var trimmed = p.Trim();
+                if (!string.IsNullOrEmpty(trimmed))
+                    set.Add(trimmed);
+            }
+        }
+        if (!string.IsNullOrWhiteSpace(death))
+        {
+            var trimmed = death.Trim();
+            if (!string.IsNullOrEmpty(trimmed))
+                set.Add(trimmed);
+        }
+        return set;
     }
 }
 
@@ -359,6 +438,11 @@ internal class ComparativeRawRow
     public string? GradeEn { get; set; }
     public bool IsMudallis { get; set; }
     public bool HasMukhtalit { get; set; }
+    public string? ResidencePlaces { get; set; }
+    public string? DeathPlace { get; set; }
+    public string? GawamiRank { get; set; }
+    public int? TotalNarrationsCount { get; set; }
+    public int? UniqueHadithCount { get; set; }
     public bool IsAnomaly { get; set; }
     public string? AnomalyReason { get; set; }
     public Guid SourceHadithId { get; set; }
