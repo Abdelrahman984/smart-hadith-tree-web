@@ -106,3 +106,29 @@ Expanded the repository from 4 collections to the complete 18 Sunni Hadith colle
 ## Tests
 - Added 33 test cases for the rules, the aligner, the Taqwiyah integration, DB loading and `IlalController`. All 44 tests pass.
 
+
+---
+
+# Changelog: 31-Book Corpus Expansion & Shamela 4 Local Lucene Ingestion
+
+**Date:** October 2, 2026
+**Summary:** Expanded the Smart Hadith Tree corpus from 12 Sunni collections to **31 complete canonical Sunni collections** (`233,224` Hadiths and `1,078,668` Isnad Transmissions) by building a high-speed local Shamela 4 Lucene 10.4.0 + SQLite extractor, enhancing `ItqanDatasetParser` and `ContextualDisambiguator`, creating a full verified SQL Server backup, and redesigning the Frontend Home page and book theme registry.
+
+## 1. Shamela 4 Local Lucene + SQLite Extraction Pipeline (`scripts/shamela4-extractor/`)
+- **Architectural Discovery**: Determined that Shamela 4 separates structural metadata (`database/book/<id%1000>/<id>.db` containing `page` and `title` tables) from the Arabic text (`database/store/page` and `database/store/title` stored in Apache Lucene 10.4.0 indices).
+- **`ShamelaLuceneDumper.java`**: Built a reflection-based Java bulk extractor that invokes `ws.shamela.LuceneBulk.queryRows` on Shamela 4's bundled OpenJDK 21 runtime, dumping all `183,659` pages and `32,380` chapter titles across the 19 missing books in **34.6 seconds**.
+- **`build_itqan_books.py`**: Joined the SQLite `page.number` and `title` hierarchy with the Lucene text dumps, stripped HTML markup and leading numbers, concatenated multi-page continuations, and generated standardized `index.json` + numbered chapter `.json` files inside `data/itqan/sunni/<slug>/` for all 19 books (`128,661` complete Hadiths).
+
+## 2. ETL & Contextual Disambiguation Upgrades (`src/SmartHadithTree.Etl/`)
+- **`ItqanDatasetParser.BookMetadata`**: Expanded to map all **31 canonical Sunni collections** to their authentic Arabic book titles, compiler names, and verified Itqan Rijal profile IDs (`Abd al-Razzaq: 44`, `al-Tayalisi: 171`, `al-Shafi'i: 2734`, `al-Humaydi: 82`, `Sa'id ibn Mansur: 1959`, `Ishaq ibn Rahawayh: 695`, `al-Bazzar: 196`, `Abu Ya'la: 462`, `Ibn Khuzaymah: 278`, `Abu Awanah: 1123`, `Ibn Hibban: 706`, `al-Tabarani: 202`, `al-Daraqutni: 460`, `al-Hakim: 10`, `al-Bayhaqi: 34`).
+- **`ContextualDisambiguator.cs`**: Added regional and era-specific contextual overrides for ambiguous narrator names (e.g., resolving `سفيان` to `سفيان الثوري (434)` when narrated by `عبد الرزاق (44)` or `وكيع (112)`, vs. `سفيان بن عيينة (192)` when narrated by `الشافعي (2734)` or `الحميدي (82)`; resolving `حماد` to `حماد بن سلمة (138)` for `الطيالسي (171)` and `عفان (279)` vs. `حماد بن زيد (128)` for `سليمان بن حرب (161)`).
+- **Bulk Ingestion**: Ingested **128,661 new Hadiths** and **655,980 new Isnad Transmissions** (`784,641` total records) in `146.3s`. Cleaned up temporary test records so the database holds exactly **31 collections**, **233,224 Hadiths**, and **1,078,668 Transmissions**.
+- **Unit Tests (`src/SmartHadithTree.Tests/Etl/`)**: Added unit tests in `ContextualDisambiguatorTests.cs` and `ShamelaSqliteParserTests.cs` (all passing).
+
+## 3. Database Backup (`backups/`)
+- Created and verified (`RESTORE VERIFYONLY`) a full SQL Server backup at `backups/SmartHadithTree_31Books_Full.bak` (`1,390.14 MB`).
+- Added `backups/` and `*.bak` to `.gitignore`.
+
+## 4. Frontend Home Page & Book Theme Registry (`frontend/`)
+- **`frontend/src/lib/bookTheme.ts`**: Registered all 31 canonical collections with their traditional Hadith scholarly abbreviations (`خ`, `م`, `عب`, `ش`, `طي`, `شاف`, `حميد`, `سع`, `راه`, `بز`, `كب`, `يع`, `خز`, `عو`, `حب`, `طب`, `طس`, `طص`, `قط`, `كم`, `هق`, `شعب`, etc.) and distinct color badges.
+- **`frontend/src/app/page.tsx`**: Upgraded the Home page with a direct search bar, quick search examples, live corpus statistics (`31` books, `233,224` hadiths, `1,078,668` transmissions, `115,735` narrators), 6 core feature cards, and a categorized 31-book library showcase.
