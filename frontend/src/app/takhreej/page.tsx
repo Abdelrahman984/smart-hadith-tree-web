@@ -5,8 +5,8 @@ import { Suspense, useMemo, useState } from "react";
 import { useTakhreej } from "@/features/isnad-tree/hooks/useTakhreej";
 import ComparativeTreeCanvas from "@/features/isnad-tree/components/ComparativeTreeCanvas";
 import NarratorDrawer from "@/features/narrator-details/components/NarratorDrawer";
-import Link from "next/link";
-import { ArrowRight, ChevronLeft, ChevronRight, Copy, Check, BookOpen } from "lucide-react";
+import ReturnToSearchButton from "@/features/isnad-tree/components/ReturnToSearchButton";
+import { ChevronLeft, ChevronRight, Copy, Check, BookOpen } from "lucide-react";
 
 function TakhreejContent() {
   const searchParams = useSearchParams();
@@ -30,9 +30,7 @@ function TakhreejContent() {
     return (
       <div className="flex flex-col items-center justify-center h-screen space-y-4">
         <p className="text-xl text-slate-600">يرجى تحديد حديثين على الأقل للتخريج.</p>
-        <Link href="/search" className="text-brand-blue hover:underline font-bold">
-          العودة للبحث
-        </Link>
+        <ReturnToSearchButton variant="button" label="العودة للبحث" />
       </div>
     );
   }
@@ -49,9 +47,7 @@ function TakhreejContent() {
     return (
       <div className="flex flex-col items-center justify-center h-screen space-y-4">
         <p className="text-xl text-red-600">حدث خطأ أثناء جلب بيانات التخريج.</p>
-        <Link href="/search" className="text-brand-blue hover:underline font-bold">
-          العودة للبحث
-        </Link>
+        <ReturnToSearchButton variant="button" label="العودة للبحث" />
       </div>
     );
   }
@@ -74,10 +70,8 @@ function TakhreejContent() {
     <div className="h-screen w-full flex flex-col overflow-hidden bg-slate-50 relative" dir="rtl">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 p-4 flex items-center justify-between z-10 shrink-0 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/search" className="p-2 hover:bg-slate-100 rounded-full transition-colors" title="العودة للبحث">
-            <ArrowRight className="w-6 h-6 text-slate-600" />
-          </Link>
+        <div className="flex items-center gap-3">
+          <ReturnToSearchButton variant="button" label="العودة للبحث" />
           <h1 className="text-xl font-bold text-slate-800">شجرة التخريج المقارنة</h1>
         </div>
         
