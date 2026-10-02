@@ -83,6 +83,13 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+// ── Apply Pending Migrations ───────────────────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<HadithTreeDbContext>();
+    await db.Database.MigrateAsync();
+}
+
 // ── Middleware Pipeline ────────────────────────────────────────────
 if (app.Environment.IsDevelopment())
 {
