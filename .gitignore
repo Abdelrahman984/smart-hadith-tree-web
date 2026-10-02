@@ -37,3 +37,7 @@ data/*.sqlite
 data/*.sqlite3
 data/*.json
 data/
+
+## Database Backups
+backups/
+*.bak
