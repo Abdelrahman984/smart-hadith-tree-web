@@ -34,14 +34,18 @@ public class ItqanDatasetParser : IDataSourceParser
     }
 
     /// <summary>
-    /// Books to ingest, keyed by Itqan directory name. Compiler IDs are the canonical Itqan rijal
+    /// Books to ingest, keyed by directory/book slug. Compiler IDs are the canonical Itqan rijal
     /// profiles (the ones carrying teacher/student lists), verified against profiles_*.json:
     /// Bukhari 336, Muslim 618, Abu Dawud 74, al-Tirmidhi 297, al-Nasa'i 134, Ibn Majah 514,
-    /// Ahmad 353, Malik 664, al-Darimi 168, Ibn Abi Shaybah 748.
-    /// Shared with <see cref="Services.ChainReprocessingService"/> so both paths agree.
+    /// Ahmad 353, Malik 664, al-Darimi 168, Ibn Abi Shaybah 748, Abd al-Razzaq 44, al-Tayalisi 171,
+    /// al-Shafi'i 2734, al-Humaydi 82, Sa'id ibn Mansur 1959, Ishaq ibn Rahawayh 695, al-Bazzar 196,
+    /// Abu Ya'la 462, Ibn Khuzaymah 278, Abu Awanah 1123, Ibn Hibban 706, al-Tabarani 202,
+    /// al-Daraqutni 460, al-Hakim 10, al-Bayhaqi 34.
+    /// Shared with <see cref="Services.ChainReprocessingService"/> and <see cref="Shamela.ShamelaSqliteParser"/>.
     /// </summary>
-    internal static readonly Dictionary<string, (string ArabicName, int CompilerItqanId, string CompilerName)> BookMetadata = new(StringComparer.OrdinalIgnoreCase)
+    public static readonly Dictionary<string, (string ArabicName, int CompilerItqanId, string CompilerName)> BookMetadata = new(StringComparer.OrdinalIgnoreCase)
     {
+        // ── Primary 12 Sunni Collections (Already in Itqan) ────────────
         ["bukhari"] = ("صحيح البخاري", 336, "محمد بن إسماعيل بن إبراهيم بن المغيرة"),
         ["muslim"] = ("صحيح مسلم", 618, "مسلم بن الحجاج بن مسلم"),
         ["abudawud"] = ("سنن أبي داود", 74, "سليمان بن الأشعث"),
@@ -53,16 +57,42 @@ public class ItqanDatasetParser : IDataSourceParser
         ["darimi"] = ("سنن الدارمي", 168, "عبد الله بن عبد الرحمن بن الفضل بن بهرام"),
         ["aladab_almufrad"] = ("الأدب المفرد", 336, "محمد بن إسماعيل بن إبراهيم بن المغيرة"),
         ["shamail_muhammadiyah"] = ("الشمائل المحمدية", 297, "محمد بن عيسى بن سورة بن موسى بن الضحاك"),
-        ["musannaf_ibnabi_shaybah"] = ("مصنف ابن أبي شيبة", 748, "عبد الله بن محمد بن إبراهيم بن عثمان")
+        ["musannaf_ibnabi_shaybah"] = ("مصنف ابن أبي شيبة", 748, "عبد الله بن محمد بن إبراهيم بن عثمان"),
+
+        // ── Expanded Missing Musannafat, Masanid, Sihah, Ma'ajim & Sunan ─
+        ["musannaf_abdurrazzaq"] = ("مصنف عبد الرزاق", 44, "عبد الرزاق بن همام بن نافع"),
+        ["musnad_tayalisi"] = ("مسند أبي داود الطيالسي", 171, "سليمان بن داود بن الجارود"),
+        ["musnad_shafii"] = ("مسند الشافعي", 2734, "محمد بن إدريس بن العباس"),
+        ["musnad_humaydi"] = ("مسند الحميدي", 82, "عبد الله بن الزبير بن عيسى"),
+        ["sunan_said_ibn_mansur"] = ("سنن سعيد بن منصور", 1959, "سعيد بن منصور بن شعبة"),
+        ["musnad_ishaq"] = ("مسند إسحاق بن راهويه", 695, "إسحاق بن إبراهيم بن مخلد"),
+        ["musnad_bazzar"] = ("مسند البزار", 196, "أحمد بن عمرو بن عبد الخالق"),
+        ["sunan_kubra_nasai"] = ("السنن الكبرى للنسائي", 134, "أحمد بن شعيب بن علي بن سنان بن بحر"),
+        ["musnad_abi_yala"] = ("مسند أبي يعلى الموصلي", 462, "أحمد بن علي بن المثنى بن يحيى"),
+        ["sahih_ibn_khuzaymah"] = ("صحيح ابن خزيمة", 278, "محمد بن إسحاق بن خزيمة بن المغيرة"),
+        ["mustakhraj_abi_awanah"] = ("مستخرج أبي عوانة", 1123, "يعقوب بن إسحاق بن إبراهيم بن يزيد"),
+        ["sahih_ibn_hibban"] = ("صحيح ابن حبان", 706, "محمد بن حبان بن أحمد بن حبان"),
+        ["mujam_kabir_tabarani"] = ("المعجم الكبير للطبراني", 202, "سليمان بن أحمد بن أيوب بن مطير"),
+        ["mujam_awsat_tabarani"] = ("المعجم الأوسط للطبراني", 202, "سليمان بن أحمد بن أيوب بن مطير"),
+        ["mujam_saghir_tabarani"] = ("المعجم الصغير للطبراني", 202, "سليمان بن أحمد بن أيوب بن مطير"),
+        ["sunan_daraqutni"] = ("سنن الدارقطني", 460, "علي بن عمر بن أحمد بن مهدي"),
+        ["mustadrak_hakim"] = ("المستدرك على الصحيحين", 10, "محمد بن عبد الله بن محمد بن حمدويه"),
+        ["sunan_kubra_bayhaqi"] = ("السنن الكبرى للبيهقي", 34, "أحمد بن الحسين بن علي بن موسى"),
+        ["shuab_iman_bayhaqi"] = ("شعب الإيمان للبيهقي", 34, "أحمد بن الحسين بن علي بن موسى")
     };
 
     /// <summary>
     /// Prominent ambiguous narrator keys in by_name.json that should not blindly take index [0].
-    /// Resolves canonical Hadith scholars (e.g. Sufyan ibn Uyaynah / al-Thawri, Yahya al-Ansari, Muhammad ibn Kathir al-Abdi).
+    /// Resolves canonical Hadith scholars (e.g. Ma'mar ibn Rashid, Ibn Jurayj, Sufyan ibn Uyaynah / al-Thawri, Yahya al-Ansari).
     /// </summary>
     private static readonly Dictionary<string, int> DisambiguationOverrides = new(StringComparer.OrdinalIgnoreCase)
     {
+        ["معمر"] = 40, // معمر بن راشد (not 9260 معمر بن عبد الله)
+        ["معمر بن راشد"] = 40,
+        ["ابن جريج"] = 110, // عبد الملك بن عبد العزيز بن جريج (not 5012 عبيد بن جريج)
         ["سفيان"] = 192, // سفيان بن عيينة (or 434 سفيان الثوري depending on chain, but never the obscure Sahabi 3362)
+        ["ابن عيينة"] = 192,
+        ["الثوري"] = 434,
         ["محمد بن كثير"] = 1191, // محمد بن كثير العبدي (شيخ أبي داود), not 778 (محمد بن بشر)
         ["يحيى بن سعيد"] = 199, // يحيى بن سعيد الأنصاري (المدار المشهور), not 87 (يحيى بن سعيد الأموي)
     };
@@ -356,7 +386,8 @@ public class ItqanDatasetParser : IDataSourceParser
                 
                 dataset.Hadiths.Add(hadith);
                 
-                var parts = Regex.Split(matn, @"(حَدَّثَنَا|حَدَّثَنِي|أَخْبَرَنَا|أَخْبَرَنِي|أَنْبَأَنَا|أَنَّهُ\s+سَمِعَ|أَنَّهَا\s+سَمِعَتْ|سَمِعْتُ|سَمِعَ|سَمِعَتْ|قَرَأْتُ\s+عَلَى|\bعَنْ\b)");
+                var matnNoVowels = Regex.Replace(matn, @"\p{Mn}", "");
+                var parts = Regex.Split(matnNoVowels, @"(حدثنا|حدثني|أخبرنا|أخبرني|أنبأنا|أنبأني|أنه\s+سمع|أنها\s+سمعت|سمعت|سمع|سمعت|قرأت\s+على|\bعن\b)");
                 var step = 1;
                 Guid? studentId = null;
                 int? studentItqanId = null;

@@ -28,9 +28,9 @@ public class ChainReprocessingService
         _logger = logger;
     }
 
-    public async Task ReprocessChainsAsync(string itqanSourcePath, CancellationToken ct = default)
+    public async Task ReprocessChainsAsync(string itqanSourcePath, string? bookFilter = null, CancellationToken ct = default)
     {
-        _logger.LogInformation("Starting Contextual Disambiguation Engine: Reprocessing Chains...");
+        _logger.LogInformation("Starting Contextual Disambiguation Engine: Reprocessing Chains (BookFilter: {Filter})...", bookFilter ?? "ALL");
         var sw = Stopwatch.StartNew();
 
         // 1. Initialize Contextual Disambiguator (loads graph into memory)
@@ -44,14 +44,36 @@ public class ChainReprocessingService
 
         var itqanToGuidMap = narratorsDb.ToDictionary(n => n.ItqanId, n => n.Id);
         
-        // Needed for starting compilers
-        var compilerMap = ItqanDatasetParser.BookMetadata.Values
-            .GroupBy(m => m.ArabicName)
-            .ToDictionary(g => g.Key, g => g.First().CompilerItqanId, StringComparer.OrdinalIgnoreCase);
+        // Needed for starting compilers (supports both ArabicName and slug keys)
+        var compilerMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (slug, meta) in ItqanDatasetParser.BookMetadata)
+        {
+            compilerMap[meta.ArabicName] = meta.CompilerItqanId;
+            compilerMap[slug] = meta.CompilerItqanId;
+        }
 
-        // 3. Delete existing transmissions
-        _logger.LogWarning("Truncating existing Transmissions table...");
-        await _dbContext.Database.ExecuteSqlRawAsync("TRUNCATE TABLE [Transmissions]", ct);
+        // Resolve target Arabic book name if a slug was passed as bookFilter
+        string? targetBookName = null;
+        if (!string.IsNullOrWhiteSpace(bookFilter))
+        {
+            targetBookName = ItqanDatasetParser.BookMetadata.TryGetValue(bookFilter, out var meta)
+                ? meta.ArabicName
+                : bookFilter;
+        }
+
+        // 3. Delete existing transmissions (either scoped to targetBookName or full table)
+        if (!string.IsNullOrWhiteSpace(targetBookName))
+        {
+            _logger.LogWarning("Deleting existing Transmissions for book '{Book}'...", targetBookName);
+            await _dbContext.Transmissions
+                .Where(t => t.Hadith.BookName == targetBookName)
+                .ExecuteDeleteAsync(ct);
+        }
+        else
+        {
+            _logger.LogWarning("Truncating existing Transmissions table...");
+            await _dbContext.Database.ExecuteSqlRawAsync("TRUNCATE TABLE [Transmissions]", ct);
+        }
 
         // 4. Load father map
         var fatherMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -67,9 +89,14 @@ public class ChainReprocessingService
             }
         }
 
-        // 5. Load all Hadiths
+        // 5. Load Hadiths (filtered if targetBookName is specified)
         _logger.LogInformation("Loading Hadiths from database...");
-        var hadiths = await _dbContext.Hadiths.AsNoTracking().ToListAsync(ct);
+        var hadithsQuery = _dbContext.Hadiths.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(targetBookName))
+        {
+            hadithsQuery = hadithsQuery.Where(h => h.BookName == targetBookName);
+        }
+        var hadiths = await hadithsQuery.ToListAsync(ct);
 
         _logger.LogInformation("Re-parsing {Count} chains...", hadiths.Count);
 

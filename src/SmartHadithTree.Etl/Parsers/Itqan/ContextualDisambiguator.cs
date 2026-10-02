@@ -189,16 +189,37 @@ public class ContextualDisambiguator
 
     private int? GetContextualOverride(string rawName, int? studentItqanId)
     {
+        if (rawName.Equals("معمر", StringComparison.OrdinalIgnoreCase) ||
+            rawName.Equals("معمر بن راشد", StringComparison.OrdinalIgnoreCase))
+        {
+            return 40; // معمر بن راشد الأزدي (شيخ عبد الرزاق وغيره)
+        }
+
+        if (rawName.Equals("ابن جريج", StringComparison.OrdinalIgnoreCase))
+        {
+            return 110; // عبد الملك بن عبد العزيز بن جريج
+        }
+
+        if (rawName.Equals("ابن عيينة", StringComparison.OrdinalIgnoreCase))
+        {
+            return 192; // سفيان بن عيينة
+        }
+
+        if (rawName.Equals("الثوري", StringComparison.OrdinalIgnoreCase))
+        {
+            return 434; // سفيان بن سعيد الثوري
+        }
+
         if (rawName.Equals("سفيان", StringComparison.OrdinalIgnoreCase))
         {
             if (studentItqanId.HasValue)
             {
-                // Students famous for narrating from Sufyan al-Thawri (434)
-                var thawriStudents = new HashSet<int> { 1191, 669, 2345, 2588, 1284, 1874, 5343, 7643, 7704, 2853, 2055 };
+                // Students famous for narrating from Sufyan al-Thawri (434) — including Abd al-Razzaq (44)
+                var thawriStudents = new HashSet<int> { 44, 1191, 669, 2345, 2588, 1284, 1874, 5343, 7643, 7704, 2853, 2055 };
                 if (thawriStudents.Contains(studentItqanId.Value)) return 434;
 
-                // Students famous for narrating from Sufyan ibn Uyaynah (192)
-                var uyaynahStudents = new HashSet<int> { 1453, 4557, 617, 1218, 673, 54, 532, 1690, 74, 55562, 618 };
+                // Students famous for narrating from Sufyan ibn Uyaynah (192) — including al-Shafi'i (2734), al-Humaydi (82), Sa'id ibn Mansur (1959)
+                var uyaynahStudents = new HashSet<int> { 2734, 82, 1959, 1453, 4557, 617, 1218, 673, 54, 532, 1690, 74, 55562, 618 };
                 if (uyaynahStudents.Contains(studentItqanId.Value)) return 192;
             }
             return 192; // Default generic fallback for Sufyan

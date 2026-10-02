@@ -26,6 +26,7 @@
     <ProjectReference Include="..\SmartHadithTree.Api\SmartHadithTree.Api.csproj" />
     <ProjectReference Include="..\SmartHadithTree.Application\SmartHadithTree.Application.csproj" />
     <ProjectReference Include="..\SmartHadithTree.Domain\SmartHadithTree.Domain.csproj" />
+    <ProjectReference Include="..\SmartHadithTree.Etl\SmartHadithTree.Etl.csproj" />
   </ItemGroup>
 
 </Project>

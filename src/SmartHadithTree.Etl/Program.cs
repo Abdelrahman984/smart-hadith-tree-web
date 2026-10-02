@@ -24,6 +24,8 @@ builder.Services.AddDbContext<HadithTreeDbContext>(options =>
 
 // Parsers (pluggable — add new parsers here)
 builder.Services.AddTransient<IDataSourceParser, SmartHadithTree.Etl.Parsers.Itqan.ItqanDatasetParser>();
+builder.Services.AddTransient<IDataSourceParser, SmartHadithTree.Etl.Parsers.Shamela.ShamelaSqliteParser>();
+builder.Services.AddTransient<IDataSourceParser, SmartHadithTree.Etl.Parsers.Shamela.ShamelaJsonParser>();
 builder.Services.AddTransient<IDataSourceParser, SeedDataGenerator>();
 
 // Services
@@ -56,7 +58,8 @@ try
     {
         // Require the path to itqan data. E.g. dotnet run reprocess-chains data/itqan
         var itqanPath = args.Length > 1 ? args[1] : "data/itqan";
-        await reprocessor.ReprocessChainsAsync(itqanPath, CancellationToken.None);
+        var bookFilter = args.Length > 2 ? args[2] : null;
+        await reprocessor.ReprocessChainsAsync(itqanPath, bookFilter, CancellationToken.None);
     }
     else if (source.Equals("seed-ilal", StringComparison.OrdinalIgnoreCase))
     {
