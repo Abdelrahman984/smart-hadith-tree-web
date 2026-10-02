@@ -204,7 +204,7 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
         className="bg-slate-50"
       >
         <GraphControls showWeakOnly={showWeakOnly} setShowWeakOnly={setShowWeakOnly} />
-        <BookLegend />
+        <BookLegend activeBooks={[treeData.bookName]} />
         <Background color="#cbd5e1" gap={16} />
         <Controls />
       </ReactFlow>

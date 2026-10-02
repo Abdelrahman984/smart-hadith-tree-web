@@ -109,6 +109,7 @@ public class ItqanDatasetParser : IDataSourceParser
         var dataset = new ParsedDataset();
         var itqanToGuidMap = new Dictionary<int, Guid>();
         var nameToItqanMap = new Dictionary<string, int>();
+        var guidToNarratorTextMap = new Dictionary<Guid, string>();
 
         // 1. Check existing narrators from database
         var existingNarratorsCount = 0;
@@ -116,7 +117,7 @@ public class ItqanDatasetParser : IDataSourceParser
         {
             var existingNarrators = await _dbContext.Narrators
                 .Where(n => n.ItqanId != null)
-                .Select(n => new { ItqanId = n.ItqanId!.Value, n.Id })
+                .Select(n => new { ItqanId = n.ItqanId!.Value, n.Id, n.FullName, n.KnownAs, n.Kunyah })
                 .ToListAsync(cancellationToken);
 
             if (existingNarrators.Count > 0)
@@ -126,6 +127,8 @@ public class ItqanDatasetParser : IDataSourceParser
                 foreach (var n in existingNarrators)
                 {
                     itqanToGuidMap[n.ItqanId] = n.Id;
+                    var shortFn = n.FullName.Length > 80 ? n.FullName.Substring(0, 80) : n.FullName;
+                    guidToNarratorTextMap[n.Id] = ArabicNormalizer.Normalize($"{shortFn} {n.KnownAs} {n.Kunyah}".Trim());
                 }
             }
         }
@@ -171,6 +174,8 @@ public class ItqanDatasetParser : IDataSourceParser
                         };
 
                         dataset.Narrators.Add(narrator);
+                        var shortFn = narrator.FullName.Length > 80 ? narrator.FullName.Substring(0, 80) : narrator.FullName;
+                        guidToNarratorTextMap[guid] = ArabicNormalizer.Normalize($"{shortFn} {narrator.KnownAs} {narrator.Kunyah}".Trim());
 
                         if (profile.TryGetProperty("classical_sources", out var sourcesProp))
                         {
@@ -278,7 +283,7 @@ public class ItqanDatasetParser : IDataSourceParser
                 }
 
                 _logger?.LogInformation("Parsing book: {BookName} ({Dir})...", arabicName, dirName);
-                await ParseBookDirectoryAsync(dir, arabicName, compilerItqanId, compilerName, dataset, itqanToGuidMap, nameToItqanMap, cancellationToken);
+                await ParseBookDirectoryAsync(dir, arabicName, compilerItqanId, compilerName, dataset, itqanToGuidMap, nameToItqanMap, guidToNarratorTextMap, cancellationToken);
             }
         }
 
@@ -293,6 +298,7 @@ public class ItqanDatasetParser : IDataSourceParser
         ParsedDataset dataset, 
         Dictionary<int, Guid> itqanToGuidMap, 
         Dictionary<string, int> nameToItqanMap, 
+        Dictionary<Guid, string> guidToNarratorTextMap,
         CancellationToken cancellationToken)
     {
         if (!Directory.Exists(bookDir)) return;
@@ -391,6 +397,7 @@ public class ItqanDatasetParser : IDataSourceParser
                 var step = 1;
                 Guid? studentId = null;
                 int? studentItqanId = null;
+                var isnadParts = new List<string>();
 
                 if (compilerItqanId != 0 && itqanToGuidMap.TryGetValue(compilerItqanId, out var cGuid))
                 {
@@ -480,6 +487,15 @@ public class ItqanDatasetParser : IDataSourceParser
                     {
                         if (studentId.HasValue && studentId != sheikhId)
                         {
+                            if (step == 1 && guidToNarratorTextMap.TryGetValue(studentId.Value, out var stText))
+                            {
+                                isnadParts.Add(stText);
+                            }
+                            if (guidToNarratorTextMap.TryGetValue(sheikhId.Value, out var shText))
+                            {
+                                isnadParts.Add(shText);
+                            }
+
                             dataset.Transmissions.Add(new Transmission
                             {
                                 Id = Guid.NewGuid(),
@@ -495,6 +511,10 @@ public class ItqanDatasetParser : IDataSourceParser
                         studentItqanId = sheikhItqanId;
                     }
                 }
+
+                hadith.FullIsnadText = isnadParts.Count > 0
+                    ? string.Join(" | ", isnadParts)
+                    : (hadith.NormalizedMatn.Length > 400 ? hadith.NormalizedMatn.Substring(0, 400) : hadith.NormalizedMatn);
             }
         }
     }

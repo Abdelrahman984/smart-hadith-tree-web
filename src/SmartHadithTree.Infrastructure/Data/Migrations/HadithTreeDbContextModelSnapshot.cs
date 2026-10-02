@@ -61,7 +61,7 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
 
                     b.Property<string>("FullIsnadText")
                         .HasColumnType("nvarchar(max)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .UseCollation("Arabic_100_BIN2");
 
                     b.Property<Guid?>("HadithClusterId")
                         .HasColumnType("uniqueidentifier");
@@ -77,11 +77,13 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                     b.Property<string>("NormalizedBookName")
                         .IsRequired()
                         .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
+                        .HasColumnType("nvarchar(300)")
+                        .UseCollation("Arabic_100_BIN2");
 
                     b.Property<string>("NormalizedMatn")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(max)")
+                        .UseCollation("Arabic_100_BIN2");
 
                     b.Property<string>("Volume")
                         .HasMaxLength(50)
@@ -93,6 +95,9 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
 
                     b.HasIndex("HadithNumber")
                         .HasDatabaseName("IX_Hadiths_HadithNumber");
+
+                    b.HasIndex("NormalizedBookName")
+                        .HasDatabaseName("IX_Hadiths_NormalizedBookName");
 
                     b.HasIndex("BookName", "HadithNumber")
                         .HasDatabaseName("IX_Hadiths_BookName_HadithNumber");

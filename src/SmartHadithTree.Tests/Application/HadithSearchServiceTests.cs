@@ -232,5 +232,92 @@ public class HadithSearchServiceTests
         result.Should().HaveCount(2);
         result.Select(r => r.HadithNumber).Should().BeEquivalentTo(new[] { 301, 302 });
     }
+
+    [Fact]
+    public async Task SearchHadithsAsync_WithIsnadScope_MatchesNormalizedFullIsnadText()
+    {
+        // Arrange
+        var context = GetInMemoryDbContext();
+        context.Hadiths.AddRange(
+            new HadithText
+            {
+                Id = Guid.NewGuid(),
+                BookName = "صحيح البخاري",
+                HadithNumber = 401,
+                MatnArabic = "إنما الأعمال بالنيات",
+                NormalizedMatn = "انما الاعمال بالنيات",
+                NormalizedBookName = "صحيح البخاري",
+                FullIsnadText = "سفيان بن عيينه | يحيى بن سعيد الانصاري | عمر بن الخطاب ابو حفص"
+            },
+            new HadithText
+            {
+                Id = Guid.NewGuid(),
+                BookName = "صحيح مسلم",
+                HadithNumber = 402,
+                MatnArabic = "بني الإسلام على خمس",
+                NormalizedMatn = "بني الاسلام على خمس",
+                NormalizedBookName = "صحيح مسلم",
+                FullIsnadText = "مالك بن انس | نافع | عبد الله بن عمر"
+            }
+        );
+        await context.SaveChangesAsync();
+
+        var chainRepo = new Mock<IHadithChainRepository>();
+        var taqwiyah = new Mock<ITaqwiyahService>();
+        var service = new HadithSearchService(context, chainRepo.Object, taqwiyah.Object);
+
+        // Search with unnormalized Hamza ("أبو حفص" / "عيينة") in Isnad scope
+        var request = new SearchRequestDto
+        {
+            Query = "عيينة أبو حفص",
+            Scope = SearchScope.Isnad,
+            Match = SearchMatchType.AllWords
+        };
+
+        // Act
+        var result = await service.SearchHadithsAsync(request);
+
+        // Assert
+        result.Should().HaveCount(1);
+        result[0].HadithNumber.Should().Be(401);
+    }
+
+    [Fact]
+    public async Task SearchHadithsAsync_WithPagination_ReturnsRequestedPage()
+    {
+        // Arrange
+        var context = GetInMemoryDbContext();
+        for (int i = 1; i <= 5; i++)
+        {
+            context.Hadiths.Add(new HadithText
+            {
+                Id = Guid.NewGuid(),
+                BookName = "صحيح البخاري",
+                HadithNumber = 500 + i,
+                MatnArabic = $"حديث رقم {i} في الإيمان",
+                NormalizedMatn = $"حديث رقم {i} في الايمان",
+                NormalizedBookName = "صحيح البخاري"
+            });
+        }
+        await context.SaveChangesAsync();
+
+        var chainRepo = new Mock<IHadithChainRepository>();
+        var taqwiyah = new Mock<ITaqwiyahService>();
+        var service = new HadithSearchService(context, chainRepo.Object, taqwiyah.Object);
+
+        var request = new SearchRequestDto
+        {
+            Query = "الإيمان",
+            Scope = SearchScope.Matn,
+            Page = 2,
+            PageSize = 2
+        };
+
+        // Act
+        var result = await service.SearchHadithsAsync(request);
+
+        // Assert
+        result.Should().HaveCount(2);
+    }
 }
 

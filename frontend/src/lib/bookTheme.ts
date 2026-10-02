@@ -267,6 +267,35 @@ export const KNOWN_BOOKS: Record<string, BookMeta> = {
   },
 };
 
+export const CANONICAL_31_BOOKS: BookMeta[] = Object.values(KNOWN_BOOKS);
+
+const EXTRA_BOOKS: Record<string, BookMeta> = {
+  "مشكاة المصابيح": {
+    code: "مشكاة",
+    name: "مشكاة المصابيح",
+    color: "#475569",
+    badgeClass: "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100",
+    borderClass: "border-slate-500",
+    bgLightClass: "bg-slate-50/40",
+  },
+  "بلوغ المرام": {
+    code: "بلوغ",
+    name: "بلوغ المرام",
+    color: "#475569",
+    badgeClass: "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100",
+    borderClass: "border-slate-500",
+    bgLightClass: "bg-slate-50/40",
+  },
+  "رياض الصالحين": {
+    code: "رياض",
+    name: "رياض الصالحين",
+    color: "#475569",
+    badgeClass: "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100",
+    borderClass: "border-slate-500",
+    bgLightClass: "bg-slate-50/40",
+  },
+};
+
 const DEFAULT_BOOK_META: BookMeta = {
   code: "ك",
   name: "كتاب حديث",
@@ -276,9 +305,30 @@ const DEFAULT_BOOK_META: BookMeta = {
   bgLightClass: "bg-slate-50/40",
 };
 
-export function getBookMeta(bookName: string): BookMeta {
-  return KNOWN_BOOKS[bookName] || {
+export function getBookMeta(bookName?: string | null): BookMeta {
+  if (!bookName) return DEFAULT_BOOK_META;
+  const trimmed = bookName.trim();
+
+  if (KNOWN_BOOKS[trimmed]) return KNOWN_BOOKS[trimmed];
+  if (EXTRA_BOOKS[trimmed]) return EXTRA_BOOKS[trimmed];
+
+  // Handle combined book names in comparative reference nodes (e.g. "صحيح البخاري / الأدب المفرد")
+  if (trimmed.includes("/")) {
+    const firstPart = trimmed.split("/")[0]?.trim();
+    if (firstPart && KNOWN_BOOKS[firstPart]) {
+      return { ...KNOWN_BOOKS[firstPart], name: trimmed };
+    }
+  }
+
+  for (const [key, meta] of Object.entries(KNOWN_BOOKS)) {
+    if (trimmed.includes(key)) {
+      return { ...meta, name: trimmed };
+    }
+  }
+
+  return {
     ...DEFAULT_BOOK_META,
-    name: bookName,
+    name: trimmed,
   };
 }
+

@@ -22,25 +22,14 @@ import GraphControls from './GraphControls';
 import BookLegend from './BookLegend';
 import { useIlalStore } from '@/features/ilal/store/useIlalStore';
 import { getIlalEdgeDecorations } from '@/features/ilal/utils/ilalLabels';
+import { getBookMeta } from '@/lib/bookTheme';
 
 const nodeTypes = {
   comparativeNarrator: ComparativeNarratorNode,
   reference: ReferenceNode,
 };
 
-const getBookColor = (book: string) => {
-  switch(book) {
-    case 'صحيح البخاري': return '#2563eb';
-    case 'صحيح مسلم': return '#16a34a';
-    case 'سنن أبي داود': return '#d97706';
-    case 'جامع الترمذي': return '#9333ea';
-    case 'سنن النسائي': return '#0284c7';
-    case 'سنن ابن ماجه': return '#e11d48';
-    case 'مسند أحمد': return '#b45309';
-    case 'موطأ مالك': return '#0d9488';
-    default: return '#64748b';
-  }
-};
+const getBookColor = (book: string) => getBookMeta(book).color;
 
 interface ComparativeTreeCanvasProps {
   treeData: ComparativeTreeResponseDto;
@@ -52,6 +41,11 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { openDrawer } = useNarratorDrawerStore();
   const [showWeakOnly, setShowWeakOnly] = useState(false);
+
+  const activeBooks = useMemo(
+    () => Array.from(new Set((treeData.sources || []).map((s) => s.bookName))),
+    [treeData.sources]
+  );
 
   useEffect(() => {
     if (!treeData || treeData.nodes.length === 0) return;
@@ -247,7 +241,7 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
         className="bg-slate-50"
       >
         <GraphControls showWeakOnly={showWeakOnly} setShowWeakOnly={setShowWeakOnly} />
-        <BookLegend />
+        <BookLegend activeBooks={activeBooks} />
         <Background color="#cbd5e1" gap={16} />
         <Controls />
       </ReactFlow>

@@ -13,6 +13,9 @@ export function useHadithSearch(
   const [match, setMatch] = useState(initialMatch);
   const [advancedRequest, setAdvancedRequest] = useState<SearchRequestDto | null>(null);
 
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
+
   const [prevInitialQuery, setPrevInitialQuery] = useState(initialQuery);
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
 
@@ -21,28 +24,38 @@ export function useHadithSearch(
     setPrevInitialQuery(initialQuery);
     setQuery(initialQuery);
     setDebouncedQuery(initialQuery);
+    setPage(1);
   }
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedQuery(query);
+      setDebouncedQuery((prev) => {
+        if (prev !== query) {
+          setPage(1);
+        }
+        return query;
+      });
     }, 350); // 350ms debounce
     return () => clearTimeout(timer);
   }, [query]);
 
   // Standard Query
   const standardQuery = useQuery({
-    queryKey: ["search", debouncedQuery, scope, match],
-    queryFn: () => searchHadiths(debouncedQuery, scope, match),
+    queryKey: ["search", debouncedQuery, scope, match, page, pageSize],
+    queryFn: () => searchHadiths(debouncedQuery, scope, match, page, pageSize),
     enabled: !advancedRequest && debouncedQuery.trim().length > 2,
     staleTime: 1000 * 60 * 5,
   });
 
   // Advanced / Shamela Query
   const advancedQuery = useQuery({
-    queryKey: ["advanced-search", advancedRequest],
-    queryFn: () => advancedSearchHadiths(advancedRequest!),
-    enabled: !!advancedRequest && (advancedRequest.phrases?.length ?? 0) > 0,
+    queryKey: ["advanced-search", advancedRequest, page, pageSize],
+    queryFn: () => advancedSearchHadiths({ ...advancedRequest!, page, pageSize }),
+    enabled:
+      !!advancedRequest &&
+      ((advancedRequest.phrases?.length ?? 0) > 0 ||
+        (advancedRequest.andPhrases?.length ?? 0) > 0 ||
+        (advancedRequest.orPhrases?.length ?? 0) > 0),
     staleTime: 1000 * 60 * 5,
   });
 
@@ -55,9 +68,15 @@ export function useHadithSearch(
     setScope,
     match,
     setMatch,
+    page,
+    setPage,
+    pageSize,
     debouncedQuery,
     advancedRequest,
-    setAdvancedRequest,
+    setAdvancedRequest: (req: SearchRequestDto | null) => {
+      setPage(1);
+      setAdvancedRequest(req);
+    },
     ...activeQueryResult,
   };
 }

@@ -1,6 +1,7 @@
 import { Handle, Position } from "@xyflow/react";
 import { memo } from "react";
 import { BookOpen, Bookmark } from "lucide-react";
+import { getBookMeta } from "@/lib/bookTheme";
 
 export type ReferenceNodeData = {
   famousName: string;
@@ -15,21 +16,9 @@ export type ReferenceNodeData = {
   isSelected?: boolean;
 };
 
-const getBookColor = (book?: string) => {
-  if (!book) return { border: "#2563eb", bg: "#eff6ff", badgeBg: "#dbeafe", text: "#1d4ed8" };
-  if (book.includes("البخاري")) return { border: "#2563eb", bg: "#eff6ff", badgeBg: "#dbeafe", text: "#1d4ed8" };
-  if (book.includes("مسلم")) return { border: "#16a34a", bg: "#f0fdf4", badgeBg: "#dcfce7", text: "#15803d" };
-  if (book.includes("أبي داود") || book.includes("أبو داود")) return { border: "#d97706", bg: "#fffbeb", badgeBg: "#fef3c7", text: "#b45309" };
-  if (book.includes("الترمذي")) return { border: "#9333ea", bg: "#faf5ff", badgeBg: "#f3e8ff", text: "#7e22ce" };
-  if (book.includes("النسائي")) return { border: "#0284c7", bg: "#f0f9ff", badgeBg: "#e0f2fe", text: "#0369a1" };
-  if (book.includes("ابن ماجه")) return { border: "#e11d48", bg: "#fff1f2", badgeBg: "#ffe4e6", text: "#be123c" };
-  if (book.includes("أحمد")) return { border: "#b45309", bg: "#fffbeb", badgeBg: "#fef3c7", text: "#92400e" };
-  if (book.includes("مالك")) return { border: "#0d9488", bg: "#f0fdfa", badgeBg: "#ccfbf1", text: "#0f766e" };
-  return { border: "#2563eb", bg: "#eff6ff", badgeBg: "#dbeafe", text: "#1d4ed8" };
-};
-
 const ReferenceNode = ({ data, selected }: { data: ReferenceNodeData; selected?: boolean }) => {
-  const theme = getBookColor(data.bookName);
+  const meta = getBookMeta(data.bookName);
+  const booksList = data.sourceBooks && data.sourceBooks.length > 0 ? data.sourceBooks : [data.bookName];
 
   return (
     <div
@@ -38,8 +27,8 @@ const ReferenceNode = ({ data, selected }: { data: ReferenceNodeData; selected?:
         selected ? "ring-4 ring-offset-2 ring-blue-400 border-blue-600 scale-[1.02]" : "hover:shadow-xl hover:scale-[1.01]"
       }`}
       style={{
-        backgroundColor: theme.bg,
-        borderColor: selected ? undefined : theme.border,
+        backgroundColor: `${meta.color}12`,
+        borderColor: selected ? undefined : meta.color,
       }}
     >
       {/* Top Handle - Input from Sheikh (Invisible anchor so arrowhead touches card border) */}
@@ -51,19 +40,34 @@ const ReferenceNode = ({ data, selected }: { data: ReferenceNodeData; selected?:
 
       {/* Top Header Tag */}
       <div className="flex items-center justify-between gap-1 pb-2 mb-2 border-b border-slate-200/80">
-        <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: theme.text }}>
+        <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: meta.color }}>
           <BookOpen className="w-3.5 h-3.5" />
           <span>المصدر والمُخَرِّج</span>
         </div>
-        {data.hadithNumber !== undefined && data.hadithNumber !== null && (
-          <span
-            className="px-2 py-0.5 rounded-full text-[11px] font-bold shadow-xs flex items-center gap-0.5"
-            style={{ backgroundColor: theme.badgeBg, color: theme.text }}
-          >
-            <Bookmark className="w-3 h-3 inline" />
-            <span>رقم {data.hadithNumber}</span>
-          </span>
-        )}
+        <div className="flex items-center gap-1">
+          {booksList.map((book, idx) => {
+            const bMeta = getBookMeta(book);
+            return (
+              <span
+                key={idx}
+                className="min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[9px] text-white rounded-full font-bold shadow-2xs shrink-0"
+                style={{ backgroundColor: bMeta.color }}
+                title={bMeta.name}
+              >
+                {bMeta.code}
+              </span>
+            );
+          })}
+          {data.hadithNumber !== undefined && data.hadithNumber !== null && (
+            <span
+              className="px-2 py-0.5 rounded-full text-[11px] font-bold shadow-xs flex items-center gap-0.5"
+              style={{ backgroundColor: `${meta.color}20`, color: meta.color }}
+            >
+              <Bookmark className="w-3 h-3 inline" />
+              <span>رقم {data.hadithNumber}</span>
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Book Name */}
@@ -96,3 +100,4 @@ const ReferenceNode = ({ data, selected }: { data: ReferenceNodeData; selected?:
 };
 
 export default memo(ReferenceNode);
+

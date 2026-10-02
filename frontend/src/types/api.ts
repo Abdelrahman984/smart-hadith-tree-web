@@ -176,4 +176,6 @@ export interface SearchRequestDto {
   isOrdered?: boolean;
   isProximity?: boolean;
   proximityWords?: number;
+  page?: number;
+  pageSize?: number;
 }

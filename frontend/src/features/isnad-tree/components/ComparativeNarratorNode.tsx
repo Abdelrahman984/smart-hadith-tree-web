@@ -2,6 +2,7 @@ import { Handle, Position } from '@xyflow/react';
 import { memo } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useIlalStore } from '@/features/ilal/store/useIlalStore';
+import { getBookMeta } from '@/lib/bookTheme';
 
 type ComparativeNarratorNodeData = {
   narratorName: string;
@@ -30,20 +31,6 @@ const getPrimaryCity = (residence?: string | null, death?: string | null) => {
     if (first) return first;
   }
   return death?.trim() || null;
-};
-
-const getBookBadge = (book: string) => {
-  switch(book) {
-    case 'صحيح البخاري': return { text: 'خ', color: '#2563eb' };
-    case 'صحيح مسلم': return { text: 'م', color: '#16a34a' };
-    case 'سنن أبي داود': return { text: 'د', color: '#d97706' };
-    case 'جامع الترمذي': return { text: 'ت', color: '#9333ea' };
-    case 'سنن النسائي': return { text: 'س', color: '#0284c7' };
-    case 'سنن ابن ماجه': return { text: 'ق', color: '#e11d48' };
-    case 'مسند أحمد': return { text: 'حم', color: '#b45309' };
-    case 'موطأ مالك': return { text: 'ط', color: '#0d9488' };
-    default: return { text: book.substring(0, 1), color: '#475569' };
-  }
 };
 
 const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: ComparativeNarratorNodeData; selected?: boolean }) => {
@@ -115,17 +102,17 @@ const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: Com
       <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-transparent !border-none opacity-0 pointer-events-none" />
       
       {data.sourceBooks && data.sourceBooks.length > 0 && (
-        <div className="absolute -top-3 left-2 flex items-center gap-0.5 bg-white rounded-full px-1.5 py-0.5 shadow-xs border border-slate-200 z-10">
+        <div className="absolute -top-3 left-2 flex items-center gap-0.5 bg-white rounded-full px-1.5 py-0.5 shadow-xs border border-slate-200 z-10 max-w-[220px] flex-wrap">
           {data.sourceBooks.map((book, idx) => {
-            const badge = getBookBadge(book);
+            const meta = getBookMeta(book);
             return (
               <span 
                 key={idx} 
-                className="w-4.5 h-4.5 flex items-center justify-center text-[9px] text-white rounded-full font-bold shrink-0"
-                style={{ backgroundColor: badge.color }}
-                title={book}
+                className="min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[9px] text-white rounded-full font-bold shrink-0"
+                style={{ backgroundColor: meta.color }}
+                title={meta.name}
               >
-                {badge.text}
+                {meta.code}
               </span>
             );
           })}

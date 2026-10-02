@@ -61,7 +61,11 @@ public class HadithSearchService(
             .Select(p => SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize(p.Trim()))
             .ToList();
 
-        var queryable = context.Hadiths.AsQueryable();
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize > 0 ? request.PageSize : 50, 1, 200);
+        var skip = (page - 1) * pageSize;
+
+        var queryable = context.Hadiths.AsNoTracking();
 
         // 2. Exclude phrases (NOT / ليس)
         foreach (var excluded in excludePhrases)
@@ -131,8 +135,16 @@ public class HadithSearchService(
         var orderingPhrases = normalizedAndPhrases.Count > 1 ? normalizedAndPhrases : normalizedOrPhrases;
         if ((request.IsOrdered || request.IsProximity) && orderingPhrases.Count > 1)
         {
+            // Push ordered constraint directly to SQL Server when searching Matn/All with AND phrases
+            if (request.IsOrdered && normalizedAndPhrases.Count > 1)
+            {
+                var orderedPattern = "%" + string.Join("%", orderingPhrases) + "%";
+                queryable = queryable.Where(h => EF.Functions.Like(h.NormalizedMatn, orderedPattern));
+            }
+
             var candidates = await queryable
-                .Take(100)
+                .Skip(skip)
+                .Take(Math.Max(100, pageSize * 2))
                 .Select(h => new
                 {
                     h.Id,
@@ -154,7 +166,7 @@ public class HadithSearchService(
 
                 return true;
             })
-            .Take(50)
+            .Take(pageSize)
             .Select(h => new HadithSearchResultDto
             {
                 Id = h.Id,
@@ -172,7 +184,8 @@ public class HadithSearchService(
         }
 
         var hadiths = await queryable
-            .Take(50)
+            .Skip(skip)
+            .Take(pageSize)
             .Select(h => new HadithSearchResultDto
             {
                 Id = h.Id,

@@ -51,4 +51,8 @@ public class SearchRequestDto
     public bool IsOrdered { get; set; } = false;
     public bool IsProximity { get; set; } = false;
     public int ProximityWords { get; set; } = 15;
+
+    // ── Pagination Properties ───────────────────────────────────────
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 50;
 }

@@ -23,7 +23,8 @@ public class HadithTextConfiguration : IEntityTypeConfiguration<HadithText>
             .IsRequired()
             .UseCollation("Arabic_100_CI_AI");
         builder.Property(h => h.NormalizedMatn)
-            .IsRequired();
+            .IsRequired()
+            .UseCollation("Arabic_100_BIN2");
         // MatnArabic is nvarchar(max) by default — Hadith texts can be lengthy.
 
         builder.Property(h => h.BookName)
@@ -33,7 +34,8 @@ public class HadithTextConfiguration : IEntityTypeConfiguration<HadithText>
 
         builder.Property(h => h.NormalizedBookName)
             .IsRequired()
-            .HasMaxLength(300);
+            .HasMaxLength(300)
+            .UseCollation("Arabic_100_BIN2");
 
         builder.Property(h => h.Volume)
             .HasMaxLength(50);
@@ -43,7 +45,7 @@ public class HadithTextConfiguration : IEntityTypeConfiguration<HadithText>
             .UseCollation("Arabic_100_CI_AI");
 
         builder.Property(h => h.FullIsnadText)
-            .UseCollation("Arabic_100_CI_AI");
+            .UseCollation("Arabic_100_BIN2");
 
         // ── Indexes ────────────────────────────────────────────────
         // Composite index for lookup-by-reference (book + number).
@@ -53,5 +55,9 @@ public class HadithTextConfiguration : IEntityTypeConfiguration<HadithText>
         // HadithNumber alone for direct-number searches.
         builder.HasIndex(h => h.HadithNumber)
             .HasDatabaseName("IX_Hadiths_HadithNumber");
+
+        // NormalizedBookName index for fast book filtering.
+        builder.HasIndex(h => h.NormalizedBookName)
+            .HasDatabaseName("IX_Hadiths_NormalizedBookName");
     }
 }

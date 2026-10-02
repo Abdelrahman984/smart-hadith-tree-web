@@ -1,14 +1,16 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useTakhreej } from "@/features/isnad-tree/hooks/useTakhreej";
 import ComparativeTreeCanvas from "@/features/isnad-tree/components/ComparativeTreeCanvas";
 import NarratorDrawer from "@/features/narrator-details/components/NarratorDrawer";
 import ReturnToSearchButton from "@/features/isnad-tree/components/ReturnToSearchButton";
-import { ChevronLeft, ChevronRight, Copy, Check, BookOpen, ShieldAlert } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, Check, BookOpen, ShieldAlert, ExternalLink } from "lucide-react";
 import IlalPanel from "@/features/ilal/components/IlalPanel";
 import { useIlalStore } from "@/features/ilal/store/useIlalStore";
+import { getBookMeta } from "@/lib/bookTheme";
 
 function TakhreejContent() {
   const searchParams = useSearchParams();
@@ -63,37 +65,35 @@ function TakhreejContent() {
     );
   }
 
-  const getBookColorClass = (book: string) => {
-    switch(book) {
-      case 'صحيح البخاري': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'صحيح مسلم': return 'bg-green-100 text-green-800 border-green-200';
-      case 'سنن أبي داود': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'جامع الترمذي': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'سنن النسائي': return 'bg-sky-100 text-sky-800 border-sky-200';
-      case 'سنن ابن ماجه': return 'bg-rose-100 text-rose-800 border-rose-200';
-      case 'مسند أحمد': return 'bg-amber-100 text-amber-900 border-amber-300';
-      case 'موطأ مالك': return 'bg-teal-100 text-teal-800 border-teal-200';
-      default: return 'bg-slate-100 text-slate-800 border-slate-200';
-    }
-  };
-
   return (
     <div className="h-screen w-full flex flex-col overflow-hidden bg-slate-50 relative" dir="rtl">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 p-4 flex items-center justify-between z-10 shrink-0 shadow-sm">
-        <div className="flex items-center gap-3">
+      <header className="bg-white border-b border-slate-200 p-4 flex items-center justify-between gap-4 z-10 shrink-0 shadow-sm">
+        <div className="flex items-center gap-3 shrink-0">
           <ReturnToSearchButton variant="button" label="العودة للبحث" />
           <h1 className="text-xl font-bold text-slate-800">شجرة التخريج المقارنة</h1>
         </div>
         
-        <div className="flex gap-2 items-center flex-wrap">
-          {data.sources.map((source, idx) => (
-            <div key={idx} className={`px-3 py-1 rounded-full border text-sm font-semibold flex items-center gap-1 ${getBookColorClass(source.bookName)}`}>
-              <span>{source.bookName}</span>
-              <span className="opacity-60">|</span>
-              <span>{source.hadithNumber}</span>
-            </div>
-          ))}
+        <div className="flex gap-2 items-center flex-wrap max-h-20 overflow-y-auto">
+          {data.sources.map((source, idx) => {
+            const meta = getBookMeta(source.bookName);
+            return (
+              <div
+                key={idx}
+                className={`px-2.5 py-1 rounded-full border text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors ${meta.badgeClass}`}
+              >
+                <span
+                  className="min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[9px] text-white rounded-full font-bold shrink-0"
+                  style={{ backgroundColor: meta.color }}
+                >
+                  {meta.code}
+                </span>
+                <span>{source.bookName}</span>
+                <span className="opacity-50">|</span>
+                <span>{source.hadithNumber}</span>
+              </div>
+            );
+          })}
         </div>
       </header>
 
@@ -159,31 +159,49 @@ function TakhreejContent() {
             </div>
 
             <div className="space-y-4">
-              {data.sources.map((source, idx) => (
-                <div key={idx} className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/80 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-bold ${getBookColorClass(source.bookName)}`}>
-                      <span>{source.bookName}</span>
-                      <span className="opacity-50">•</span>
-                      <span>حديث رقم {source.hadithNumber}</span>
+              {data.sources.map((source, idx) => {
+                const meta = getBookMeta(source.bookName);
+                return (
+                  <div key={idx} className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/80 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-bold ${meta.badgeClass}`}>
+                        <span
+                          className="min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[9px] text-white rounded-full font-bold shrink-0"
+                          style={{ backgroundColor: meta.color }}
+                        >
+                          {meta.code}
+                        </span>
+                        <span>{source.bookName}</span>
+                        <span className="opacity-50">•</span>
+                        <span>حديث رقم {source.hadithNumber}</span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Link
+                          href={`/tree/${source.hadithId}`}
+                          className="p-1 rounded-md text-slate-400 hover:text-brand-blue hover:bg-slate-200/60 transition-colors"
+                          title="عرض شجرة هذه الرواية منفردة"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Link>
+                        <button
+                          onClick={() => handleCopy(source.matnArabic || source.matnSnippet, idx)}
+                          className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+                          title="نسخ نص المتن"
+                        >
+                          {copiedIdx === idx ? (
+                            <Check className="w-4 h-4 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => handleCopy(source.matnArabic || source.matnSnippet, idx)}
-                      className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
-                      title="نسخ نص المتن"
-                    >
-                      {copiedIdx === idx ? (
-                        <Check className="w-4 h-4 text-emerald-600" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </button>
+                    <p className="text-slate-800 leading-loose font-arabic text-sm text-justify whitespace-pre-wrap select-text">
+                      {source.matnArabic || source.matnSnippet}
+                    </p>
                   </div>
-                  <p className="text-slate-800 leading-loose font-arabic text-sm text-justify whitespace-pre-wrap select-text">
-                    {source.matnArabic || source.matnSnippet}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
             </>)}
           </div>

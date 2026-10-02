@@ -11,11 +11,19 @@ import {
 
 const API_BASE = "http://localhost:5147/api"; // Default ASP.NET Core dev port
 
-export async function searchHadiths(query: string, scope: number = 0, match: number = 0): Promise<HadithSearchResultDto[]> {
+export async function searchHadiths(
+  query: string,
+  scope: number = 0,
+  match: number = 0,
+  page: number = 1,
+  pageSize: number = 50
+): Promise<HadithSearchResultDto[]> {
   const url = new URL(`${API_BASE}/Search`);
   url.searchParams.append("query", query);
   url.searchParams.append("scope", scope.toString());
   url.searchParams.append("match", match.toString());
+  url.searchParams.append("page", page.toString());
+  url.searchParams.append("pageSize", pageSize.toString());
   
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error("Failed to search hadiths");

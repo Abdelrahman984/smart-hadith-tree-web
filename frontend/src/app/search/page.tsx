@@ -36,6 +36,9 @@ function SearchContent() {
   const {
     query,
     setQuery,
+    page,
+    setPage,
+    pageSize,
     debouncedQuery,
     advancedRequest,
     setAdvancedRequest,
@@ -503,6 +506,37 @@ function SearchContent() {
                       onAutoTakhreej={handleAutoTakhreej}
                     />
                   ))}
+                </div>
+              )}
+
+              {/* Pagination Controls */}
+              {(page > 1 || results.length >= pageSize) && (
+                <div className="mt-8 flex items-center justify-center gap-4">
+                  <button
+                    type="button"
+                    disabled={page <= 1 || isFetching}
+                    onClick={() => {
+                      setPage((p) => Math.max(1, p - 1));
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer shadow-2xs"
+                  >
+                    الصفحة السابقة
+                  </button>
+                  <span className="text-xs font-bold text-slate-600 bg-white border border-slate-200 px-3.5 py-2 rounded-xl shadow-2xs">
+                    صفحة {page}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={results.length < pageSize || isFetching}
+                    onClick={() => {
+                      setPage((p) => p + 1);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer shadow-2xs"
+                  >
+                    الصفحة التالية
+                  </button>
                 </div>
               )}
             </>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Panel } from "@xyflow/react";
 import {
   ChevronDown,
@@ -12,19 +12,9 @@ import {
   AlertTriangle,
   FileDiff,
 } from "lucide-react";
+import { CANONICAL_31_BOOKS, getBookMeta } from "@/lib/bookTheme";
 
 type LegendTab = "all" | "books" | "paths" | "narrators";
-
-const BOOKS = [
-  { code: "خ", name: "صحيح البخاري", color: "#2563eb" },
-  { code: "م", name: "صحيح مسلم", color: "#16a34a" },
-  { code: "د", name: "سنن أبي داود", color: "#d97706" },
-  { code: "ت", name: "جامع الترمذي", color: "#9333ea" },
-  { code: "س", name: "سنن النسائي", color: "#0284c7" },
-  { code: "ق", name: "سنن ابن ماجه", color: "#e11d48" },
-  { code: "حم", name: "مسند أحمد", color: "#b45309" },
-  { code: "ط", name: "موطأ مالك", color: "#0d9488" },
-];
 
 const ILAL_EDGES = [
   { label: "عنعنة مدلس", hint: "مدلس روى بصيغة محتملة ولم يصرح بالسماع", color: "#ea580c", dash: "2 4" },
@@ -41,9 +31,22 @@ const NARRATOR_RANKS = [
   { label: "مجهول", color: "#95a5a6" },
 ];
 
-export default function BookLegend() {
+interface BookLegendProps {
+  activeBooks?: string[];
+}
+
+export default function BookLegend({ activeBooks }: BookLegendProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<LegendTab>("all");
+  const [showAllBooks, setShowAllBooks] = useState(false);
+
+  const displayedBooks = useMemo(() => {
+    if (activeTab === "books" || showAllBooks || !activeBooks || activeBooks.length === 0) {
+      return CANONICAL_31_BOOKS;
+    }
+    const uniqueNames = Array.from(new Set(activeBooks));
+    return uniqueNames.map((name) => getBookMeta(name));
+  }, [activeTab, showAllBooks, activeBooks]);
 
   if (!isOpen) {
     return (
@@ -102,7 +105,7 @@ export default function BookLegend() {
               : "text-slate-500 hover:text-slate-800"
           }`}
         >
-          الكتب
+          الكتب ({CANONICAL_31_BOOKS.length})
         </button>
         <button
           onClick={() => setActiveTab("paths")}
@@ -131,15 +134,29 @@ export default function BookLegend() {
         {/* Section 1: Books */}
         {(activeTab === "all" || activeTab === "books") && (
           <div>
-            <div className="flex items-center gap-1.5 text-slate-700 font-bold mb-2 text-xs">
-              <BookOpen className="w-3.5 h-3.5 text-slate-500" />
-              <span>رموز كتب الحديث</span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5 text-slate-700 font-bold text-xs">
+                <BookOpen className="w-3.5 h-3.5 text-slate-500" />
+                <span>
+                  {activeTab === "all" && activeBooks && activeBooks.length > 0 && !showAllBooks
+                    ? `كتب الشجرة الحالية (${displayedBooks.length})`
+                    : `رموز دواوين السنة (${CANONICAL_31_BOOKS.length})`}
+                </span>
+              </div>
+              {activeTab === "all" && activeBooks && activeBooks.length > 0 && (
+                <button
+                  onClick={() => setShowAllBooks(!showAllBooks)}
+                  className="text-[10px] font-semibold text-brand-blue hover:underline cursor-pointer"
+                >
+                  {showAllBooks ? "كتب الشجرة فقط" : `عرض الكل (${CANONICAL_31_BOOKS.length})`}
+                </button>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
-              {BOOKS.map((book) => (
-                <div key={book.code} className="flex items-center gap-2 py-0.5">
+              {displayedBooks.map((book) => (
+                <div key={book.name} className="flex items-center gap-1.5 py-0.5">
                   <span
-                    className="w-5 h-5 flex items-center justify-center text-[10px] text-white rounded-full font-bold shadow-xs shrink-0"
+                    className="min-w-[20px] h-5 px-1 flex items-center justify-center text-[9px] text-white rounded-full font-bold shadow-xs shrink-0"
                     style={{ backgroundColor: book.color }}
                   >
                     {book.code}
