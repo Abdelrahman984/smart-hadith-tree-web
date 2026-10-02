@@ -26,6 +26,12 @@ const BOOKS = [
   { code: "ط", name: "موطأ مالك", color: "#0d9488" },
 ];
 
+const ILAL_EDGES = [
+  { label: "عنعنة مدلس", hint: "مدلس روى بصيغة محتملة ولم يصرح بالسماع", color: "#ea580c", dash: "2 4" },
+  { label: "لم يثبت اللقاء", hint: "ليس في شيوخه ولا تلاميذه في كتب التراجم", color: "#d97706", dash: "8 4" },
+  { label: "رواية عن مختلط", hint: "لم يتبين أسمع منه قبل الاختلاط", color: "#ca8a04", dash: "6 3" },
+];
+
 const NARRATOR_RANKS = [
   { label: "صحابي", color: "#9b59b6" },
   { label: "ثقة / عدل ضابط", color: "#2ecc71" },
@@ -216,10 +222,21 @@ export default function BookLegend() {
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
                 <div>
-                  <span className="text-slate-700 font-medium text-[11px]">علة السماع: </span>
-                  <span className="text-slate-500 text-[10px]">تنبيه عند وجود انقطاع أو تدليس</span>
+                  <span className="text-slate-700 font-medium text-[11px]">انقطاع زمني: </span>
+                  <span className="text-slate-500 text-[10px]">ولد التلميذ بعد وفاة الشيخ</span>
                 </div>
               </div>
+              {ILAL_EDGES.map((edge) => (
+                <div key={edge.label} className="flex items-center gap-2">
+                  <svg width="14" height="6" className="shrink-0" aria-hidden>
+                    <line x1="0" y1="3" x2="14" y2="3" stroke={edge.color} strokeWidth="2.5" strokeDasharray={edge.dash} />
+                  </svg>
+                  <div>
+                    <span className="text-slate-700 font-medium text-[11px]">{edge.label}: </span>
+                    <span className="text-slate-500 text-[10px]">{edge.hint}</span>
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* Ranks Grid */}

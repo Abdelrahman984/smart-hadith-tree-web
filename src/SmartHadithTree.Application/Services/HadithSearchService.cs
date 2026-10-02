@@ -6,7 +6,11 @@ using SmartHadithTree.Domain.Entities;
 
 namespace SmartHadithTree.Application.Services;
 
-public class HadithSearchService(IHadithTreeDbContext context, IHadithChainRepository chainRepository, ITaqwiyahService taqwiyahService) : IHadithSearchService
+public class HadithSearchService(
+    IHadithTreeDbContext context,
+    IHadithChainRepository chainRepository,
+    ITaqwiyahService taqwiyahService,
+    IIlalAnalysisService? ilalService = null) : IHadithSearchService
 {
     public async Task<List<HadithSearchResultDto>> SearchHadithsAsync(SearchRequestDto request, CancellationToken ct = default)
     {
@@ -344,6 +348,9 @@ public class HadithSearchService(IHadithTreeDbContext context, IHadithChainRepos
                 }
             }
         }
+
+        if (ilalService != null)
+            response.IlalReport = await ilalService.AnalyzeAsync(hadithIds, ct);
 
         taqwiyahService.CalculateTreeStrength(response);
 

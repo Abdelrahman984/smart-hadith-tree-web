@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using SmartHadithTree.Infrastructure.Data;
 using SmartHadithTree.Application.Interfaces;
 using SmartHadithTree.Application.Services;
+using SmartHadithTree.Application.Services.Ilal;
 using SmartHadithTree.Infrastructure.Data.Repositories;
 using Microsoft.SemanticKernel;
 
@@ -32,6 +33,7 @@ else
 }
 
 builder.Services.AddScoped<IAiEvaluationService, AiEvaluationService>();
+builder.Services.AddScoped<IIlalExplanationService, IlalExplanationService>();
 
 // Register Services
 builder.Services.AddScoped<IHadithTreeDbContext>(provider => provider.GetRequiredService<HadithTreeDbContext>());
@@ -40,6 +42,7 @@ builder.Services.AddScoped<IHadithSearchService, HadithSearchService>();
 builder.Services.AddScoped<INarratorService, NarratorService>();
 builder.Services.AddScoped<IBooksService, BooksService>();
 builder.Services.AddScoped<ITaqwiyahService, TaqwiyahService>();
+builder.Services.AddScoped<IIlalAnalysisService, IlalAnalysisService>();
 builder.Services.AddScoped<IGawamiImporterService, SmartHadithTree.Infrastructure.Data.Gawami.GawamiImporterService>();
 
 // ── Controllers ────────────────────────────────────────────────────

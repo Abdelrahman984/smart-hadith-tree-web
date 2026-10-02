@@ -2,13 +2,15 @@ using SmartHadithTree.Application.DTOs;
 using SmartHadithTree.Application.Interfaces;
 using System.Linq;
 using System.Collections.Generic;
+using SmartHadithTree.Application.Services.Ilal;
+using SmartHadithTree.Domain.Enums;
 
 namespace SmartHadithTree.Application.Services;
 
 public class TaqwiyahService : ITaqwiyahService
 {
     // Simple Tier Mapping
-    private int ParseTier(string? tierStr)
+    private static int ParseTier(string? tierStr)
     {
         if (string.IsNullOrEmpty(tierStr)) return 7; // Default to T7 (Weak)
         var numPart = tierStr.Replace("T", "");
@@ -17,6 +19,12 @@ public class TaqwiyahService : ITaqwiyahService
     }
 
     public void CalculateTreeStrength(ComparativeTreeResponseDto tree)
+    {
+        CalculateStructuralStrength(tree);
+        ApplyIlal(tree);
+    }
+
+    private static void CalculateStructuralStrength(ComparativeTreeResponseDto tree)
     {
         if (tree.Nodes == null || !tree.Nodes.Any())
             return;
@@ -38,7 +46,7 @@ public class TaqwiyahService : ITaqwiyahService
                 // Let's use a simple mapping from GradeEn to Tier for now if Tier is not explicit
                 // Or we can assume we parse the AI tier if it's cached.
                 // For demonstration, we map GradeEn to tier:
-                var nodeTier = MapGradeEnToTier(currentNode.GradeEn);
+                var nodeTier = NarratorGradeScale.ToTier(currentNode.GradeEn);
                 
                 if (nodeTier > lowestTierInPath)
                     lowestTierInPath = nodeTier;
@@ -103,16 +111,35 @@ public class TaqwiyahService : ITaqwiyahService
         }
     }
 
-    private int MapGradeEnToTier(string? gradeEn)
+    /// <summary>
+    /// Adjusts the grade using the Ilal report: a hadith whose every tariq carries a decisive
+    /// defect (علة قادحة) is ma'lul, regardless of how strong its narrators look.
+    /// </summary>
+    private static void ApplyIlal(ComparativeTreeResponseDto tree)
     {
-        if (string.IsNullOrEmpty(gradeEn)) return 7;
-        var g = gradeEn.ToLower();
-        if (g.Contains("companion")) return 1;
-        if (g.Contains("reliable") && g.Contains("mostly")) return 4;
-        if (g.Contains("reliable")) return 3;
-        if (g.Contains("weak")) return 7;
-        if (g.Contains("abandoned")) return 9;
-        if (g.Contains("fabricator")) return 12;
-        return 7;
+        var report = tree.IlalReport;
+        if (report == null || !report.HasQadihah) return;
+
+        var qadihah = report.Findings.Where(f => f.Severity == IllahSeverity.Qadihah).ToList();
+        var defectiveHadiths = qadihah.SelectMany(f => f.HadithIds).ToHashSet();
+        var sourceIds = tree.Sources.Count > 0
+            ? tree.Sources.Select(s => s.HadithId).ToList()
+            : report.AnalyzedHadithIds;
+        var titles = string.Join("، ", qadihah.Select(f => f.TitleAr).Distinct());
+
+        if (sourceIds.Count > 0 && sourceIds.All(defectiveHadiths.Contains))
+        {
+            if (tree.CalculatedGrade == "موضوع / متروك") return;
+
+            var apparent = tree.CalculatedGrade;
+            tree.CalculatedGrade = "ضعيف (معلول)";
+            tree.TaqwiyahDetails = string.IsNullOrEmpty(apparent)
+                ? $"أُعلّ الحديث في جميع طرقه بـ: {titles}."
+                : $"ظاهر الإسناد ({apparent})، لكن أُعلّ الحديث في جميع طرقه بـ: {titles}.";
+        }
+        else
+        {
+            tree.TaqwiyahDetails = $"{tree.TaqwiyahDetails} تنبيه: في بعض الطرق علة قادحة ({titles}).".Trim();
+        }
     }
 }

@@ -2,6 +2,7 @@ import { getIsnadTree } from "@/lib/api";
 import TreeCanvas from "@/features/isnad-tree/components/TreeCanvas";
 import NarratorDrawer from "@/features/narrator-details/components/NarratorDrawer";
 import ReturnToSearchButton from "@/features/isnad-tree/components/ReturnToSearchButton";
+import IlalLauncher from "@/features/ilal/components/IlalLauncher";
 
 export default async function TreePage({
   params,
@@ -42,7 +43,10 @@ export default async function TreePage({
           </p>
         </div>
         
-        <ReturnToSearchButton variant="button" label="عودة للبحث" />
+        <div className="flex items-center gap-2 shrink-0">
+          <IlalLauncher hadithId={hadithId} />
+          <ReturnToSearchButton variant="button" label="عودة للبحث" />
+        </div>
       </header>
 
       {/* Tree Canvas */}

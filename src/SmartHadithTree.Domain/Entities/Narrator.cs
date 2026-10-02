@@ -52,6 +52,18 @@ public class Narrator
     public bool HasMukhtalit { get; set; }
 
     /// <summary>
+    /// مرتبة التدليس — Ibn Hajr's tier in "طبقات المدلسين" (1–5). Null when not a known mudallis.
+    /// Tiers 1–2 are tolerated; tiers 3+ require an explicit statement of hearing (تصريح بالسماع).
+    /// </summary>
+    public int? MudallisTier { get; set; }
+
+    /// <summary>وصف الاختلاط — Note on when/how the narrator's memory deteriorated.</summary>
+    public string? IkhtilatNote { get; set; }
+
+    /// <summary>Records of which students heard from this narrator before/after their ikhtilat.</summary>
+    public ICollection<MukhtalitHearing> MukhtalitHearings { get; set; } = [];
+
+    /// <summary>
     /// Standardized English grade from Itqan (reliable, weak, etc.) for UI color mapping.
     /// </summary>
     public string? ItqanGrade { get; set; }

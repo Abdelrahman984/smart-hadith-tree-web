@@ -21,6 +21,12 @@ public class IsnadNodeDto
     public Guid? ParentNodeId { get; set; } // Points to the student (who received it from this sheikh)
     public string? TransmissionTerm { get; set; } // حدثنا, عن
     public string? GradeEn { get; set; }
+
+    /// <summary>مدلس — the narrator is listed in the mudallisin seed.</summary>
+    public bool IsMudallis { get; set; }
+
+    /// <summary>مختلط — the narrator's memory deteriorated late in life.</summary>
+    public bool HasMukhtalit { get; set; }
     
     public bool IsAnomaly { get; set; }
     public string? AnomalyReason { get; set; }
@@ -115,4 +121,7 @@ public class ComparativeTreeResponseDto
     public List<ComparativeIsnadNodeDto> Nodes { get; set; } = [];
     public string? CalculatedGrade { get; set; }
     public string? TaqwiyahDetails { get; set; }
+
+    /// <summary>نتيجة فحص العلل — hidden-defect analysis of the merged turuq.</summary>
+    public IlalReportDto? IlalReport { get; set; }
 }

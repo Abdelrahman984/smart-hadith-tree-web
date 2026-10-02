@@ -64,3 +64,45 @@ Expanded the repository from 4 collections to the complete 18 Sunni Hadith colle
   17. أربعون شاه ولي الله (40 hadiths)
   18. الأربعون القدسية (40 hadiths)
 
+---
+
+# Changelog: Ilal Engine (علل الحديث)
+
+**Date:** October 2, 2026
+**Summary:** Added a rule-based engine that detects hidden defects (علل) across the turuq of a hadith, with an optional AI explanation and canvas overlays. The design is described in `docs/ilal.md`.
+
+## Backend
+- **Domain**
+  - `Narrator` gained `MudallisTier` and `IkhtilatNote`.
+  - New entities `NarratorRelation` (teacher/student graph) and `MukhtalitHearing` (before/after ikhtilat).
+  - New enums `IllahType` and `IllahSeverity`.
+  - New utilities `MatnText` and `MatnAligner` (word-level LCS diff).
+- **Migration `AddIlalEngine`.** Adds the new tables and columns. It also adds the drift columns that earlier commits put in the model without a migration (`ItqanId`, `ItqanGrade`, the Gawami columns, `HadithClusters`). Those statements use `IF NOT EXISTS`, so the migration also works on databases that were patched by hand.
+- **Application.** Six rules in `Services/Ilal/Rules`: `TadlisRule`, `IkhtilatRule`, `HiddenInqitaRule`, `MatnAtMadarRule`, `RafWaqfRule` and `WaslIrsalRule`.
+  - `IlalAnalysisService` runs them.
+  - `IlalExplanationService` writes the Gemini explanation.
+  - `NarratorGradeScale` is now the grade-to-tier mapping shared with `TaqwiyahService`.
+  - `TaqwiyahService` downgrades the grade to "ضعيف (معلول)" when every tariq has a decisive defect.
+- **API**
+  - New endpoints `GET /api/ilal?ids=`, `GET /api/ilal/{hadithId}` and `POST /api/ilal/explain`.
+  - `GET /api/takhreej` now includes `ilalReport`.
+  - Isnad nodes now carry `isMudallis` and `hasMukhtalit`.
+- **ETL.** The new `seed-ilal` mode imports Itqan teacher/student relations and applies the curated `Seeds/mudallisin.json` and `Seeds/mukhtalitun.json`.
+- **Fix.** Added a stub `GawamiImporterService`, so the API builds again after the Gawami commit.
+- **Fix: compiler IDs.** `ItqanDatasetParser` and `ChainReprocessingService` disagreed on the Itqan IDs of the compilers, and several were wrong in both (for example, 57802 is a Companion, not al-Nasa'i). Both now use one table in `ItqanDatasetParser.BookMetadata`, checked against the Itqan rijal profiles: Bukhari 336, Muslim 618, Abu Dawud 74, al-Tirmidhi 297, al-Nasa'i 134, Ibn Majah 514, Ahmad 353, Malik 664, al-Darimi 168, Ibn Abi Shaybah 748. Re-run `reprocess-chains` to rebuild the chains with the correct compilers.
+
+## Frontend
+- New `features/ilal` module with:
+  - `IlalPanel`: findings grouped by type, with severity colors.
+  - `MatnDiffView`: aligned matn comparison.
+  - `IlalAiExplanation` and `IlalLauncher`.
+  - A Zustand store that shares the report and the selected finding with the canvas.
+- **Takhreej page.** The sidebar now has an "العلل" tab. Selecting a finding highlights its narrators on the tree.
+- **Tree page.** A "فحص العلل" button gathers the hadith's turuq and analyzes them.
+- **Canvas**
+  - The مدلس / اختلط badges are now populated.
+  - Tadlis, unproven-meeting and ikhtilat links get distinct edge styles, and the legend lists them.
+
+## Tests
+- Added 33 test cases for the rules, the aligner, the Taqwiyah integration, DB loading and `IlalController`. All 44 tests pass.
+

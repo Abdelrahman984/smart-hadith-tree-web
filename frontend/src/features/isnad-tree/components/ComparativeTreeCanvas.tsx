@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   ReactFlow,
   Controls,
@@ -20,6 +20,8 @@ import { ComparativeTreeResponseDto, NarratorSummaryDto } from "@/types/api";
 import { useNarratorDrawerStore } from "@/features/narrator-details/store/useNarratorDrawerStore";
 import GraphControls from './GraphControls';
 import BookLegend from './BookLegend';
+import { useIlalStore } from '@/features/ilal/store/useIlalStore';
+import { getIlalEdgeDecorations } from '@/features/ilal/utils/ilalLabels';
 
 const nodeTypes = {
   comparativeNarrator: ComparativeNarratorNode,
@@ -98,6 +100,8 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
               gradeEn: n.gradeEn,
               isAnomaly: n.isAnomaly,
               anomalyReason: n.anomalyReason,
+              isMudallis: n.isMudallis,
+              hasMukhtalit: n.hasMukhtalit,
               sourceBooks: n.sourceBooks || [],
             },
           });
@@ -202,11 +206,33 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
     );
   }, [showWeakOnly, setNodes]);
 
+
+  // Overlay isnad-link ilal (tadlis, unproven meeting, ikhtilat) on the laid-out edges.
+  const ilalReport = useIlalStore((s) => s.report);
+  const decoratedEdges = useMemo(() => {
+    const decorations = getIlalEdgeDecorations(ilalReport);
+    if (decorations.size === 0) return edges;
+    return edges.map((edge) => {
+      const d = decorations.get(edge.id);
+      if (!d) return edge;
+      return {
+        ...edge,
+        animated: true,
+        label: edge.label ? `${edge.label} · ${d.label}` : d.label,
+        style: { ...edge.style, stroke: d.color, strokeWidth: 3, strokeDasharray: d.dash },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: d.color },
+        labelStyle: { fill: d.color, fontWeight: "bold", fontSize: 11 },
+        labelBgStyle: { fill: "#fff7ed", stroke: d.color, strokeWidth: 1, rx: 4, ry: 4 },
+        labelBgPadding: [4, 8] as [number, number],
+      };
+    });
+  }, [edges, ilalReport]);
+
   return (
     <div className="absolute inset-0 bg-slate-50" dir="ltr">
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={decoratedEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}

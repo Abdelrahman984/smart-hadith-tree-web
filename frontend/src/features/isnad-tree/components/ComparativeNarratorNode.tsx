@@ -1,6 +1,7 @@
 import { Handle, Position } from '@xyflow/react';
 import { memo } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { useIlalStore } from '@/features/ilal/store/useIlalStore';
 
 type ComparativeNarratorNodeData = {
   narratorName: string;
@@ -14,6 +15,8 @@ type ComparativeNarratorNodeData = {
   isSelected?: boolean;
   showWeakOnly?: boolean;
   sourceBooks: string[];
+  isMudallis?: boolean;
+  hasMukhtalit?: boolean;
 };
 
 const getBookBadge = (book: string) => {
@@ -30,7 +33,8 @@ const getBookBadge = (book: string) => {
   }
 };
 
-const ComparativeNarratorNode = ({ data, selected }: { data: ComparativeNarratorNodeData; selected?: boolean }) => {
+const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: ComparativeNarratorNodeData; selected?: boolean }) => {
+  const isIlalHighlighted = useIlalStore((s) => s.highlightedNarratorIds.includes(id));
   let borderColor = '#cbd5e1'; // default slate-300
   let bgColor = '#ffffff';
 
@@ -72,6 +76,8 @@ const ComparativeNarratorNode = ({ data, selected }: { data: ComparativeNarrator
   let finalBorderClass = '';
   if (selected) {
     finalBorderClass = 'ring-2 ring-brand-blue border-brand-blue';
+  } else if (isIlalHighlighted) {
+    finalBorderClass = 'ring-4 ring-rose-400 ring-offset-2 scale-105';
   } else if (isMadar) {
     finalBorderClass = 'ring-2 ring-amber-400';
   }
@@ -125,6 +131,17 @@ const ComparativeNarratorNode = ({ data, selected }: { data: ComparativeNarrator
       {data.generationTier && (
         <div className="text-sm text-slate-500 mt-1">
           {data.generationTier}
+        </div>
+      )}
+
+      {(data.isMudallis || data.hasMukhtalit) && (
+        <div className="flex gap-1 justify-center mt-2 flex-wrap">
+          {data.isMudallis && (
+            <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-orange-500 rounded-full" title="موصوف بالتدليس">مدلس</span>
+          )}
+          {data.hasMukhtalit && (
+            <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-yellow-500 rounded-full" title="اختلط في آخر عمره">اختلط</span>
+          )}
         </div>
       )}
       
