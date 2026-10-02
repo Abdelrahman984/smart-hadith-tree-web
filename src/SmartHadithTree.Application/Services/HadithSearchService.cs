@@ -87,7 +87,7 @@ public class HadithSearchService(
                     {
                         queryable = queryable.Where(h => h.NormalizedMatn.Contains(w) ||
                                                          h.NormalizedBookName.Contains(w) ||
-                                                         h.Transmissions.Any(t => t.Student.FullName.Contains(w) || t.Sheikh.FullName.Contains(w)));
+                                                         (h.FullIsnadText != null && h.FullIsnadText.Contains(w)));
                     }
                     else if (request.Scope == SearchScope.Matn)
                     {
@@ -95,7 +95,7 @@ public class HadithSearchService(
                     }
                     else if (request.Scope == SearchScope.Isnad)
                     {
-                        queryable = queryable.Where(h => h.Transmissions.Any(t => t.Student.FullName.Contains(w) || t.Sheikh.FullName.Contains(w)));
+                        queryable = queryable.Where(h => h.FullIsnadText != null && h.FullIsnadText.Contains(w));
                     }
                 }
             }
@@ -108,7 +108,7 @@ public class HadithSearchService(
                 {
                     queryable = queryable.Where(h => h.NormalizedMatn.Contains(np) ||
                                                      h.NormalizedBookName.Contains(np) ||
-                                                     h.Transmissions.Any(t => t.Student.FullName.Contains(np) || t.Sheikh.FullName.Contains(np)));
+                                                     (h.FullIsnadText != null && h.FullIsnadText.Contains(np)));
                 }
                 else if (request.Scope == SearchScope.Matn)
                 {
@@ -116,7 +116,7 @@ public class HadithSearchService(
                 }
                 else if (request.Scope == SearchScope.Isnad)
                 {
-                    queryable = queryable.Where(h => h.Transmissions.Any(t => t.Student.FullName.Contains(np) || t.Sheikh.FullName.Contains(np)));
+                    queryable = queryable.Where(h => h.FullIsnadText != null && h.FullIsnadText.Contains(np));
                 }
             }
         }
@@ -207,6 +207,13 @@ public class HadithSearchService(
                 var matnProp = Expression.Property(parameter, nameof(HadithText.NormalizedMatn));
                 predicate = Expression.Call(matnProp, containsMethod, phraseConst);
             }
+            else if (scope == SearchScope.Isnad)
+            {
+                var isnadProp = Expression.Property(parameter, nameof(HadithText.FullIsnadText));
+                var isnadNotNull = Expression.NotEqual(isnadProp, Expression.Constant(null, typeof(string)));
+                var isnadContains = Expression.Call(isnadProp, containsMethod, phraseConst);
+                predicate = Expression.AndAlso(isnadNotNull, isnadContains);
+            }
             else
             {
                 var matnProp = Expression.Property(parameter, nameof(HadithText.NormalizedMatn));
@@ -215,7 +222,12 @@ public class HadithSearchService(
                 var bookProp = Expression.Property(parameter, nameof(HadithText.NormalizedBookName));
                 var bookContains = Expression.Call(bookProp, containsMethod, phraseConst);
 
-                predicate = Expression.OrElse(matnContains, bookContains);
+                var isnadProp = Expression.Property(parameter, nameof(HadithText.FullIsnadText));
+                var isnadNotNull = Expression.NotEqual(isnadProp, Expression.Constant(null, typeof(string)));
+                var isnadContains = Expression.Call(isnadProp, containsMethod, phraseConst);
+                var isnadPredicate = Expression.AndAlso(isnadNotNull, isnadContains);
+
+                predicate = Expression.OrElse(Expression.OrElse(matnContains, bookContains), isnadPredicate);
             }
 
             combined = combined == null ? predicate : Expression.OrElse(combined, predicate);
