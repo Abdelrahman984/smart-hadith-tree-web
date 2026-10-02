@@ -54,12 +54,14 @@ logger.LogInformation("Source: {Source}", source);
 
 try
 {
-    if (source.Equals("reprocess-chains", StringComparison.OrdinalIgnoreCase))
+    if (source.Equals("reprocess-chains", StringComparison.OrdinalIgnoreCase) ||
+        source.Equals("reprocess-missing-chains", StringComparison.OrdinalIgnoreCase))
     {
         // Require the path to itqan data. E.g. dotnet run reprocess-chains data/itqan
         var itqanPath = args.Length > 1 ? args[1] : "data/itqan";
         var bookFilter = args.Length > 2 ? args[2] : null;
-        await reprocessor.ReprocessChainsAsync(itqanPath, bookFilter, CancellationToken.None);
+        bool onlyMissing = source.Equals("reprocess-missing-chains", StringComparison.OrdinalIgnoreCase);
+        await reprocessor.ReprocessChainsAsync(itqanPath, bookFilter, CancellationToken.None, onlyMissing);
     }
     else if (source.Equals("seed-ilal", StringComparison.OrdinalIgnoreCase))
     {

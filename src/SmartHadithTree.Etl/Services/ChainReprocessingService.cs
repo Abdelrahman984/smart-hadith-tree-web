@@ -28,9 +28,9 @@ public class ChainReprocessingService
         _logger = logger;
     }
 
-    public async Task ReprocessChainsAsync(string itqanSourcePath, string? bookFilter = null, CancellationToken ct = default)
+    public async Task ReprocessChainsAsync(string itqanSourcePath, string? bookFilter = null, CancellationToken ct = default, bool onlyMissing = false)
     {
-        _logger.LogInformation("Starting Contextual Disambiguation Engine: Reprocessing Chains (BookFilter: {Filter})...", bookFilter ?? "ALL");
+        _logger.LogInformation("Starting Contextual Disambiguation Engine: Reprocessing Chains (BookFilter: {Filter}, OnlyMissing: {OnlyMissing})...", bookFilter ?? "ALL", onlyMissing);
         var sw = Stopwatch.StartNew();
 
         // 1. Initialize Contextual Disambiguator (loads graph into memory)
@@ -61,18 +61,21 @@ public class ChainReprocessingService
                 : bookFilter;
         }
 
-        // 3. Delete existing transmissions (either scoped to targetBookName or full table)
-        if (!string.IsNullOrWhiteSpace(targetBookName))
+        // 3. Delete existing transmissions (unless onlyMissing is true)
+        if (!onlyMissing)
         {
-            _logger.LogWarning("Deleting existing Transmissions for book '{Book}'...", targetBookName);
-            await _dbContext.Transmissions
-                .Where(t => t.Hadith.BookName == targetBookName)
-                .ExecuteDeleteAsync(ct);
-        }
-        else
-        {
-            _logger.LogWarning("Truncating existing Transmissions table...");
-            await _dbContext.Database.ExecuteSqlRawAsync("TRUNCATE TABLE [Transmissions]", ct);
+            if (!string.IsNullOrWhiteSpace(targetBookName))
+            {
+                _logger.LogWarning("Deleting existing Transmissions for book '{Book}'...", targetBookName);
+                await _dbContext.Transmissions
+                    .Where(t => t.Hadith.BookName == targetBookName)
+                    .ExecuteDeleteAsync(ct);
+            }
+            else
+            {
+                _logger.LogWarning("Truncating existing Transmissions table...");
+                await _dbContext.Database.ExecuteSqlRawAsync("TRUNCATE TABLE [Transmissions]", ct);
+            }
         }
 
         // 4. Load father map
@@ -89,12 +92,16 @@ public class ChainReprocessingService
             }
         }
 
-        // 5. Load Hadiths (filtered if targetBookName is specified)
+        // 5. Load Hadiths (filtered if targetBookName or onlyMissing is specified)
         _logger.LogInformation("Loading Hadiths from database...");
         var hadithsQuery = _dbContext.Hadiths.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(targetBookName))
         {
             hadithsQuery = hadithsQuery.Where(h => h.BookName == targetBookName);
+        }
+        if (onlyMissing)
+        {
+            hadithsQuery = hadithsQuery.Where(h => !_dbContext.Transmissions.Any(t => t.HadithId == h.Id));
         }
         var hadiths = await hadithsQuery.ToListAsync(ct);
 

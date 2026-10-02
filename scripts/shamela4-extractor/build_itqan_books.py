@@ -35,11 +35,16 @@ OUT_SUNNI_DIR = REPO_ROOT / "data" / "itqan" / "sunni"
 RE_TITLE_SPAN = re.compile(r"<span[^>]*data-type=['\"]title['\"][^>]*>.*?</span>", re.DOTALL)
 RE_HTML_TAGS = re.compile(r"<[^>]+>")
 RE_LEADING_NUM = re.compile(r"^\s*[\[\(]?[٠-٩0-9]+[\]\)]?\s*[-–—:ـ]+\s*")
+RE_FOOTNOTE_MARK = re.compile(r"\(\s*¬[٠-٩0-9]+\s*\)")
+RE_PAGE_BRACKET = re.compile(r"⦗[٠-٩0-9]+⦘")
+RE_NEW_HADITH_START = re.compile(r"^(?:[\[\(]?[٠-٩0-9]+[\]\)]?\s*[-–—:ـ]+\s*)?(?:حَدَّثَنَا|حدثنا|أَخْبَرَنَا|أخبرنا|ثنا|ثَنَا|أنبأنا|حَدَّثَنِي|حدثني)\b")
 
 def clean_hadith_text(raw: str) -> str:
     text = raw.replace("\\n", "\n")
     text = RE_TITLE_SPAN.sub("", text)
     text = RE_HTML_TAGS.sub("", text)
+    text = RE_FOOTNOTE_MARK.sub("", text)
+    text = RE_PAGE_BRACKET.sub("", text)
     text = text.strip()
     text = RE_LEADING_NUM.sub("", text)
     text = re.sub(r"\s+", " ", text).strip()
@@ -129,9 +134,22 @@ def main():
                             "arabic": cleaned
                         })
                 else:
-                    if page_id not in title_page_ids and chapter_hadiths[ch_idx]:
+                    if page_id not in title_page_ids:
+                        stripped_raw = RE_HTML_TAGS.sub("", RE_TITLE_SPAN.sub("", raw_body)).strip()
                         cleaned_cont = clean_hadith_text(raw_body)
-                        if cleaned_cont:
+                        if not cleaned_cont:
+                            continue
+                        # If unnumbered page starts a new Isnad or previous record is already large, create a new entry
+                        if not chapter_hadiths[ch_idx] or RE_NEW_HADITH_START.match(stripped_raw) or len(chapter_hadiths[ch_idx][-1]["arabic"]) > 4000:
+                            seq_id += 1
+                            last_num = chapter_hadiths[ch_idx][-1]["hadithNumber"] + 1 if chapter_hadiths[ch_idx] else seq_id
+                            chapter_hadiths[ch_idx].append({
+                                "id": seq_id,
+                                "idInBook": last_num,
+                                "hadithNumber": last_num,
+                                "arabic": cleaned_cont
+                            })
+                        else:
                             chapter_hadiths[ch_idx][-1]["arabic"] += " " + cleaned_cont
             else:
                 if page_id < first_start or page_id in title_page_ids:

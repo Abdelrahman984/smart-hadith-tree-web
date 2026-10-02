@@ -319,5 +319,62 @@ public class HadithSearchServiceTests
         // Assert
         result.Should().HaveCount(2);
     }
+
+    [Fact]
+    public async Task SearchHadithsAsync_FiltersOutScatteredMegaRecord_AndRanksExactPhraseFirst()
+    {
+        // Arrange
+        var context = GetInMemoryDbContext();
+        var padding = new string('ا', 2500);
+        context.Hadiths.AddRange(
+            new HadithText
+            {
+                Id = Guid.NewGuid(),
+                BookName = "المعجم الكبير للطبراني",
+                HadithNumber = 1103,
+                MatnArabic = $"إذا ذهب {padding} أريد المذهب {padding} أبعد",
+                NormalizedMatn = $"اذا ذهب {padding} اريد المذهب {padding} ابعد",
+                NormalizedBookName = "المعجم الكبير للطبراني"
+            },
+            new HadithText
+            {
+                Id = Guid.NewGuid(),
+                BookName = "مسند أحمد",
+                HadithNumber = 18171,
+                MatnArabic = "وكان إذا ذهب أبعد في المذهب",
+                NormalizedMatn = "وكان اذا ذهب ابعد في المذهب",
+                NormalizedBookName = "مسند احمد"
+            },
+            new HadithText
+            {
+                Id = Guid.NewGuid(),
+                BookName = "سنن أبي داود",
+                HadithNumber = 1,
+                MatnArabic = "أن النبي صلى الله عليه وسلم كان إذا ذهب المذهب أبعد",
+                NormalizedMatn = "ان النبي صلى الله عليه وسلم كان اذا ذهب المذهب ابعد",
+                NormalizedBookName = "سنن ابي داود"
+            }
+        );
+        await context.SaveChangesAsync();
+
+        var chainRepo = new Mock<IHadithChainRepository>();
+        var taqwiyah = new Mock<ITaqwiyahService>();
+        var service = new HadithSearchService(context, chainRepo.Object, taqwiyah.Object);
+
+        var request = new SearchRequestDto
+        {
+            Query = "إِذَا ذَهَبَ الْمَذْهَبَ أَبْعَدَ",
+            Scope = SearchScope.All,
+            Match = SearchMatchType.AllWords
+        };
+
+        // Act
+        var result = await service.SearchHadithsAsync(request);
+
+        // Assert: Scattered mega-record (#1103) is excluded, and exact phrase (#1) ranks before variant (#18171)
+        result.Should().HaveCount(2);
+        result[0].HadithNumber.Should().Be(1);
+        result[1].HadithNumber.Should().Be(18171);
+    }
 }
 

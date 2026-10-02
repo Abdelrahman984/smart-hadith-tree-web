@@ -143,6 +143,7 @@ public class HadithSearchService(
             }
 
             var candidates = await queryable
+                .OrderBy(h => h.MatnArabic.Length)
                 .Skip(skip)
                 .Take(Math.Max(100, pageSize * 2))
                 .Select(h => new
@@ -173,33 +174,224 @@ public class HadithSearchService(
                 BookName = h.BookName,
                 HadithNumber = h.HadithNumber,
                 Chapter = h.Chapter,
-                MatnArabic = h.MatnArabic,
-                MatnSnippet = h.MatnArabic.Length > 150 
-                    ? h.MatnArabic.Substring(0, 150) + "..." 
-                    : h.MatnArabic
+                MatnArabic = ExtractRelevantMatn(h.MatnArabic, h.NormalizedMatn, orderingPhrases),
+                MatnSnippet = BuildMatchSnippet(h.MatnArabic, h.NormalizedMatn, orderingPhrases)
             })
             .ToList();
 
             return filtered;
         }
 
-        var hadiths = await queryable
-            .Skip(skip)
-            .Take(pageSize)
-            .Select(h => new HadithSearchResultDto
+        var activeTerms = normalizedAndPhrases.Count == 1 && normalizedOrPhrases.Count == 0 && request.Match != SearchMatchType.Exact
+            ? normalizedAndPhrases[0].Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList()
+            : normalizedAndPhrases.Concat(normalizedOrPhrases).ToList();
+
+        var exactNormalizedPhrase = normalizedAndPhrases.Count == 1 && normalizedOrPhrases.Count == 0
+            ? normalizedAndPhrases[0]
+            : string.Join(" ", normalizedAndPhrases);
+
+        var rawCandidates = await queryable
+            .OrderBy(h => h.MatnArabic.Length)
+            .Take(skip + Math.Max(150, pageSize * 3))
+            .Select(h => new
             {
-                Id = h.Id,
-                BookName = h.BookName,
-                HadithNumber = h.HadithNumber,
-                Chapter = h.Chapter,
-                MatnArabic = h.MatnArabic,
-                MatnSnippet = h.MatnArabic.Length > 150 
-                    ? h.MatnArabic.Substring(0, 150) + "..." 
-                    : h.MatnArabic
+                h.Id,
+                h.BookName,
+                h.HadithNumber,
+                h.Chapter,
+                h.MatnArabic,
+                h.NormalizedMatn,
+                h.FullIsnadText
             })
             .ToListAsync(ct);
 
-        return hadiths;
+        var ranked = rawCandidates
+            .Select(h =>
+            {
+                var (isValidCluster, clusterSpan) = EvaluateTermCluster(
+                    h.NormalizedMatn,
+                    h.FullIsnadText,
+                    activeTerms,
+                    request.Match,
+                    request.Scope);
+
+                bool hasExactPhrase = !string.IsNullOrEmpty(exactNormalizedPhrase) &&
+                                      h.NormalizedMatn.Contains(exactNormalizedPhrase, StringComparison.Ordinal);
+
+                return new
+                {
+                    Hadith = h,
+                    IsValidCluster = isValidCluster,
+                    HasExactPhrase = hasExactPhrase,
+                    ClusterSpan = clusterSpan
+                };
+            })
+            .Where(x => x.IsValidCluster)
+            .OrderByDescending(x => x.HasExactPhrase)
+            .ThenBy(x => x.ClusterSpan)
+            .ThenBy(x => x.Hadith.MatnArabic.Length)
+            .ThenBy(x => x.Hadith.HadithNumber)
+            .Skip(skip)
+            .Take(pageSize)
+            .Select(x => new HadithSearchResultDto
+            {
+                Id = x.Hadith.Id,
+                BookName = x.Hadith.BookName,
+                HadithNumber = x.Hadith.HadithNumber,
+                Chapter = x.Hadith.Chapter,
+                MatnArabic = ExtractRelevantMatn(x.Hadith.MatnArabic, x.Hadith.NormalizedMatn, activeTerms),
+                MatnSnippet = BuildMatchSnippet(x.Hadith.MatnArabic, x.Hadith.NormalizedMatn, activeTerms)
+            })
+            .ToList();
+
+        return ranked;
+    }
+
+    private const int MaxClusterWindowChars = 800;
+    private const int MaxReturnedMatnLength = 4000;
+
+    private static (bool IsValid, int Span) EvaluateTermCluster(
+        string normalizedMatn,
+        string? fullIsnadText,
+        List<string> terms,
+        SearchMatchType matchType,
+        SearchScope scope)
+    {
+        if (terms.Count <= 1 || matchType == SearchMatchType.AnyWord)
+            return (true, 0);
+
+        if (scope == SearchScope.Isnad)
+        {
+            return (true, fullIsnadText?.Length ?? 0);
+        }
+
+        // Anchor on the longest (most specific) search term to locate co-occurring clusters
+        var anchor = terms.OrderByDescending(t => t.Length).First();
+        int searchFrom = 0;
+        int bestSpan = int.MaxValue;
+        bool foundCluster = false;
+
+        while (searchFrom < normalizedMatn.Length)
+        {
+            int anchorIdx = normalizedMatn.IndexOf(anchor, searchFrom, StringComparison.Ordinal);
+            if (anchorIdx == -1)
+                break;
+
+            int winStart = Math.Max(0, anchorIdx - MaxClusterWindowChars);
+            int winEnd = Math.Min(normalizedMatn.Length, anchorIdx + anchor.Length + MaxClusterWindowChars);
+            var window = normalizedMatn.AsSpan(winStart, winEnd - winStart);
+
+            int minPos = anchorIdx - winStart;
+            int maxPos = minPos + anchor.Length;
+            bool allInWindow = true;
+
+            foreach (var term in terms)
+            {
+                int relIdx = window.IndexOf(term.AsSpan(), StringComparison.Ordinal);
+                if (relIdx == -1)
+                {
+                    allInWindow = false;
+                    break;
+                }
+                if (relIdx < minPos) minPos = relIdx;
+                if (relIdx + term.Length > maxPos) maxPos = relIdx + term.Length;
+            }
+
+            if (allInWindow)
+            {
+                foundCluster = true;
+                int span = maxPos - minPos;
+                if (span < bestSpan)
+                    bestSpan = span;
+            }
+
+            searchFrom = anchorIdx + anchor.Length;
+        }
+
+        if (foundCluster)
+            return (true, bestSpan);
+
+        // If Scope == All and terms matched across Isnad/BookName rather than Matn alone
+        if (scope == SearchScope.All && !string.IsNullOrEmpty(fullIsnadText))
+        {
+            bool allInIsnad = terms.All(t => fullIsnadText.Contains(t, StringComparison.Ordinal));
+            if (allInIsnad)
+                return (true, fullIsnadText.Length);
+        }
+
+        // If the entire record is short, allow it; if it's a multi-hadith mega-record with scattered words, reject it
+        if (normalizedMatn.Length <= MaxClusterWindowChars * 2)
+            return (true, normalizedMatn.Length);
+
+        return (false, int.MaxValue);
+    }
+
+    private static string ExtractRelevantMatn(string matnArabic, string normalizedMatn, List<string> terms)
+    {
+        if (matnArabic.Length <= MaxReturnedMatnLength || terms.Count == 0 || normalizedMatn.Length == 0)
+            return matnArabic;
+
+        int approxRawIdx = EstimateRawMatchIndex(matnArabic, normalizedMatn, terms);
+        int start = Math.Max(0, approxRawIdx - 600);
+        int length = Math.Min(MaxReturnedMatnLength, matnArabic.Length - start);
+        var slice = matnArabic.Substring(start, length).Trim();
+        return (start > 0 ? "... " : "") + slice + (start + length < matnArabic.Length ? " ..." : "");
+    }
+
+    private static string BuildMatchSnippet(string matnArabic, string normalizedMatn, List<string> terms)
+    {
+        const int snippetLen = 180;
+        if (matnArabic.Length <= snippetLen)
+            return matnArabic;
+
+        if (terms.Count == 0 || normalizedMatn.Length == 0)
+            return matnArabic.Substring(0, 150) + "...";
+
+        int approxRawIdx = EstimateRawMatchIndex(matnArabic, normalizedMatn, terms);
+        int start = Math.Max(0, approxRawIdx - 60);
+        int length = Math.Min(snippetLen, matnArabic.Length - start);
+        var snippet = matnArabic.Substring(start, length).Trim();
+        return (start > 0 ? "..." : "") + snippet + (start + length < matnArabic.Length ? "..." : "");
+    }
+
+    private static int EstimateRawMatchIndex(string matnArabic, string normalizedMatn, List<string> terms)
+    {
+        var anchor = terms.OrderByDescending(t => t.Length).First();
+        int searchFrom = 0;
+        int bestNormIdx = normalizedMatn.IndexOf(anchor, StringComparison.Ordinal);
+
+        while (searchFrom < normalizedMatn.Length)
+        {
+            int idx = normalizedMatn.IndexOf(anchor, searchFrom, StringComparison.Ordinal);
+            if (idx == -1) break;
+
+            int winStart = Math.Max(0, idx - MaxClusterWindowChars);
+            int winEnd = Math.Min(normalizedMatn.Length, idx + anchor.Length + MaxClusterWindowChars);
+            var window = normalizedMatn.AsSpan(winStart, winEnd - winStart);
+
+            bool allFound = true;
+            foreach (var t in terms)
+            {
+                if (window.IndexOf(t.AsSpan(), StringComparison.Ordinal) == -1)
+                {
+                    allFound = false;
+                    break;
+                }
+            }
+
+            if (allFound)
+            {
+                bestNormIdx = idx;
+                break;
+            }
+            searchFrom = idx + anchor.Length;
+        }
+
+        if (bestNormIdx <= 0)
+            return 0;
+
+        double ratio = (double)bestNormIdx / normalizedMatn.Length;
+        return Math.Clamp((int)(ratio * matnArabic.Length), 0, Math.Max(0, matnArabic.Length - 1));
     }
 
     private static IQueryable<HadithText> ApplyOrPhrases(IQueryable<HadithText> queryable, List<string> phrases, SearchScope scope)
