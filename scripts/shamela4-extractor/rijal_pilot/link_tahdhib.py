@@ -140,6 +140,7 @@ fame = [len(e['talamidh']) for e in entries]
 # so a trailing nisba ("سليمان بن عمرو النخعي") is not mistaken for a grandfather.
 NASAB_CHAIN = re.compile(r'\s*((?:عبد\s+)?\S+(?:\s+(?:بن|ابن)\s+(?:أبي\s+|عبد\s+)?[^\s،.]+)*)')
 def nasab_chain(s: str) -> list[str]:
+    s = re.sub(r'(?<!\S)بن\s+بن(?!\S)', 'بن', s)      # edition typo: "حماد بن بن سلمة"
     m = NASAB_CHAIN.match(s + ' ')
     return tokens(m.group(1)) if m else []
 

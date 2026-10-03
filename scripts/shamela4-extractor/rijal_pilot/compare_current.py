@@ -18,6 +18,10 @@ src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gap_test.py
 src = src.replace("exec(open(__file__.replace('gap_test.py', 'link_tahdhib.py')",
                   "exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'link_tahdhib.py')")
 exec(src.split('MAX_DEPTH = 8')[0])
+# CHAIN_MODE=greedy keeps the old link-by-link walk; the default resolves each chain jointly.
+JOINT = os.environ.get('CHAIN_MODE', 'joint') != 'greedy'
+if JOINT:
+    exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'chain_resolver.py'), encoding='utf-8').read())
 
 HARAKAT = re.compile(r'[ً-ْٰـ]')
 
@@ -33,6 +37,8 @@ for h in json.load(open(CURRENT, encoding='utf-8')):
 
 def our_chain(text: str) -> list[tuple[str, int | None, str]]:
     segs = [s for s in chain_segments(text) if is_name(s)][:8]
+    if JOINT:
+        return resolve(segs, compiler)
     out, prev = [], compiler
     for depth, seg in enumerate(segs):
         c = lookup(seg, prev)
@@ -81,7 +87,32 @@ print(f'  current: links    {tot["current links"]} ({tot["current links"] / n:.0
 print(f'  hadiths with no narrator identified: ours {tot["hadiths with nothing resolved by ours"]}, '
       f'current {tot["hadiths with no current link"]}')
 
+# Agreement: for every narrator we resolved, does the current chain contain the same person
+# (same ism + father)? Agreement between two independent systems is strong evidence of a
+# correct link; disagreements are listed for manual review.
+def ism_father(name: str) -> tuple:
+    return tuple(nasab_chain(re.split(r'[،:.\n]', name.lstrip('- '))[0])[:2])
+
+
+agree, disagree, cases = 0, 0, []
+for text, ours, links in rows:
+    now = {ism_father(l['sheikh']) for l in links}
+    for seg, j, how in ours:
+        if j is None:
+            continue
+        if ism_father(entries[j]['header']) in now:
+            agree += 1
+        else:
+            disagree += 1
+            cases.append((seg, entries[j]['header'][:45].replace('\n', ' '), how,
+                          ' ← '.join(l['sheikh'][:22] for l in links)))
+print(f'our resolved narrators found in the current chain: {agree} agree, {disagree} differ '
+      f'({agree / max(1, agree + disagree):.0%} agreement)')
+print('by how ours resolved them:', Counter(c[2] for c in cases))
 import random
+random.seed(5)
+for seg, head, how, now_chain in random.sample(cases, min(int(os.environ.get('SHOW_DIFF', '0')), len(cases))):
+    print(f'  DIFF [{how}] "{seg[:28]}" → {head}\n         now: {now_chain[:150]}')
 random.seed(99)
 for text, ours, links in random.sample(rows, min(SHOW, len(rows))):
     print('\n' + '─' * 100)

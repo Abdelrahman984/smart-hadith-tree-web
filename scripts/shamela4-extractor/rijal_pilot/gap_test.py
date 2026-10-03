@@ -41,8 +41,13 @@ PREVIOUS_TAIL = re.compile(r'^.*(?:يخرجاه|يخرجه|الإسناد|الش
 
 
 def clean_segment(s: str) -> str:
-    s = re.sub(r'\(¬?[٠-٩]+\)', ' ', s)
-    s = re.split(r'\s+و(?=\S+ بن )', s)[0]                 # "علي بن حمشاذ ويحيى بن محمد" -> first
+    s = re.sub(r'\(¬?[٠-٩]+\)', ' ', s).strip()
+    # "سعيد هو المقبري", "أبي معاذ هو عطاء بن أبي ميمونة": the part after "هو" identifies the narrator.
+    if re.search(r'\sهو\s', s):
+        s = re.split(r'\sهو\s', s, maxsplit=1)[1]
+    # "علي بن حمشاذ ويحيى بن محمد" -> the first shaykh. The text is stripped first so that a
+    # name that itself starts with و ("وهب بن جرير") is not taken for a conjunction.
+    s = re.split(r'\s+و(?=\S+ بن )', s)[0]
     s = HONORIFIC.sub('', s.strip())
     s = TRAILER.sub('', s)
     return re.sub(r'\s+', ' ', s).strip(' ،,:.')
