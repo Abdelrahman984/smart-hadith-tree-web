@@ -337,6 +337,11 @@ public class ContextualDisambiguator
             return 4393; // حجاج بن إبراهيم الأزرق البغدادي المصري
         }
 
+        if (rawName.Equals("إسماعيل", StringComparison.OrdinalIgnoreCase) && studentItqanId == 1642)
+        {
+            return 14; // علي بن حجر السعدي عن إسماعيل بن جعفر بن أبي كثير المدني
+        }
+
         if (rawName.Equals("معمر", StringComparison.OrdinalIgnoreCase) ||
             rawName.Equals("معمر بن راشد", StringComparison.OrdinalIgnoreCase))
         {

@@ -173,7 +173,10 @@ public class IlalAnalysisService(IHadithTreeDbContext context) : IIlalAnalysisSe
         {
             path.Add(current);
             var next = current;
-            current = links.FirstOrDefault(l => l.StepOrder == next.StepOrder + 1 && l.StudentId == next.SheikhId);
+            current = links
+                .Where(l => l.StudentId == next.SheikhId && l.StepOrder > next.StepOrder)
+                .OrderBy(l => l.StepOrder)
+                .FirstOrDefault();
         }
 
         return path;
