@@ -17,6 +17,8 @@ Each book in BOOKS has a layout:
 - 'tajil'    one paragraph per narrator: "N - <symbols>name عن X وعنه Y <verdict>"
                                     (تعجيل المنفعة: narrators of Ahmad, Malik, al-Shafi'i,
                                      Abu Hanifa who are not in Tahdhib)
+- 'khatib'   "N - name، kunya nisba." + a prose paragraph "سمع X، وY. روى عنه Z" before al-Khatib's
+             own isnads                               (تاريخ بغداد)
 
 A book with a 'compiler' key lists that compiler's own shaykhs: a synthetic entry for the
 compiler gets all of them as shuyukh, so isnads can be walked from the compiler down.
@@ -26,6 +28,7 @@ exactly one full-head entry has them).
 Usage: python parse_shaykh_books.py dump_dir tahdhib.json out.json
 """
 import json
+import os
 import re
 import sys
 from collections import Counter
@@ -59,6 +62,7 @@ BOOKS = [   # full-head books first: short-head books merge into them
     {'id': 29742, 'source': 'rijal_hakim', 'layout': 'isnad', 'isnad_marker': 'الحاكم'},
     {'id': 1208, 'source': 'tuhfa', 'layout': 'star'},
     {'id': 1893, 'source': 'tajil', 'layout': 'tajil'},
+    {'id': 736, 'source': 'khatib', 'layout': 'khatib'},
 ]
 
 AR_DIGITS = str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789')
@@ -192,6 +196,7 @@ def nasab_key(s: str) -> tuple:
     """"شعبة بن الحجاج بن الورد العتكي" -> (شعبه, حجاج, ورد): the names linked by بن."""
     s = re.sub('[أإآ]', 'ا', s).replace('ى', 'ي').replace('ة', 'ه')
     s = re.sub(r'\bعبد\s+(?:ال)?(\S+)', r'عبد_\1', s)
+    s = re.sub(r'\bعبيد\s+الله\b', 'عبيد_له', s)            # one name, as "عبد الله" -> "عبد_له"
     m = re.match(r'\s*(\S+(?:\s+(?:بن|ابن)\s+(?:ابي\s+)?\S+)*)', re.split(r'[،.:(]', s)[0])
     return tuple(re.sub(r'^ال', '', w) for w in m.group(1).split() if w not in ('بن', 'ابن')) if m else ()
 
@@ -259,6 +264,91 @@ def tajil_entry(book: dict, num: int, whole: str) -> dict | None:
     return entry(book, num, header, shuyukh, talamidh, None)
 
 
+# تاريخ بغداد: "N - name، kunya nisba." then a prose paragraph "سمع X، وY. روى عنه Z، وW." and
+# then al-Khatib's own isnads and quotes. Only the first paragraph(s), before his first isnad,
+# hold the narrator's lists; "كتبت عنه" / "سمعت منه" are al-Khatib himself and are ignored.
+KHATIB_ISNAD_LINE = re.compile(r'\n\s*(?:أخبرنا|أخبرني|حدثنا|حدثني|أنبأنا|أنبأني|قرأت|كتب إلي|وأخبرنا|وحدثنا)'
+                               r'(?!\s+عنه)')
+# "حدث عن"، "وحدث بها عن"، "حدث ببغداد وسر من رأى، عن": "حدث" and "عن" a few words apart.
+KHATIB_SHUYUKH = re.compile(r'(?:^|\s|\.|،)(?:و?سمع|و?روى عن|يروي عن|و?حدث(?:\s[^.\n]{0,45}?)?[،\s]\s*عن(?!ه))'
+                            r'(?:\s*:\s*|\s+)(?:من\s*:?\s+)?')
+KHATIB_TALAMIDH = re.compile(r'(?:^|\s|\.)(?:روى عنه|وروى عنه|حدث عنه|وحدث عنه|حدثنا عنه|وحدثنا عنه|أخبرنا عنه'
+                             r'|روى عنها|حدث عنها|حدثنا عنها|روى عنه من|روى عنه جماعة منهم)\s*:?\s*')
+KHATIB_STOP = re.compile(r'\.|\n|\s(?:وكان|كان|وهو|وذكر|وقال|قال|ومات|مات|وتوفي|وما علمت|وما علمته|أخبرنا|حدثنا'
+                         r'|روى عنه|وروى عنه|حدث عنه|وحدث عنه|حدثنا عنه|وحدثنا عنه|سمعت|كتبت|كتبنا|في آخرين'
+                         r'|وغيرهم|وغيرهما|وغيره|وجماعة|ونحوهم)(?=\s|،|\.|$)')
+
+
+def name_words(s: str) -> set[str]:
+    s = re.sub('[أإآ]', 'ا', s).replace('ى', 'ي').replace('ة', 'ه')
+    s = re.sub(r'\bعبد\s+(?:ال)?(\S+)', r'عبد_\1', s)          # as in nasab_key
+    s = re.sub(r'\bعبيد\s+الله\b', 'عبيد_له', s)
+    return {re.sub(r'^ال', '', w) for w in re.sub(r'[^ء-ي_ ]', ' ', s).split()} - KHATIB_COMMON
+
+
+# Words that say nothing about who the narrator is (compared after "ال" is dropped).
+KHATIB_COMMON = {'بن', 'ابن', 'ابو', 'ابي', 'ابا', 'ويقال', 'يقال', 'وقيل', 'قيل', 'من', 'اهل', 'مولي', 'مولاهم',
+                 'بني', 'معروف', 'ويعرف', 'يعرف', 'يكني', 'عبد', 'له', 'لله', 'محمد', 'احمد', 'علي', 'حسن', 'حسين',
+                 'نزيل', 'بغدادي', 'سكن', 'بغداد', 'وهو', 'كان', 'اصل', 'قاضي', 'حافظ', 'فقيه', 'كبار', 'وليس'}
+# Tahdhib headers by their nasab, with the other words of the header (kunya, nisbas, laqab).
+tahdhib_words: dict[tuple, list[set]] = {}
+for _e in json.load(open(TAHDHIB, encoding='utf-8')):
+    _k = nasab_key(_e['header'])
+    for _n in range(2, len(_k) + 1):
+        tahdhib_words.setdefault(_k[:_n], []).append(name_words(_e['header'][:250]))
+
+
+def khatib_in_tahdhib(header: str) -> bool:
+    """تاريخ بغداد has many later namesakes of Tahdhib narrators ("محمد بن الصباح، أبو يعقوب
+    الصوفي" is not al-Dulabi). The nasab must match, and when al-Khatib gives a kunya or nisba,
+    one of those words must be in the Tahdhib header too."""
+    k = nasab_key(header)
+    rest = re.split(r'[،.]', header, maxsplit=1)
+    extra = name_words(rest[1]) if len(rest) > 1 else set()
+    extra |= name_words(rest[0]) - set(k) - {re.sub(r'^ال', '', w) for w in k}
+    if not is_tahdhib_narrator(k):
+        # Editions differ further up the nasab ("أحمد بن منصور بن سيار بن معارك" / "... بن المبارك"):
+        # three names and an agreeing kunya/nisba are enough.
+        return len(k) >= 4 and any(extra & words for words in tahdhib_words.get(k[:3], ()))
+    if not extra:                                           # bare "بشر بن بشار"
+        return True
+    if k not in tahdhib_words:                              # only an in-order subsequence of a nasab
+        return False
+    # With ism + father only, a shared kunya is weak ("محمد بن علي، أبو جعفر القصاب" is not al-Baqir):
+    # a nisba or laqab must agree too.
+    if len(k) == 2:
+        extra -= name_words(' '.join(re.findall(r'أب[وىيا]\s+(?:عبد\s+)?\S+', header)))
+    return any(extra & words for words in tahdhib_words[k])
+
+
+def khatib_entry(book: dict, num: int, header: str, body: str) -> dict | None:
+    header = re.sub(r'\s*\([٠-٩]+\)', '', header).strip(' .')
+    # Short entries are one line: "محمد بن عمر بن حفص السدوسي حدث عن أبيه ... روى عنه ...".
+    if (one_line := re.search(r'[\s.،](?:حدث|روى|سمع|وسمع)\s', header)) is not None:
+        header, body = header[:one_line.start()].strip(' .،'), header[one_line.start():] + '\n' + body
+    if not re.search(r'(?:^|\s)(?:بن|ابن|أبو|بنت)\s', header):
+        return None                                          # caliphs' titles, women by laqab, places
+    if khatib_in_tahdhib(header):
+        stats[f'{book["source"]}: a Tahdhib narrator'] += 1
+        return None
+    bio = KHATIB_ISNAD_LINE.split('\n' + body, maxsplit=1)[0]
+
+    def grab(pattern: re.Pattern) -> list:
+        out = []
+        for m in pattern.finditer(bio):
+            seg = bio[m.end():]
+            stop = KHATIB_STOP.search(seg)
+            seg = seg[:stop.start()] if stop else seg[:400]
+            # "عن أبيه، عن عصام بن يوسف": the second name is the father's shaykh.
+            out += split_names(re.split(r'،?\s+عن\s', ' ' + seg)[0])
+        return out
+    shuyukh, talamidh = grab(KHATIB_SHUYUKH), grab(KHATIB_TALAMIDH)
+    if not shuyukh and not talamidh:
+        stats[f'{book["source"]}: no lists'] += 1
+        return None                                          # poets, rulers, notes: would add namesakes
+    return entry(book, num, header, shuyukh, talamidh, None)
+
+
 for book in BOOKS:
     text = load(book['id'])
     layout = book['layout']
@@ -308,6 +398,15 @@ for book in BOOKS:
         # Numbers repeat and jump in this edition, but every entry starts a line with "N -".
         text = text[re.search(r'(?m)^\s*١\s*-\s*\S*أبان بن خالد', text).start():]
         heads = list(re.finditer(r'(?m)^\s*([٠-٩]+)\s*-\s*([^\n]+)', text))
+    elif layout == 'khatib':
+        # Duplicates of the other books' entries are merged at the end (the cross-book pass).
+        heads = list(re.finditer(r'(?m)^\s*([٠-٩]+)\s*-\s*([^\n]{3,250})', text))
+        for k, m in enumerate(heads):
+            body = text[m.end():heads[k + 1].start() if k + 1 < len(heads) else len(text)]
+            e = khatib_entry(book, int(m.group(1).translate(AR_DIGITS)), m.group(2), body)
+            if e is not None:
+                add(e, short_head=False)
+        continue
     else:
         heads = list(re.finditer(r'(?m)^\s*([٠-٩]+)\s*-\s*([^\n:]{3,120}):?\s*$', text))
     if layout == 'tajil':
@@ -392,6 +491,115 @@ for c, names in compiler_shuyukh.items():
     entries.append({'kind': 'entry', 'num': 0, 'num_suspect': False, 'symbols': '', 'source': 'compiler',
                     'header': COMPILERS[c], 'name': COMPILERS[c].split('،')[0], 'verdict': 'الإمام الحافظ',
                     'shuyukh': shuyukh, 'talamidh': talamidh, 'quotes': [], 'rawa_lahu': None, 'aliases': aliases})
+
+# The same later narrator often has an entry in several books under slightly different heads
+# ("يحيى بن محمد بن صاعد بن كاتب أبو محمد البغدادي" / "... بن حاتب، أبو محمد" / "يحيى بن محمد بن
+# صاعد"). As separate entries they tie in every chain. Same first three names, and:
+# - a shared nisba / laqab, or a shared kunya with the rest of the nasab equal up to a one-letter
+#   typo -> one narrator;
+# - a head with nothing but the three names joins the group's only narrator.
+KUNYA_IN_HEAD = re.compile(r'(?<!بن\s)أب[وىيا]\s*((?:عبد\s+)?[^\s،.]+)')   # not "بن أبي بكر" (nasab)
+
+
+def kunya_words(header: str) -> set[str]:
+    """"أبو محمد" -> {"ابو_محمد"}: whole kunyas, so a common name inside one still counts."""
+    out = set()
+    for m in KUNYA_IN_HEAD.findall(header):
+        s = re.sub('[أإآ]', 'ا', m).replace('ى', 'ي').replace('ة', 'ه')
+        out.add('ابو_' + re.sub(r'\s+(?:ال)?', '_', re.sub(r'^ال', '', s)))
+    return out
+
+
+def typo_equal(a: tuple, b: tuple) -> bool:
+    n = min(len(a), len(b))
+    return all(x == y or (len(x) == len(y) and sum(p != q for p, q in zip(x, y)) <= 1)
+               for x, y in zip(a[:n], b[:n]))
+
+
+# How many heads use each word: "الزيبقي" (a few) identifies a narrator, "الكاتب" (hundreds) does not.
+word_df = Counter(w for e in entries for w in name_words(e['header']))
+RARE_WORD = 25
+groups: dict[tuple, list[int]] = {}
+for i, e in enumerate(entries):
+    k = nasab_key(e['header'])
+    if len(k) >= 2:
+        groups.setdefault(k[:2], []).append(i)
+parent = list(range(len(entries)))
+
+
+def find(i: int) -> int:
+    while parent[i] != i:
+        parent[i] = parent[parent[i]]
+        i = parent[i]
+    return i
+
+
+for members in groups.values():
+    if len(members) < 2:
+        continue
+    info = {}
+    for i in members:
+        h = entries[i]['header']
+        k = nasab_key(h)
+        info[i] = (k, name_words(h) - set(k) - name_words(' '.join(KUNYA_IN_HEAD.findall(h))), kunya_words(h))
+    books = {i: set(entries[i]['source'].split('+')) for i in members}
+
+    def fits(a: int, b: int) -> bool:
+        """Nothing contradicts: the nasab agrees as far as both go (up to a one-letter typo), the
+        kunyas do not differ, and no book lists both (a book's two entries are two narrators)."""
+        (ka, _, kwa), (kb, _, kwb) = info[a], info[b]
+        return typo_equal(ka, kb) and not (kwa and kwb and not kwa & kwb) and not books[a] & books[b]
+
+    def same(a: int, b: int) -> bool:
+        """Positive evidence: a rare shared nisba / laqab ("الزيبقي"); or a common one ("الكاتب",
+        "النيسابوري") with a second shared word or the kunya; or a shared kunya with four names each."""
+        (ka, wa, kwa), (kb, wb, kwb) = info[a], info[b]
+        shared = wa & wb
+        if any(word_df[w] <= RARE_WORD for w in shared) or len(shared) >= 2 or (shared and kwa & kwb):
+            return True
+        return bool(kwa & kwb and min(len(ka), len(kb)) >= 4)
+
+    # Complete linkage: a narrator joins a group only if he fits every member of it, so one
+    # loose link cannot chain different people together.
+    clusters: list[list[int]] = []
+    for i in sorted(members, key=lambda i: -len(info[i][0])):
+        k, w, kw = info[i]
+        bare = not w and not kw
+        options = [c for c in clusters if all(fits(i, j) for j in c)
+                   and (any(same(i, j) for j in c) or (bare and len(k) >= 3))]
+        if bare and len(options) > 1:
+            options = []                       # "يحيى بن محمد بن صاعد" alone: only when one group fits
+        if options:
+            options[0].append(i)
+        else:
+            clusters.append([i])
+    for c in clusters:
+        for j in c[1:]:
+            parent[j] = c[0]
+
+if os.environ.get('SHOW_MERGES'):                       # review: "head ≡ head ≡ ..." per merged group
+    import random
+    by_root: dict[int, list[str]] = {}
+    for i, e in enumerate(entries):
+        by_root.setdefault(find(i), []).append(f"{e['header'][:70]} [{e['source']}]")
+    random.seed(int(os.environ['SHOW_MERGES']))
+    for heads_ in random.sample([h for h in by_root.values() if len(h) > 1], 25):
+        print('  ≡ '.join(heads_))
+merged = 0
+for i, e in enumerate(entries):
+    r = find(i)
+    if r != i:
+        t = entries[r]
+        t['shuyukh'] += e['shuyukh']
+        t['talamidh'] += e['talamidh']
+        t['aliases'] = t.get('aliases', []) + e.get('aliases', [])
+        if e.get('kunya_aliases'):
+            t['kunya_aliases'] = t.get('kunya_aliases', []) + e['kunya_aliases']
+        t['verdict'] = t['verdict'] or e['verdict']
+        t['source'] = '+'.join(dict.fromkeys(t['source'].split('+') + e['source'].split('+')))
+        merged += 1
+entries = [e for i, e in enumerate(entries) if find(i) == i]
+stats['duplicates merged across books'] = merged
 
 for k, v in sorted(stats.items()):
     print(f'{k:42} {v}')

@@ -94,6 +94,16 @@ for text in sample:
     tot['hadiths with nothing resolved by ours'] += not any(j is not None for _, j, _ in ours)
     rows.append((text, ours, links))
 
+# SAVE=<file>: every sampled isnad with each name's resolution (ours) and the current chain, so a
+# run can be reviewed later or diffed against another run.
+if os.environ.get('SAVE'):
+    json.dump([{'isnad': re.sub(r'\s+', ' ', HARAKAT.sub('', text))[:400],
+                'ours': [{'name': seg, 'narrator': entries[j]['header'][:100] if j is not None else None,
+                          'source': entries[j].get('source', 'tahdhib') if j is not None else None, 'how': how}
+                         for seg, j, how in ours],
+                'current': [l['sheikh'][:100] for l in links]} for text, ours, links in rows],
+              open(os.environ['SAVE'], 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+
 print(f'sample: {len(sample)}  matched in DB: {matched}')
 n = tot['name segments']
 print(f'name segments (first 8 per chain): {n}')

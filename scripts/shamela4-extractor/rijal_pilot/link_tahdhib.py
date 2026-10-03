@@ -162,10 +162,15 @@ def laqabs_of(header: str) -> set[str]:
             out |= set(tokens(chunk)[-1:])
     for m in re.finditer(r'(?:الملقب|يلقب|لقبه)\s*:?\s*([^\s،.]+)', first):
         out |= set(tokens(m.group(1)))
+    # تاريخ بغداد: "أبو بكر البزاز، المعروف بالشافعي" -> الشافعي ("بابن X" is a nasab form, not a laqab).
+    for m in re.finditer(r'(?:المعروف|ويعرف|يعرف)\s+ب(?!ابن\s|أبي\s|ابن$)([^\s،.]+)', first):
+        out |= set(tokens(m.group(1)))
     return out
 
 
 own_laqabs = [laqabs_of(e['header'][:300]) for e in entries]
+for _j, _l in enumerate(own_laqabs):
+    own_tokens[_j] |= _l
 fame = [len(e['talamidh']) for e in entries]
 # The nasab chain in order (ism, father, grandfather, ...): only names linked by "بن",
 # so a trailing nisba ("سليمان بن عمرو النخعي") is not mistaken for a grandfather.
