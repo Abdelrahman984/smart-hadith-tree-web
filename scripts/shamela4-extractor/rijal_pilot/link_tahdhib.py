@@ -186,7 +186,12 @@ if os.path.exists(_align):
     _tq = json.load(open(_align.replace('align.json', 'taqrib.json'), encoding='utf-8'))['entries']
     for _p in json.load(open(_align, encoding='utf-8')):
         _i, _n = _p['tahdhib'], nasab_chain(_tq[_p['taqrib']]['name'])
-        if _p['score'] >= 1.0 and _n and nasab[_i][:1] == _n[:1] and _n != nasab[_i]:
+        if _p['score'] < 1.0 or not _n or nasab[_i][:1] != _n[:1]:
+            continue
+        # Taqrib's short name carries the laqab and nisbas that Tahdhib may give only in a later
+        # sentence ("... وقيل: ... أبو بكر الحميدي المكي"): they count as the narrator's own words.
+        own_tokens[_i] |= set(tokens(_tq[_p['taqrib']]['name']))
+        if _n != nasab[_i]:
             alt_nasab[_i] = _n
             entry_tokens[_i] |= set(_n)
             for _w in _n:
@@ -233,7 +238,9 @@ loose_aliases: dict[tuple, set[int]] = defaultdict(set)
 for _j, _e in enumerate(entries):
     for _a in _e.get('aliases', []) + _e.get('kunya_aliases', []):
         _t = tuple(tokens(_a))
-        if len(_t) >= 3 or (len(_t) == 2 and _t[0] != 'ابو' and _a in _e.get('aliases', [])):
+        # Two words ("عبد الله بن يوسف" for al-Bayhaqi's shaykh ابن بامويه) are shared by older
+        # narrators (al-Tinnisi), so only 3+ words are exact.
+        if len(_t) >= 3:
             exact_aliases[_t].add(_j)
         elif _t:
             loose_aliases[_t].add(_j)

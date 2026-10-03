@@ -34,16 +34,22 @@ current = {}
 for h in json.load(open(CURRENT, encoding='utf-8')):
     current.setdefault(key(h['head']), h)
 
+# Names in the first two positions of at least 20% of the sample's chains.
+_open = Counter(s for t in sample for s in [x for x in chain_segments(t) if is_name(x)][:2])
+openers = {s for s, n in _open.items() if n >= 0.2 * len(sample)}
+
 
 def our_chain(text: str) -> list[tuple[str, int | None, str]]:
     segs = [s for s in chain_segments(text) if is_name(s)]
     # The book's transmitter and the compiler himself open some chains: "حدثني يحيى، عن مالك،
-    # عن نافع" (al-Muwatta). The chain starts after the compiler's own name. It must be the
-    # most-cited candidate of that name, so "محمد" in a Bukhari isnad is not taken for him.
+    # عن نافع" (al-Muwatta), "حدثنا الحميدي، ثنا سفيان" (Musnad al-Humaydi). The chain starts
+    # after the compiler's own name: a name whose candidates include the compiler and that is
+    # either his most-cited candidate or one of the book's usual openers ("الحميدي"), so
+    # "محمد" in a Bukhari isnad is not taken for al-Bukhari.
     if compiler is not None:
         for i, s in enumerate(segs[:2]):
             c = candidates(s)
-            if compiler in c and max(c, key=lambda j: fame[j]) == compiler:
+            if compiler in c and (max(c, key=lambda j: fame[j]) == compiler or s in openers):
                 segs = segs[i + 1:]
                 break
     segs = segs[:8]
