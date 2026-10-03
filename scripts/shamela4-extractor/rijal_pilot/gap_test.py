@@ -60,7 +60,8 @@ def clean_segment(s: str) -> str:
 
 
 def chain_segments(arabic: str) -> list[str]:
-    t = HARAKAT_RE.sub('', arabic)
+    # Invisible direction marks around punctuation ("قال‏:‏" in al-Adab al-Mufrad) hide the verbs.
+    t = re.sub('[‌-‏‪-‮﻿]', '', HARAKAT_RE.sub('', arabic))
     t = PREVIOUS_TAIL.sub('', t)
     marks = list(NUMBERED_ISNAD.finditer(t))
     if marks:

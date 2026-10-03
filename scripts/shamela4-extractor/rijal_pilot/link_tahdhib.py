@@ -24,6 +24,7 @@ def norm(s: str) -> str:
     s = re.sub(r'[ً-ْٰـ]', '', s)
     s = re.sub('[أإآ]', 'ا', s).replace('ى', 'ي').replace('ة', 'ه')
     s = re.sub(r'\bابي\b', 'ابو', s)            # genitive kunya in lists: "عن أبي مسلم"
+    s = re.sub(r'\bزكرياء\b', 'زكريا', s)       # both spellings occur in isnads and headers
     s = re.sub(r'\bابيه\b', '', s)              # "أبيه السائب" -> "السائب"
     # "عبيد الله" is one name too: as two words it pushed "شهاب" out of reach in al-Zuhri's
     # nasab (محمد بن مسلم بن عبيد الله بن عبد الله بن شهاب), so "ابن شهاب" found someone else.
@@ -49,6 +50,7 @@ def soft_norm(s: str) -> str:
     s = re.sub(r'[ً-ْٰـ]', '', s)
     s = re.sub('[أإآ]', 'ا', s).replace('ى', 'ي').replace('ة', 'ه')
     s = re.sub(r'\bابي\b', 'ابو', s)
+    s = re.sub(r'\bزكرياء\b', 'زكريا', s)
     s = re.sub(r'\bعبيد\s+الله\b', 'عبيد_الله', s)
     s = re.sub(r'\bال(?=\S)', '', s)
     return re.sub(r'\bعبد\s+([^\s،.:]+)', r'عبد_\1', s)

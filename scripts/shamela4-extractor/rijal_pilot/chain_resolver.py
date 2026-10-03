@@ -44,6 +44,11 @@ def prior(j: int) -> float:
 def father_of(p: int) -> set[int]:
     """Entries that can be p's father ("عن أبيه"): p's shaykh whose ism is p's father's name."""
     father = nasab[p][1:2]
+    if father == ['ابو']:
+        # "سهيل بن أبي صالح، عن أبيه": the father is the shaykh with that kunya (ذكوان أبو صالح),
+        # not a kunya-only entry whose ism is "ابو".
+        k = nasab[p][2:3]
+        return {j for j in shuyukh_of[p] if k and k[0] in kunyas[j]}
     return {j for j in shuyukh_of[p] if ism[j] == father} if father else set()
 
 
