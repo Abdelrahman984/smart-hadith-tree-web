@@ -63,15 +63,23 @@ while i != -1:
 accepted.reverse()
 typo_like = len(seq) - len(accepted)
 
-# Recover entries whose printed number is a typo: a rejected candidate that has a
-# proper symbols block and a "روى عن" right after its header is a real entry.
+# Recover entries whose printed number is a typo or a repeat: a rejected candidate that has a
+# proper symbols block and a "روى عن" before the next numbered head is a real entry. The search
+# runs up to the next head, not a fixed width: Companions such as Abu Musa al-Ash'ari (a second
+# "٣٤٩١") have a long biography before their lists.
 in_lis = {id(m) for _, m in accepted}
+starts = sorted(m.start() for _, m in cands)
 recovered = 0
 for n, m in seq:
     sym = (m.group(2) or m.group(3) or '').strip()
     if id(m) in in_lis or not sym or not SYMBOL_OK.match(sym):
         continue
-    if re.search(r'روى\s+عنه?\s*:', text[m.end():m.end() + 500]):
+    k = bisect.bisect_right(starts, m.start())
+    stop = starts[k] if k < len(starts) else len(text)
+    # The fixed 500 characters are kept too: short cross-reference notes ("عبد الغفار بن داود
+    # البخاري.") have no lists of their own but are useful as aliases.
+    if (re.search(r'روى\s+عنه?\s*:', text[m.end():min(stop, m.end() + 6000)])
+            or re.search(r'روى\s+عنه?\s*:', text[m.end():m.end() + 500])):
         accepted.append((n, m)); recovered += 1
 # Entries whose number is missing from the text altogether: '... الإزار" . - س ق: إسماعيل بن ...'.
 NO_NUMBER = re.compile(r'(?:[\n\x01]|\.\s*)\s*-\s*()([ء-ي][ء-ي ٠-٩]{0,30}?)\s*:\s*(?=\S)')
@@ -146,7 +154,7 @@ for e in entries:
     flat = raw.replace('\x01', ' ')   # lists and the header ignore page breaks
     s, t = SHUYUKH.search(flat), TALAMIDH.search(flat)
     header_end = min(x.start() for x in (s, t) if x) if (s or t) else (flat.find('\n') % (len(flat) + 1))
-    header = flat[:header_end].strip()
+    header = flat[:header_end].strip().lstrip('-').strip()     # "- عبد الله بن مسعود ..."
     shuyukh = split_list(section(flat, s, t)) if s else []
     talamidh = split_list(section(flat, t, None)) if t else []
     after_lists = flat.find('\n', t.end()) if t else len(header)

@@ -25,6 +25,9 @@ def norm(s: str) -> str:
     s = re.sub('[أإآ]', 'ا', s).replace('ى', 'ي').replace('ة', 'ه')
     s = re.sub(r'\bابي\b', 'ابو', s)            # genitive kunya in lists: "عن أبي مسلم"
     s = re.sub(r'\bابيه\b', '', s)              # "أبيه السائب" -> "السائب"
+    # "عبيد الله" is one name too: as two words it pushed "شهاب" out of reach in al-Zuhri's
+    # nasab (محمد بن مسلم بن عبيد الله بن عبد الله بن شهاب), so "ابن شهاب" found someone else.
+    s = re.sub(r'\bعبيد\s+الله\b', 'عبيد_الله', s)
     s = re.sub(r'\bال(?=\S)', '', s)            # drop the article: البصري ~ بصري
     s = re.sub(r'\bعبد\s+(\S+)', r'عبد_\1', s)  # "عبد الله" / "عبد السلام" is one name, not "عبد" + another
     return re.sub(r'[^ء-ي_ ]', ' ', s)
@@ -46,6 +49,7 @@ def soft_norm(s: str) -> str:
     s = re.sub(r'[ً-ْٰـ]', '', s)
     s = re.sub('[أإآ]', 'ا', s).replace('ى', 'ي').replace('ة', 'ه')
     s = re.sub(r'\bابي\b', 'ابو', s)
+    s = re.sub(r'\bعبيد\s+الله\b', 'عبيد_الله', s)
     s = re.sub(r'\bال(?=\S)', '', s)
     return re.sub(r'\bعبد\s+([^\s،.:]+)', r'عبد_\1', s)
 
@@ -70,9 +74,13 @@ def all_tokens_match(toks: list[str]) -> set[int]:
 # Matching on any header token lets relatives match ("أخو محمد بن سيرين"), so the
 # item must start with the entry's ism, or with one of its kunyas followed by the ism.
 ism = [tokens(e['header'][:120])[:1] for e in entries]
+isms = {i[0] for i in ism if i}
 # Own kunya only: at the start or after "،"/"ويقال:", never "والد أبي X" / "أخو أبي X".
 KUNYA = re.compile(r'(?:^|،\s*|يقال\s*:?\s*|وهو\s+)ابو ([^\s،.:]+)')
-kunyas = [set(KUNYA.findall(soft_norm(e['header'][:200]).strip())) for e in entries]
+# A kunya the narrator is known by: "عبد الله بن ذكوان ... المعروف بأبي الزناد".
+KNOWN_AS = re.compile(r'(?:معروف|يعرف)\s+ب(?:ابو|ابي)\s+([^\s،.:]+)')
+kunyas = [set(KUNYA.findall(soft_norm(e['header'][:200]).strip()))
+          | set(KNOWN_AS.findall(soft_norm(e['header'][:200]))) for e in entries]
 kunya_index = defaultdict(set)
 for _j, _ks in enumerate(kunyas):
     for _k in _ks:
@@ -82,7 +90,9 @@ for _j, _ks in enumerate(kunyas):
 def starts_like(toks: list[str], j: int) -> bool:
     if not ism[j]:
         return False
-    if toks[0] == ism[j][0]:
+    # Kunya-only entries ("أبو زيد. عن: أبي هريرة") have "ابو" as ism: their own kunya must
+    # match, not just words anywhere in the header.
+    if toks[0] == ism[j][0] and toks[0] != 'ابو':
         return True
     return toks[0] == 'ابو' and len(toks) > 1 and toks[1] in kunyas[j]
 
@@ -97,8 +107,7 @@ def name_candidates(name: str) -> frozenset[int]:
     chain = nasab_chain(re.sub(r'^\s*أب[وي]\s+(?:عبد\s+)?\S+\s+(?!بن\s)', '', name))
 
     def chain_fits(j: int) -> bool:
-        # "محمد بن علي" must not match "محمد بن عمر بن علي": the nasab must agree in order.
-        return len(chain) < 2 or nasab[j][:len(chain)] == chain[:len(nasab[j])]
+        return len(chain) < 2 or fits(j, chain)
 
     exact = all_tokens_match(toks)
     if exact:
@@ -124,8 +133,8 @@ def name_candidates(name: str) -> frozenset[int]:
     # the item ("X بن Y بن Z") must not contradict the entry's grandfather.
     if len(toks) >= 2:
         chain = nasab_chain(name)
-        base = {i for i in all_tokens_match(toks[:2]) if first_two[i] == toks[:2]
-                and nasab[i][:len(chain)] == chain[:len(nasab[i])]}
+        base = {i for i in all_tokens_match(toks[:2])
+                if (first_two[i] == toks[:2] or (alt_nasab[i] or [])[:2] == toks[:2]) and fits(i, chain)}
         if base:
             best = max(len(set(toks) & entry_tokens[i]) for i in base)
             return frozenset(i for i in base if len(set(toks) & entry_tokens[i]) == best)
@@ -139,10 +148,28 @@ def name_candidates(name: str) -> frozenset[int]:
 alias_index: dict[tuple, set[int]] = defaultdict(set)
 RELATION = re.compile(r'\s(?:أخو|أخي|والد|والدة|ابن عم|ابن أخي|ابن أخت|عم|خال|زوج|جد|صهر|ختن)\s')
 own_tokens = [set(tokens(RELATION.split(re.split(r'[.\n]', e['header'])[0] + ' ')[0])) for e in entries]
+
+
+def laqabs_of(header: str) -> set[str]:
+    """Laqabs written without ال: the last word of the kunya phrase ("أبو بكر البصري بندار"),
+    or the word after "الملقب" / "يلقب". Other header words ("خرج", "للنبي") are not names."""
+    first = re.split(r'[.\n]', header)[0]
+    out = set()
+    for chunk in re.split(r'،', first):
+        if re.match(r'\s*أبو\s', chunk):
+            out |= set(tokens(chunk)[-1:])
+    for m in re.finditer(r'(?:الملقب|يلقب|لقبه)\s*:?\s*([^\s،.]+)', first):
+        out |= set(tokens(m.group(1)))
+    return out
+
+
+own_laqabs = [laqabs_of(e['header'][:300]) for e in entries]
 fame = [len(e['talamidh']) for e in entries]
 # The nasab chain in order (ism, father, grandfather, ...): only names linked by "بن",
 # so a trailing nisba ("سليمان بن عمرو النخعي") is not mistaken for a grandfather.
-NASAB_CHAIN = re.compile(r'\s*((?:عبد\s+)?\S+(?:\s+(?:بن|ابن)\s+(?:أبي\s+|عبد\s+)?[^\s،.]+)*)')
+# "عبد X" and "عبيد الله" are single names inside the chain.
+_NAME = r'(?:عبد\s+[^\s،.]+|عبيد\s+الله(?![^\s،.])|[^\s،.]+)'
+NASAB_CHAIN = re.compile(rf'\s*({_NAME}(?:\s+(?:بن|ابن)\s+(?:أبي\s+)?{_NAME})*)')
 def nasab_chain(s: str) -> list[str]:
     s = re.sub(r'(?<!\S)بن\s+بن(?!\S)', 'بن', s)      # edition typo: "حماد بن بن سلمة"
     m = NASAB_CHAIN.match(s + ' ')
@@ -150,6 +177,27 @@ def nasab_chain(s: str) -> list[str]:
 
 
 nasab = [nasab_chain(re.split(r'[،.\n]', e['header'])[0]) for e in entries]
+# Shamela's Tahdhib has typos in names ("عبيد الله بن عتبة" for عبيد الله بن عبد الله بن عتبة):
+# the aligned Taqrib entry's nasab is accepted as a second nasab (align.json, Tahdhib entries
+# come first in `entries`, in the same order).
+alt_nasab: list[list[str] | None] = [None] * len(entries)
+_align = os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), 'align.json')
+if os.path.exists(_align):
+    _tq = json.load(open(_align.replace('align.json', 'taqrib.json'), encoding='utf-8'))['entries']
+    for _p in json.load(open(_align, encoding='utf-8')):
+        _i, _n = _p['tahdhib'], nasab_chain(_tq[_p['taqrib']]['name'])
+        if _p['score'] >= 1.0 and _n and nasab[_i][:1] == _n[:1] and _n != nasab[_i]:
+            alt_nasab[_i] = _n
+            entry_tokens[_i] |= set(_n)
+            for _w in _n:
+                by_token[_w].add(_i)
+
+
+def fits(j: int, chain: list[str]) -> bool:
+    """"محمد بن علي" must not match "محمد بن عمر بن علي": the nasab must agree in order."""
+    return any(n[:len(chain)] == chain[:len(n)] for n in (nasab[j], alt_nasab[j]) if n)
+
+
 laqab_index = defaultdict(set)
 for j, toks in enumerate(own_tokens):
     for w in toks:
@@ -217,6 +265,11 @@ def _candidates(name: str) -> frozenset[int]:
         return frozenset(alias_index[tuple(toks)])
     if len(toks) == 1 and re.match(r'ال\S', name.strip()):
         return frozenset(laqab_index.get(toks[0], ()))   # bare laqab / nisba: "الأعمش", "الزهري"
+    if len(toks) == 1 and toks[0] not in isms:
+        # A laqab without ال that is nobody's ism ("بندار" = محمد بن بشار), see laqabs_of; not a
+        # father or grandfather of that name ("علي بن محمد بن بندار").
+        return frozenset(j for j in laqab_index.get(toks[0], ())
+                         if toks[0] in own_laqabs[j] and toks[0] not in nasab[j])
     return frozenset()
 
 
