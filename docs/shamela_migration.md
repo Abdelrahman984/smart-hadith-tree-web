@@ -418,6 +418,7 @@ cd ../.. && python scripts/shamela4-extractor/rijal_pilot/check_record_boundarie
 `compare_current.py` options (environment variables):
 - `CHAIN_MODE=greedy` — use the old link-by-link walk instead of the joint resolver.
 - `SHOW_DIFF=20` — list disagreements with the current system for review.
+- `NO_CACHE=1` — do not use `data/shamela_rijal/cache/`. Linking the registry's ~70k list names takes most of a run (36 s per book); the result is cached under a hash of every registry file and every script in `rijal_pilot/`, so any change to data or code recomputes it. Checked on all 31 books: the old code, the new code without cache, with an empty cache and with a filled cache gave byte-identical results; a run of all 31 went from 373 s to 99 s.
 - `SAVE=<file>.json` — save every sampled isnad with each name's resolution (ours, how, from which book) and the current chain, to review a run or diff two runs.
 
 Python output with Arabic needs `PYTHONIOENCODING=utf-8` on Windows.
@@ -429,6 +430,7 @@ The sample input texts come from `data/itqan/sunni/<book>/`. The 19 non-Itqan bo
 - **Shell escaping:** in the Bash tool, `\\n`, `\b` and `\s` inside heredocs or `python -c` get mangled. Write scripts with the file-writing tool, not heredocs.
 - **Arabic from SQL Server:** `sqlcmd` output loses Arabic. Use `export_chains.ps1` (System.Data.SqlClient → UTF-8 JSON). `pyodbc` is not installed.
 - **SQL Server file access:** restores must target the instance data folder; the service cannot write to user temp folders.
+- **Workflow:** while changing the resolver, measure 4 representative books (Bukhari, the Kabir, the Mustadrak, al-Daraqutni) with `SAVE=` and diff the runs; measure all 31 once before committing.
 - **Measure the right thing:**
   - A higher "resolved" rate can hide wrong links. Always check agreement and review disagreements manually.
   - Numbers reported mid-way were corrected several times. For example, a 70.4% Bukhari figure turned out to include wrong shuhra matches.

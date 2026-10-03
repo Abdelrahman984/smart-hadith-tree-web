@@ -17,14 +17,19 @@ SAMPLE = int(rest[0]) if rest else 1000
 COMPILER = rest[1] if len(rest) > 1 else None      # header prefix of the compiler's entry, if any
 exec(open(__file__.replace('gap_test.py', 'link_tahdhib.py'), encoding='utf-8').read().split('stats = {k')[0])
 
-shuyukh_of = []
-for i, e in enumerate(entries):
-    s = set()
-    for it in e['shuyukh']:
-        c = set(symbol_filter(set(candidates(it['name'])) - {i}, it['symbols']))
-        if it.get('note') != 'short' or len(c) == 1:    # "نافع" in تعجيل المنفعة: only if unique
-            s |= c
-    shuyukh_of.append(s)
+def _shuyukh_of() -> list[set[int]]:
+    out = []
+    for i, e in enumerate(entries):
+        s = set()
+        for it in e['shuyukh']:
+            c = set(symbol_filter(set(candidates(it['name'])) - {i}, it['symbols']))
+            if it.get('note') != 'short' or len(c) == 1:    # "نافع" in تعجيل المنفعة: only if unique
+                s |= c
+        out.append(s)
+    return out
+
+
+shuyukh_of = cached('shuyukh_of', _shuyukh_of)      # the slow part of a run: ~35k list names
 
 # Later books abbreviate the transmission verbs: ثنا، نا، أنا، أنبأ.
 VERBS = (r'(?:^|\s|،)و?(?:حدثناه|أخبرناه|أنبأناه|حدثنا|حدثني|حدثه|أخبرنا|أخبرني|أخبره|أنبأنا|أنبأني|أنبأ'

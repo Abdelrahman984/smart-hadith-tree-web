@@ -17,6 +17,49 @@ entries = [e for e in data if e['kind'] == 'entry']
 for _extra in sorted(glob.glob(os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), 'extra_*.json'))):
     entries += [e for e in json.load(open(_extra, encoding='utf-8')) if e['kind'] == 'entry']
 xrefs = [e for e in data if e['kind'] == 'crossref']
+
+
+def cached(tag: str, compute):
+    """Load `compute()`'s result from data/<...>/cache/ when nothing it depends on has changed.
+
+    The key hashes the bytes of every registry file (tahdhib.json, taqrib.json, align.json,
+    extra_*.json) and of every script in rijal_pilot/, so any edit to data or code recomputes.
+    Off with NO_CACHE=1, and off when the scripts' folder cannot be found (code exec'd from
+    elsewhere), since then the key would not cover the code in use."""
+    import hashlib
+    import pickle
+    data_dir = os.path.dirname(os.path.abspath(sys.argv[1]))
+    code_dir = os.path.dirname(os.path.abspath(globals().get('__file__', '')))
+    if os.environ.get('NO_CACHE') or not os.path.exists(os.path.join(code_dir, 'link_tahdhib.py')):
+        return compute()
+    h = hashlib.sha256(tag.encode())
+    files = [os.path.join(data_dir, f) for f in ('tahdhib.json', 'taqrib.json', 'align.json')]
+    files += sorted(glob.glob(os.path.join(data_dir, 'extra_*.json')))
+    files += sorted(glob.glob(os.path.join(code_dir, '*.py')))
+    for f in files:
+        if os.path.exists(f):
+            h.update(os.path.basename(f).encode())
+            h.update(open(f, 'rb').read())
+    path = os.path.join(data_dir, 'cache', f'{tag}_{h.hexdigest()[:20]}.pkl')
+    if os.path.exists(path):
+        with open(path, 'rb') as f:
+            return pickle.load(f)
+    result = compute()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    for old in glob.glob(os.path.join(data_dir, 'cache', f'{tag}_*.pkl')):   # keep one version per tag
+        if old != path:
+            try:
+                os.remove(old)
+            except OSError:                 # another run (in parallel) is reading it
+                pass
+    tmp = f'{path}.{os.getpid()}.tmp'       # parallel runs each write their own file, then swap it in
+    with open(tmp, 'wb') as f:
+        pickle.dump(result, f)
+    try:
+        os.replace(tmp, path)
+    except OSError:                         # Windows: the file is open in another run; it has the same data
+        os.remove(tmp)
+    return result
 STOP = {'بن', 'ابن', 'بنت', 'ويقال', 'يقال', 'وهو', 'مولي', 'مولاهم', 'نزيل', 'صاحب', 'والد', 'اخو', 'ام', 'ثم'}
 
 

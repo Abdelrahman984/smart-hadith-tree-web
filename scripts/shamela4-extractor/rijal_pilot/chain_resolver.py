@@ -21,14 +21,19 @@ MAX_CANDIDATES = 80
 FULL_KUNYA_NAME = re.compile(r'\s*(?:أبو|أبي|أبا)\s+(?:عبد\s+)?\S+\s+(?:عبد\s+)?\S+\s+بن\s+\S+')
 
 # Students as resolved from each entry's talamidh list (the mirror of shuyukh_of).
-talamidh_of = []
-for _i, _e in enumerate(entries):
-    _s = set()
-    for _it in _e['talamidh']:
-        _c = set(symbol_filter(set(candidates(_it['name'])) - {_i}, _it['symbols']))
-        if _it.get('note') != 'short' or len(_c) == 1:  # short names: only if unique
-            _s |= _c
-    talamidh_of.append(_s)
+def _talamidh_of() -> list[set[int]]:
+    out = []
+    for i, e in enumerate(entries):
+        s = set()
+        for it in e['talamidh']:
+            c = set(symbol_filter(set(candidates(it['name'])) - {i}, it['symbols']))
+            if it.get('note') != 'short' or len(c) == 1:  # short names: only if unique
+                s |= c
+        out.append(s)
+    return out
+
+
+talamidh_of = cached('talamidh_of', _talamidh_of)
 
 
 def edge(student: int | None, shaykh: int | None) -> int:
