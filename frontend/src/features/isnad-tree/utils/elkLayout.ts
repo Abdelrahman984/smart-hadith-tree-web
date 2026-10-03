@@ -13,7 +13,7 @@ const elkOptions = {
   'elk.layered.spacing.edgeNodeBetweenLayers': '45',
   'elk.layered.spacing.edgeEdgeBetweenLayers': '25',
   'elk.layered.layering.strategy': 'LONGEST_PATH', // Aligns terminal compilers/reference nodes cleanly at bottom
-  'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
+  'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX', // Centers parents over children by minimizing total edge length
   'elk.layered.nodePlacement.favorStraightEdges': 'true', // Keeps vertical teacher-student chains straight
   'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP', // Minimizes line crossings
   'elk.layered.crossingMinimization.greedySwitchCrossingMinimizer.activationThreshold': '1',
