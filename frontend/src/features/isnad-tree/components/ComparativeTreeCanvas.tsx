@@ -10,8 +10,10 @@ import {
   Node,
   Edge,
   MarkerType,
+  Panel,
   ReactFlowInstance,
 } from "@xyflow/react";
+import { X } from "lucide-react";
 import { getLayoutedElements } from "../utils/elkLayout";
 import { applyGraphFocus } from "../utils/graphFocus";
 import { useMeasuredRelayout } from "../hooks/useMeasuredRelayout";
@@ -253,6 +255,16 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
     });
   }, [edges, ilalReport]);
 
+  // Escape clears the book focus.
+  useEffect(() => {
+    if (!focusBook) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFocusBook(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [focusBook]);
+
   // Dim everything except the hovered narrator's chain or the selected book.
   const focused = useMemo(
     () => applyGraphFocus(nodes, decoratedEdges, { nodeId: hoveredNodeId, book: focusBook }),
@@ -283,6 +295,19 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
         className="bg-slate-50"
       >
         <GraphControls showWeakOnly={showWeakOnly} setShowWeakOnly={setShowWeakOnly} />
+        {focusBook && (
+          <Panel position="top-center" className="m-2" dir="rtl">
+            <button
+              type="button"
+              onClick={() => setFocusBook(null)}
+              title="إلغاء الإبراز (Esc)"
+              className="flex items-center gap-2 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+            >
+              <span>إبراز: {focusBook}</span>
+              <X className="w-3.5 h-3.5 text-slate-500" />
+            </button>
+          </Panel>
+        )}
         <BookLegend activeBooks={activeBooks} focusBook={focusBook} onFocusBook={setFocusBook} />
         <Background color="#cbd5e1" gap={16} />
         <Controls />
