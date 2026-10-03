@@ -13,6 +13,7 @@ import {
   ReactFlowInstance,
 } from "@xyflow/react";
 import { getLayoutedElements } from "../utils/elkLayout";
+import { applyGraphFocus } from "../utils/graphFocus";
 import { useMeasuredRelayout } from "../hooks/useMeasuredRelayout";
 import { formatTwoPartNarratorName, formatScholarlyNarratorName } from "../utils/formatNarratorName";
 import ComparativeNarratorNode from "./ComparativeNarratorNode";
@@ -46,6 +47,8 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { openDrawer } = useNarratorDrawerStore();
   const [showWeakOnly, setShowWeakOnly] = useState(false);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [focusBook, setFocusBook] = useState<string | null>(null);
   const flowRef = useRef<ReactFlowInstance | null>(null);
   const refit = useCallback(() => flowRef.current?.fitView({ duration: 0 }), []);
   const { phase, setPhase } = useMeasuredRelayout({ nodes, edges, setNodes, setEdges, onRelaid: refit });
@@ -190,9 +193,13 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
               labelStyle: { fill: edgeColor, fontWeight: "bold", fontSize: 11 },
               labelBgStyle: labelBg,
               labelBgPadding: [4, 8],
+              data: { books: [...(n.sourceBooks || [])] },
             });
           } else {
-             // If edge exists (which shouldn't usually happen with same nodes unless duplicate transmissions), we could merge properties if needed
+            // Same narrator pair seen in another hadith: merge its books so book focus finds this edge.
+            const existing = uniqueEdges.get(edgeId)!;
+            const books = new Set([...((existing.data?.books as string[]) || []), ...(n.sourceBooks || [])]);
+            existing.data = { ...existing.data, books: Array.from(books) };
           }
         }
       }
@@ -246,17 +253,26 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
     });
   }, [edges, ilalReport]);
 
+  // Dim everything except the hovered narrator's chain or the selected book.
+  const focused = useMemo(
+    () => applyGraphFocus(nodes, decoratedEdges, { nodeId: hoveredNodeId, book: focusBook }),
+    [nodes, decoratedEdges, hoveredNodeId, focusBook]
+  );
+
   return (
     <div
       className={`absolute inset-0 bg-slate-50 transition-opacity duration-150 ${phase === "ready" ? "opacity-100" : "opacity-0"}`}
       dir="ltr"
     >
       <ReactFlow
-        nodes={nodes}
-        edges={decoratedEdges}
+        nodes={focused.nodes}
+        edges={focused.edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
+        onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
+        onNodeMouseLeave={() => setHoveredNodeId(null)}
+        minZoom={0.1}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onInit={(instance) => {
@@ -267,7 +283,7 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
         className="bg-slate-50"
       >
         <GraphControls showWeakOnly={showWeakOnly} setShowWeakOnly={setShowWeakOnly} />
-        <BookLegend activeBooks={activeBooks} />
+        <BookLegend activeBooks={activeBooks} focusBook={focusBook} onFocusBook={setFocusBook} />
         <Background color="#cbd5e1" gap={16} />
         <Controls />
       </ReactFlow>

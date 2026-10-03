@@ -13,6 +13,7 @@ import {
   ReactFlowInstance,
 } from "@xyflow/react";
 import { getLayoutedElements } from "../utils/elkLayout";
+import { applyGraphFocus } from "../utils/graphFocus";
 import { useMeasuredRelayout } from "../hooks/useMeasuredRelayout";
 import { formatTwoPartNarratorName } from "../utils/formatNarratorName";
 import NarratorNode from "./NarratorNode";
@@ -43,6 +44,7 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { openDrawer } = useNarratorDrawerStore();
   const [showWeakOnly, setShowWeakOnly] = useState(false);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const flowRef = useRef<ReactFlowInstance | null>(null);
   const refit = useCallback(() => flowRef.current?.fitView({ duration: 0 }), []);
   const { phase, setPhase } = useMeasuredRelayout({ nodes, edges, setNodes, setEdges, onRelaid: refit });
@@ -200,17 +202,26 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
     });
   }, [edges, ilalReport]);
 
+  // Dim everything except the hovered narrator's chain.
+  const focused = useMemo(
+    () => applyGraphFocus(nodes, decoratedEdges, { nodeId: hoveredNodeId }),
+    [nodes, decoratedEdges, hoveredNodeId]
+  );
+
   return (
     <div
       className={`absolute inset-0 bg-slate-50 transition-opacity duration-150 ${phase === "ready" ? "opacity-100" : "opacity-0"}`}
       dir="ltr"
     >
       <ReactFlow
-        nodes={nodes}
-        edges={decoratedEdges}
+        nodes={focused.nodes}
+        edges={focused.edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
+        onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
+        onNodeMouseLeave={() => setHoveredNodeId(null)}
+        minZoom={0.1}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onInit={(instance) => {

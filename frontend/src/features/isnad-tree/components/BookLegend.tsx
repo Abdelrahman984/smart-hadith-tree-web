@@ -33,9 +33,13 @@ const NARRATOR_RANKS = [
 
 interface BookLegendProps {
   activeBooks?: string[];
+  /** Canonical name of the book whose edges are highlighted on the graph. */
+  focusBook?: string | null;
+  /** When provided, book rows become toggle buttons that focus that book on the graph. */
+  onFocusBook?: (book: string | null) => void;
 }
 
-export default function BookLegend({ activeBooks }: BookLegendProps) {
+export default function BookLegend({ activeBooks, focusBook, onFocusBook }: BookLegendProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<LegendTab>("all");
   const [showAllBooks, setShowAllBooks] = useState(false);
@@ -153,19 +157,40 @@ export default function BookLegend({ activeBooks }: BookLegendProps) {
               )}
             </div>
             <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
-              {displayedBooks.map((book) => (
-                <div key={book.name} className="flex items-center gap-1.5 py-0.5">
-                  <span
-                    className="min-w-[20px] h-5 px-1 flex items-center justify-center text-[9px] text-white rounded-full font-bold shadow-xs shrink-0"
-                    style={{ backgroundColor: book.color }}
+              {displayedBooks.map((book) => {
+                const isFocused = focusBook === book.name;
+                const content = (
+                  <>
+                    <span
+                      className="min-w-[20px] h-5 px-1 flex items-center justify-center text-[9px] text-white rounded-full font-bold shadow-xs shrink-0"
+                      style={{ backgroundColor: book.color }}
+                    >
+                      {book.code}
+                    </span>
+                    <span className="text-slate-600 text-[11px] truncate" title={book.name}>
+                      {book.name}
+                    </span>
+                  </>
+                );
+                return onFocusBook ? (
+                  <button
+                    key={book.name}
+                    type="button"
+                    aria-pressed={isFocused}
+                    onClick={() => onFocusBook(isFocused ? null : book.name)}
+                    title="إبراز مسارات هذا الكتاب"
+                    className={`flex items-center gap-1.5 py-0.5 px-1 rounded-md text-start cursor-pointer transition-colors ${
+                      isFocused ? "bg-slate-200 ring-1 ring-slate-400" : "hover:bg-slate-100"
+                    }`}
                   >
-                    {book.code}
-                  </span>
-                  <span className="text-slate-600 text-[11px] truncate" title={book.name}>
-                    {book.name}
-                  </span>
-                </div>
-              ))}
+                    {content}
+                  </button>
+                ) : (
+                  <div key={book.name} className="flex items-center gap-1.5 py-0.5">
+                    {content}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
