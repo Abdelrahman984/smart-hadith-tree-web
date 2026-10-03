@@ -14,6 +14,7 @@ from collections import Counter, defaultdict
 
 sys.argv, (TAHDHIB, BOOK_DIR, *rest) = [sys.argv[0], sys.argv[1]], sys.argv[1:]
 SAMPLE = int(rest[0]) if rest else 1000
+COMPILER = rest[1] if len(rest) > 1 else None      # header prefix of the compiler's entry, if any
 exec(open(__file__.replace('gap_test.py', 'link_tahdhib.py'), encoding='utf-8').read().split('stats = {k')[0])
 
 shuyukh_of = []
@@ -29,11 +30,41 @@ VERBS = (r'(?:^|\s|،)(?:حدثنا|حدثني|حدثه|أخبرنا|أخبرن�
 HARAKAT_RE = re.compile(r'[ً-ْٰـ]')
 
 
+# Clean-up of a narrator segment: honorifics before the name, "ببغداد"/"بمكة" and "إملاء"
+# after it, footnote markers, and "X ويحيى بن ..., قالا" (two shaykhs: keep the first).
+HONORIFIC = re.compile(r'^(?:الشيخ|الإمام|الأستاذ|القاضي|الحافظ|الفقيه|الأديب)\s+')
+TRAILER = re.compile(r'(?:\s+(?:ب(?:بغداد|مكة|مرو|الكوفة|البصرة|نيسابور|الري|همذان|بخارى|\S+)|إملاء|قراءة عليه'
+                     r'|من أصل كتابه|في آخرين|وغيره|قالا|قالوا))+\s*$')
+# Hadith records sometimes start with the previous hadith's verdict and number:
+# "هذا حديث صحيح ... ولم يخرجاه. ٣٧٦٣ - حدثنا ..." -> keep what follows the last "N -".
+PREVIOUS_TAIL = re.compile(r'^.*(?:يخرجاه|يخرجه|الإسناد|الشيخين|شرط مسلم|شرط البخاري)[^٠-٩]{0,40}[٠-٩]+\s*م?\s*-\s*', re.S)
+
+
+def clean_segment(s: str) -> str:
+    s = re.sub(r'\(¬?[٠-٩]+\)', ' ', s)
+    s = re.split(r'\s+و(?=\S+ بن )', s)[0]                 # "علي بن حمشاذ ويحيى بن محمد" -> first
+    s = HONORIFIC.sub('', s.strip())
+    s = TRAILER.sub('', s)
+    return re.sub(r'\s+', ' ', s).strip(' ،,:.')
+
+
 def chain_segments(arabic: str) -> list[str]:
     t = HARAKAT_RE.sub('', arabic)
+    t = PREVIOUS_TAIL.sub('', t)
     t = re.split(r'رسول الله|النبي|ﷺ|صلى الله عليه وسلم', t)[0]
-    segs = [s.strip(' ،,:.') for s in re.split(VERBS, t)]
+    segs = [clean_segment(s) for s in re.split(VERBS, t)]
     return [s for s in segs if 1 < len(s) < 70 and not s.startswith(('قال', 'يقول'))]
+
+
+# A segment that is not shaped like a name (verdicts, matn, numbers) is reported apart from real misses.
+NOT_NAME = re.compile(r'[٠-٩0-9"«»﴿﴾؟?!]|هذا حديث|يخرجاه|صحيح|ﷺ|﷿|رضي|فقال|كان|لما|قلت|إذا|كنا|شاهده')
+
+
+def is_name(seg: str) -> bool:
+    if re.fullmatch(r'(?:أبو|أبي|أبا|ابن|بن|أم)', seg.strip()):
+        return False                                     # a kunya/ibn cut off from its name
+    return not NOT_NAME.search(seg) and len(seg.split()) <= 9 and (
+        bool(re.search(r'(?:^|\s)(?:بن|ابن|أبو|أبي|أبا|بنت|أم)(?:\s|$)', seg)) or len(seg.split()) <= 3)
 
 
 def lookup(seg: str, prev: int | None) -> set[int]:
@@ -42,6 +73,9 @@ def lookup(seg: str, prev: int | None) -> set[int]:
         return {j for j in shuyukh_of[prev] if ism[j] == father}
     return set(candidates(seg)) - ({prev} if prev is not None else set())
 
+
+compiler = next((i for i, e in enumerate(entries) if COMPILER and e['header'].startswith(COMPILER)), None)
+print('compiler entry:', entries[compiler]['header'][:60] if compiler is not None else None)
 
 hadiths = []
 for f in glob.glob(f'{BOOK_DIR}/*.json'):
@@ -54,9 +88,12 @@ MAX_DEPTH = 8
 by_depth = defaultdict(Counter)
 missing_names = Counter()
 entered_at = Counter()
+noise = 0
 for text in sample:
-    segs = chain_segments(text)[:MAX_DEPTH]
-    prev, entered = None, None
+    all_segs = chain_segments(text)
+    segs = [s for s in all_segs if is_name(s)][:MAX_DEPTH]
+    noise += len(all_segs) - len([s for s in all_segs if is_name(s)])
+    prev, entered = compiler, None
     for depth, seg in enumerate(segs):
         c = lookup(seg, prev)
         within = c & shuyukh_of[prev] if prev is not None else set()
@@ -78,7 +115,7 @@ for text in sample:
             entered = depth
     entered_at['never' if entered is None else entered] += 1
 
-print(f'hadiths: {len(sample)} of {len(hadiths)}')
+print(f'hadiths: {len(sample)} of {len(hadiths)}  segments dropped as non-names (segmentation noise): {noise}')
 statuses = ['resolved (teacher list)', 'resolved (unique name)', 'ambiguous', 'not in registry']
 print(f'{"depth":>5} {"names":>6}  ' + '  '.join(f'{s[:22]:>22}' for s in statuses))
 for d in sorted(by_depth):
