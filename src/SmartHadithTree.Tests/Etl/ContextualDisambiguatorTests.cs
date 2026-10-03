@@ -112,6 +112,37 @@ public class ContextualDisambiguatorTests : IDisposable
         disambiguator.ResolveSheikh("أبي", 333).Should().Be(353);
     }
 
+    [Fact]
+    public async Task ResolveSheikh_BlocksUnresolvedRelativePronounsAndResolvesCanonicalMadars()
+    {
+        var rijalDir = Path.Combine(_tempDir, "rijal");
+        File.WriteAllText(
+            Path.Combine(rijalDir, "by_name.json"),
+            @"{ ""أبيه"": [5406, 11803], ""جده"": [5406], ""قتادة"": [5406, 369], ""نافع"": [11803, 713], ""ابن عمر"": [5266, 120] }");
+        File.WriteAllText(
+            Path.Combine(rijalDir, "profiles_1.json"),
+            @"{
+                ""5406"": { ""id"": 5406, ""full_name"": ""قتادة بن النعمان"" },
+                ""369"": { ""id"": 369, ""full_name"": ""قتادة بن دعامة"" },
+                ""11803"": { ""id"": 11803, ""full_name"": ""نافع بن عجير"" },
+                ""713"": { ""id"": 713, ""full_name"": ""نافع مولى ابن عمر"" },
+                ""5266"": { ""id"": 5266, ""full_name"": ""نافع بن عمر الجمحي"" },
+                ""120"": { ""id"": 120, ""full_name"": ""عبد الله بن عمر بن الخطاب"" }
+            }");
+
+        var disambiguator = new ContextualDisambiguator();
+        await disambiguator.InitializeAsync(_tempDir);
+
+        // Unexpanded relative pronouns must not fall back to Qatadah ibn al-Nu'man (5406)
+        disambiguator.ResolveSheikh("أبيه", 999).Should().BeNull();
+        disambiguator.ResolveSheikh("جده", 999).Should().BeNull();
+
+        // Canonical Madars and Companions must resolve to their primary profiles
+        disambiguator.ResolveSheikh("قتادة", null).Should().Be(369);
+        disambiguator.ResolveSheikh("نافع", null).Should().Be(713);
+        disambiguator.ResolveSheikh("ابن عمر", null).Should().Be(120);
+    }
+
     [Theory]
     [InlineData("أبي بكر بن أبي شيبة", "أبو بكر بن أبي شيبة")]
     [InlineData("إسماعيل، يعني ابن جعفر،", "إسماعيل بن جعفر")]

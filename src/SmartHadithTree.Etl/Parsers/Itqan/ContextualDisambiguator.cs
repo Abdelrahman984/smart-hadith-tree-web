@@ -107,6 +107,73 @@ public class ContextualDisambiguator
     }
 
     /// <summary>
+    private static readonly HashSet<string> UnresolvedRelativeOrAnonymousTokens = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "أبيه", "ابيه", "أبي", "ابي", "جده", "أمه", "امه", "عمه", "خاله", "أخيه", "اخيه", "أخوه", "اخوه",
+        "رجل", "شيخ", "رجل من أصحاب النبي", "بعض أصحابه"
+    };
+
+    private static readonly Dictionary<string, int> CanonicalMadarAndCompanionOverrides = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ابن عمر"] = 120,
+        ["عبد الله بن عمر"] = 120,
+        ["عبد الله بن عمر بن الخطاب"] = 120,
+        ["عمر بن الخطاب"] = 165,
+        ["سالم بن عبد الله"] = 247,
+        ["عبيد الله بن عمر"] = 1638,
+        ["قتادة"] = 369,
+        ["قتادة بن دعامة"] = 369,
+        ["نافع"] = 713,
+        ["نافع مولى ابن عمر"] = 713,
+        ["مالك"] = 664,
+        ["مالك بن أنس"] = 664,
+        ["عروة"] = 874,
+        ["عروة بن الزبير"] = 874,
+        ["هشام بن عروة"] = 173,
+        ["الزهري"] = 569,
+        ["ابن شهاب"] = 569,
+        ["ابن شهاب الزهري"] = 569,
+        ["الأعمش"] = 467,
+        ["سليمان الأعمش"] = 467,
+        ["الشعبي"] = 1074,
+        ["عامر الشعبي"] = 1074,
+        ["الحسن"] = 209,
+        ["الحسن البصري"] = 209,
+        ["ابن سيرين"] = 690,
+        ["محمد بن سيرين"] = 690,
+        ["عكرمة"] = 606,
+        ["عكرمة مولى ابن عباس"] = 606,
+        ["عطاء"] = 1990,
+        ["عطاء بن أبي رباح"] = 1990,
+        ["مجاهد"] = 888,
+        ["مجاهد بن جبر"] = 888,
+        ["ثابت"] = 391,
+        ["ثابت البناني"] = 391,
+        ["ثابت بن أسلم"] = 391,
+        ["الحكم"] = 1016,
+        ["الحكم بن عتيبة"] = 1016,
+        ["أبو الزبير"] = 104,
+        ["أبو إسحاق"] = 51,
+        ["أبو إسحاق السبيعي"] = 51,
+        ["شعبة"] = 905,
+        ["شعبة بن الحجاج"] = 905,
+        ["وكيع"] = 147,
+        ["وكيع بن الجراح"] = 147,
+        ["أنس"] = 8,
+        ["أنس بن مالك"] = 8,
+        ["أبو هريرة"] = 106,
+        ["عائشة"] = 342,
+        ["جابر"] = 195,
+        ["جابر بن عبد الله"] = 195,
+        ["ابن عباس"] = 48,
+        ["عبد الله بن عباس"] = 48,
+        ["ابن مسعود"] = 529,
+        ["عبد الله بن مسعود"] = 529,
+        ["أبو سعيد"] = 181,
+        ["أبو سعيد الخدري"] = 181
+    };
+
+    /// <summary>
     /// Resolves an ambiguous narrator name to a specific Itqan ID using graph context (Teacher-Student relationships).
     /// </summary>
     public int? ResolveSheikh(string rawName, int? studentItqanId)
@@ -118,6 +185,12 @@ public class ContextualDisambiguator
             ((candidates != null && candidates.Contains(explicitOverride.Value)) || _graph.ContainsKey(explicitOverride.Value)))
         {
             return explicitOverride.Value;
+        }
+
+        // Never allow unresolved relative/anonymous pronouns ("أبيه", "جده", "رجل") to fall back to by_name.json
+        if (UnresolvedRelativeOrAnonymousTokens.Contains(rawName))
+        {
+            return null;
         }
 
         if (candidates == null || candidates.Count == 0)
@@ -198,6 +271,11 @@ public class ContextualDisambiguator
         {
             if (studentItqanId == 333) // عبد الله بن أحمد بن حنبل عن أبيه
                 return 353; // أحمد بن محمد بن حنبل
+        }
+
+        if (CanonicalMadarAndCompanionOverrides.TryGetValue(rawName, out var canonicalId))
+        {
+            return canonicalId;
         }
 
         if (rawName.Equals("أبو سلمة", StringComparison.OrdinalIgnoreCase) ||
@@ -346,8 +424,13 @@ public class ContextualDisambiguator
 
         var pool = prefixMatches.Count > 0 ? prefixMatches : candidates;
 
-        // Highest ID Score (Prominence in Itqan dataset), then GradeScore
-        var ordered = pool.OrderByDescending(c => c.IdScore).ThenByDescending(c => c.GradeScore).ToList();
+        // Prioritize network centrality (major transmitters with wide teacher/student networks), then IdScore and GradeScore
+        var ordered = pool
+            .OrderByDescending(c => c.Students.Count + c.Teachers.Count >= 50 ? 1 : 0)
+            .ThenByDescending(c => c.IdScore)
+            .ThenByDescending(c => c.GradeScore)
+            .ThenByDescending(c => c.Students.Count + c.Teachers.Count)
+            .ToList();
         return ordered.First().ItqanId;
     }
 }
