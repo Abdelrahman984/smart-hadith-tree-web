@@ -350,7 +350,7 @@ Remaining resolver gaps:
 - [x] Names by grandfather or by "ابن X" («عبد الله بن أحمد بن حنبل», «عثمان بن أبي شيبة», «علي بن المديني», «إسحاق بن راهويه», «إسماعيل ابن علية») (`afaef5c`)
 - [x] Isnad clean-up: «رضى الله عنه» with ى, accusative «أبا هريرة» / «جابرا», «قالا» after a name, «أبي، ح»; agreement no longer counts names past the end of the current chain (`afaef5c`)
 - [ ] Al-Baghawi as «ابن منيع» (and other shaykhs known by a maternal grandfather)
-- [x] Companions and common names when context is weak: Tahdhib lists repaired (women, line breaks, separators, «N:» heads), fame tie-break for equally linked candidates, «ابن عمر» / «أبو سلمة بن عبد الرحمن» / «أبي بن كعب» / «ذكوان أبو صالح» matching (`COMMIT`)
+- [x] Companions and common names when context is weak: Tahdhib lists repaired (women, line breaks, separators, «N:» heads), fame tie-break for equally linked candidates, «ابن عمر» / «أبو سلمة بن عبد الرحمن» / «أبي بن كعب» / «ذكوان أبو صالح» matching (`b15bcd2`)
 - [ ] Real ties left undecided: «أبو إسحاق» (al-Sabi'i / al-Shaybani), «أبو معاوية» (al-Darir / Hushaym), «عبد الله» bare
 - [ ] Namesakes of the same name and generation, who belong to different compilers (Ibn Hibban's «محمد بن عبد السلام» against al-Hakim's): use the compiler's own shaykh list as context for the first link
 - [ ] "عن أبيه" after an unresolved narrator
