@@ -55,8 +55,8 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 | `tahdhib.json` | `parse_tahdhib.py` | 8,444 Tahdhib al-Kamal entries + 121 cross-references |
 | `taqrib.json` | `parse_taqrib.py` | 8,828 Taqrib entries + 1,419 "X هو Y" redirects |
 | `align.json` | `align_taqrib.py` | Tahdhib ↔ Taqrib alignment (92.8% of Tahdhib) |
-| `extra_shaykh_books.json` | `parse_shaykh_books.py` | 8,148 narrators from the compilers' shaykh books + compiler entries |
-| `current_chains.json`, `current_chains_tabarani.json` | `export_chains.ps1` | The **current system's** chains, for comparison |
+| `extra_shaykh_books.json` | `parse_shaykh_books.py` | 8,556 narrators from the compilers' shaykh books (with 744 exact name forms) + compiler entries |
+| `current_chains.json`, `current_chains_tabarani.json`, `current_chains_bayhaqi.json` | `export_chains.ps1` | The **current system's** chains, for comparison |
 
 `link_tahdhib.py` automatically loads `taqrib.json` and every `extra_*.json` that sits next to the `tahdhib.json` it is given.
 
@@ -71,6 +71,8 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 | 29742 | رجال الحاكم في المستدرك | al-Hakim's narrators |
 | 29745 | إرشاد القاصي والداني إلى تراجم شيوخ الطبراني | al-Tabarani's shaykhs |
 | 1208 | تحفة الغريب بتراجم رجال معجمي الطبراني | Narrators of the Awsat / Saghir |
+| 123667 | السلسبيل النقي في تراجم شيوخ البيهقي | al-Bayhaqi's shaykhs |
+| 123666 | إتحاف المرتقي بتراجم شيوخ البيهقي | al-Bayhaqi's shaykhs, plus every form of each name as it appears in his books |
 | 736, 10906, 96165, 36357 | تاريخ بغداد، السير، الثقات ممن لم يقع في الستة، لسان الميزان | Gap measurement only (not parsed yet) |
 
 ## 5. Scripts (`scripts/shamela4-extractor/rijal_pilot/`)
@@ -87,9 +89,10 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 | `chain_resolver.py` | **Joint isnad resolution** (Viterbi over candidate sets, scored by mutual teacher/student listing). Exec'd by `compare_current.py`. |
 | `gap_test.py` | Isnad segmentation and clean-up, plus a per-depth coverage report. Its helpers are reused by the other scripts. |
 | `gap_books.py` | Which rijal books would cover the missing narrators. |
+| `check_record_boundaries.py` | Classifies every record in `data/itqan/sunni` as clean, prefix tail, or **shifted** (the isnad belongs to the next hadith). See §6.1. |
 | `isnad_test.py` | Older Bukhari-only link-by-link test. |
 | `compare_current.py` | **Main benchmark**: our resolution versus the current DB chains on the same hadiths, plus the agreement rate. |
-| `export_chains.ps1` | Exports current chains: `-Books 'المعجم'` (substrings of `Hadiths.BookName`), `-Out <file>`. |
+| `export_chains.ps1` | Exports current chains: `-Books 'المعجم'` (substrings of `Hadiths.BookName`; use `'بيهقي'`, not `'البيهقي'`, since the DB name is «للبيهقي»), `-Out <file>`. |
 
 ### Name matching rules in `link_tahdhib.py` (learned the hard way)
 
@@ -127,8 +130,26 @@ Coverage means the share of narrator names in the first 8 links of each chain th
 | al-Mu'jam al-Kabir (500) | 70%* | **79%** | 84% | 76% |
 | al-Mu'jam al-Awsat (500) | 65%* | **76%** | 90% | 80% |
 | al-Mu'jam al-Saghir (500) | 65%* | **78%** | 86% | 78% |
+| al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **70%** | — † | — † |
+| Shu'ab al-Iman (500) | 60%* | **64%** | — † | — † |
 
-\* Joint resolver already applied, before the Tabarani books were added.
+\* Joint resolver already applied, before that compiler's shaykh books were added.
+† Not comparable: many records have shifted boundaries (§6.1), so the two systems read different isnads from the same record. A manual review of ~50 resolved al-Bayhaqi narrators found 1 error ("أبي إسحاق" from Zuhayr, which should be al-Sabi'i).
+
+Since the shifted-record fix in `gap_test.py`, al-Mustadrak reads 73% and al-Mu'jam al-Kabir 80%, and al-Mustadrak's agreement drops to 49% for the same reason (†).
+
+### 6.1 Data finding: shifted hadith records (affects the live app today)
+
+`check_record_boundaries.py` shows that in some books extracted earlier from Shamela (`build_itqan_books.py`), a record holds a matn followed by the **next** hadith's numbered isnad ("… ١٠٨٣٨ - أخبرنا …"). For those records, the matn and the isnad shown together do not belong to each other.
+
+| Book | Prefix tail (own isnad, previous hadith's end in front) | **Shifted** (isnad of the next hadith) |
+|---|---|---|
+| السنن الكبرى للبيهقي | 45% | **30%** |
+| شعب الإيمان | 24% | **34.5%** |
+| المستدرك | 54% | **19%** |
+| مسند البزار | 10% | 0.6% |
+
+The other books are clean, or have no numbered markers. Abd al-Razzaq, Ibn Khuzaymah and al-Daraqutni open with other forms; these were not checked further. The current database was built from the same files, so its trees for these hadiths can pair a matn with another hadith's chain. Phase 4 fixes this; it can also be fixed earlier in `build_itqan_books.py` if the user wants.
 
 **Precision (manual review of the disagreements):**
 - **Bukhari:** of 20 disagreements, ours was right in ~15, there was 1 clear error of ours, and the rest were the same person spelled differently or undecided. The current system has repeated errors: "نافع" → نافع بن همام, "الليث" → "الليثي", "أبو الوليد" (from Shu'ba) → هشام بن عمار, "أبو معمر" → إسماعيل بن إبراهيم.
@@ -140,7 +161,7 @@ Coverage means the share of narrator names in the first 8 links of each chain th
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** the first unchecked item of Phase 2 (al-Bayhaqi).
+**Next task:** the first unchecked item of Phase 2 (Ibn Hibban). Decide with the user whether the record-boundary fix (§6.1) should be done earlier than Phase 4.
 
 ### Overview
 
@@ -185,8 +206,8 @@ Resolution:
 Compilers' shaykh books (via `parse_shaykh_books.py`):
 - [x] al-Hakim: الروض الباسم (14463), رجال الحاكم في المستدرك (29742) (`1a2ec3d`, `5cd9709`)
 - [x] al-Tabarani: إرشاد القاصي والداني (29745), تحفة الغريب (1208) (`5cd9709`)
-- [ ] **al-Bayhaqi:** إتحاف المرتقي (123666), السلسبيل النقي (123667). Measure `sunan_kubra_bayhaqi` and `shuab_iman_bayhaqi` before and after with `compare_current.py`
-- [ ] Ibn Hibban: ري الظمآن بتراجم شيوخ ابن حبان (1498)
+- [x] al-Bayhaqi: إتحاف المرتقي (123666), السلسبيل النقي (123667), with exact name forms and al-Hakim merged as his shaykh (`1741406`)
+- [ ] **Ibn Hibban:** ري الظمآن بتراجم شيوخ ابن حبان (1498)
 - [ ] al-Daraqutni: الدليل المغني لشيوخ الدارقطني (7852)
 - [ ] Ibn Khuzaymah and Abu Awanah: search `master.db` for a dedicated book
 - [ ] Ahmad and Malik: تعجيل المنفعة (1893)
@@ -217,6 +238,8 @@ Housekeeping:
 
 ### Phase 4 — Hadith texts ⬜
 
+- [x] Detect shifted record boundaries in the existing extraction (`check_record_boundaries.py`, `1741406`)
+- [ ] Re-split al-Mustadrak, al-Sunan al-Kubra, Shu'ab al-Iman and al-Bazzar on the hadith-number markers, so each record holds its own isnad and matn (§6.1)
 - [ ] Choose a Shamela edition for each of the 12 primary books. All are downloaded except الشمائل المحمدية, which the user must download in Shamela.
 - [ ] Extract them with footnotes (`foot`) for takhrij and editors' grades
 - [ ] Separate the compiler's own remarks from the matn, and keep volume and page references
@@ -255,6 +278,8 @@ python ../../scripts/shamela4-extractor/rijal_pilot/link_tahdhib.py tahdhib.json
 python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/bukhari current_chains.json "محمد بن إسماعيل بن إبراهيم بن المغيرة" 500 12
 python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/mustadrak_hakim current_chains.json "محمد بن عبد الله بن محمد بن حمدويه الحاكم" 1000 0
 python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/mujam_kabir_tabarani current_chains_tabarani.json "سليمان بن أحمد بن أيوب" 500 0
+python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/sunan_kubra_bayhaqi current_chains_bayhaqi.json "أحمد بن الحسين بن علي بن موسى" 500 0
+cd ../.. && python scripts/shamela4-extractor/rijal_pilot/check_record_boundaries.py data/itqan/sunni
 ```
 
 `compare_current.py` options (environment variables):
