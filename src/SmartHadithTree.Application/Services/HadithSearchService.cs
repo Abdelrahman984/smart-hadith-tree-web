@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SmartHadithTree.Application.DTOs;
 using SmartHadithTree.Application.Interfaces;
 using SmartHadithTree.Domain.Entities;
+using SmartHadithTree.Domain.Utilities;
 
 namespace SmartHadithTree.Application.Services;
 
@@ -544,23 +545,34 @@ public class HadithSearchService(
             Nodes = nodes
         };
 
-        // Basic Matn Variation Detection
+        // Matn Variation Detection on the extracted Matn body (excluding Isnad and trailing commentary)
         if (sources.Count > 1)
         {
             var baseSource = sources.First();
-            var baseMatn = hadiths.First(h => h.Id == baseSource.HadithId).NormalizedMatn;
+            var baseHadith = hadiths.First(h => h.Id == baseSource.HadithId);
+            var baseTokens = MatnText.Tokenize(MatnText.ExtractBody(baseHadith.MatnArabic));
 
             foreach (var source in sources.Skip(1))
             {
-                var compareMatn = hadiths.First(h => h.Id == source.HadithId).NormalizedMatn;
-                if (baseMatn != compareMatn)
+                var compareHadith = hadiths.First(h => h.Id == source.HadithId);
+                var compareTokens = MatnText.Tokenize(MatnText.ExtractBody(compareHadith.MatnArabic));
+                if (baseTokens.Length == 0 || compareTokens.Length == 0) continue;
+
+                var diff = MatnAligner.Align(baseTokens, compareTokens);
+                var addedOnly = diff.AddedCount - diff.SubstitutedCount;
+                var removedOnly = diff.RemovedCount - diff.SubstitutedCount;
+                bool hasSubstantiveVariation =
+                    (diff.SubstitutedCount >= 2 && diff.Similarity < 0.85) ||
+                    (addedOnly >= 5 && diff.LongestAddedRun >= 3) ||
+                    (removedOnly >= 5);
+
+                if (hasSubstantiveVariation)
                 {
-                    // Find the compiler node for this source
                     var compilerNode = nodes.FirstOrDefault(n => n.StepOrder == 1 && n.SourceHadithIds.Contains(source.HadithId));
                     if (compilerNode != null)
                     {
                         compilerNode.HasMatnVariation = true;
-                        compilerNode.MatnVariationSnippet = "يوجد اختلاف في لفظ المتن مقارنة بالرواية الأساسية.";
+                        compilerNode.MatnVariationSnippet = "يوجد اختلاف أو زيادة في لفظ المتن مقارنة بالرواية الأساسية.";
                     }
                 }
             }

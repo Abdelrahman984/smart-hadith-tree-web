@@ -51,18 +51,25 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
     if (!treeData || treeData.nodes.length === 0) return;
 
     const uniqueNarrators = new Map<string, Node>();
+    const compilerEntryByNarrator = new Map<string, (typeof treeData.nodes)[number]>();
+    treeData.nodes.forEach((n) => {
+      if (n.stepOrder === 0 && !compilerEntryByNarrator.has(n.narratorId)) {
+        compilerEntryByNarrator.set(n.narratorId, n);
+      }
+    });
     
     treeData.nodes.forEach((n) => {
       if (!uniqueNarrators.has(n.narratorId)) {
-        const isReference = n.stepOrder === 0;
+        const compilerNode = compilerEntryByNarrator.get(n.narratorId);
+        const isReference = Boolean(compilerNode);
         const tooltip = narratorsTooltips?.[n.narratorId];
 
-        if (isReference) {
-          const matchedSources = (treeData.sources || []).filter(s => n.sourceHadithIds?.includes(s.hadithId));
-          const bookName = matchedSources.map(s => s.bookName).join(' / ') || n.sourceBooks?.join(' / ') || 'المصدر';
+        if (isReference && compilerNode) {
+          const matchedSources = (treeData.sources || []).filter(s => compilerNode.sourceHadithIds?.includes(s.hadithId));
+          const bookName = matchedSources.map(s => s.bookName).join(' / ') || compilerNode.sourceBooks?.join(' / ') || 'المصدر';
           const hadithNumbers = matchedSources.map(s => s.hadithNumber).filter(Boolean);
           const hadithNumberText = hadithNumbers.length > 0 ? hadithNumbers.join(', ') : undefined;
-          const famousName = getFamousReferenceOwnerName(n.narratorName, n.knownAs, bookName);
+          const famousName = getFamousReferenceOwnerName(compilerNode.narratorName, compilerNode.knownAs, bookName);
 
           uniqueNarrators.set(n.narratorId, {
             id: n.narratorId,
@@ -70,14 +77,14 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
             position: { x: 0, y: 0 },
             data: {
               famousName,
-              fullName: n.narratorName,
-              twoPartName: formatTwoPartNarratorName(n.narratorName || n.knownAs),
+              fullName: compilerNode.narratorName,
+              twoPartName: formatTwoPartNarratorName(compilerNode.narratorName || compilerNode.knownAs),
               bookName,
               hadithNumber: hadithNumberText,
-              generationTier: n.generationTier,
+              generationTier: compilerNode.generationTier,
               gradeSummary: tooltip?.gradeSummary,
-              gradeEn: n.gradeEn,
-              sourceBooks: n.sourceBooks || [],
+              gradeEn: compilerNode.gradeEn,
+              sourceBooks: Array.from(new Set([...(compilerNode.sourceBooks || []), ...(n.sourceBooks || [])])),
             },
           });
         } else {

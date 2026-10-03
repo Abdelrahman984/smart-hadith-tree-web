@@ -37,8 +37,8 @@ public static partial class MatnText
     [GeneratedRegex(@"\s(قال|يقول|انه|انها|ان)\s")]
     private static partial Regex SpeechStartRegex();
 
-    // Compiler commentary or a following isnad appended after the matn in some books.
-    [GeneratedRegex(@"\s(قال\s+ابو\s+عيسي|قال\s+ابو\s+داود|قال\s+ابو\s+عبد\s+الرحمن|قال\s+ابو\s+عبد\s+الله|قال\s+ابو\s+الحسن|هذا\s+حديث|وفي\s+الباب\s+عن|وحدثنا|وحدثني|بهذا\s+الاسناد)\s")]
+    // Compiler commentary, editorial grading notes, or a following isnad appended after the matn in some books.
+    [GeneratedRegex(@"(?:^|\s)(قال\s+ابو\s+عيسي|قال\s+ابو\s+داود|قال\s+ابو\s+عبد\s+الرحمن|قال\s+ابو\s+عبد\s+الله|قال\s+ابو\s+الحسن|قال\s+الشيخ|قال\s+النسايي|قال\s+الاعظمي|قال\s+الالباني|قال\s+شعيب|قال\s+حسين\s+سليم|قال\s+المحقق|اسناده\s+صحيح|اسناده\s+حسن|اسناده\s+ضعيف|هذا\s+حديث|وفي\s+الباب\s+عن|وحدثنا|وحدثني|بهذا\s+الاسناد|فذكر\s+الحديث|فذكر\s+نحوه)(?:\s|$)")]
     private static partial Regex TrailingCommentaryRegex();
 
     /// <summary>

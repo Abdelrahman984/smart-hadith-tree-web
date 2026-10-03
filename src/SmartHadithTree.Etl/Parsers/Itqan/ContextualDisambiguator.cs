@@ -111,7 +111,16 @@ public class ContextualDisambiguator
     /// </summary>
     public int? ResolveSheikh(string rawName, int? studentItqanId)
     {
-        if (!_nameToCandidates.TryGetValue(rawName, out var candidates) || candidates.Count == 0)
+        var explicitOverride = GetContextualOverride(rawName, studentItqanId);
+        _nameToCandidates.TryGetValue(rawName, out var candidates);
+
+        if (explicitOverride.HasValue &&
+            ((candidates != null && candidates.Contains(explicitOverride.Value)) || _graph.ContainsKey(explicitOverride.Value)))
+        {
+            return explicitOverride.Value;
+        }
+
+        if (candidates == null || candidates.Count == 0)
         {
             return null; // Name not found
         }
@@ -125,13 +134,6 @@ public class ContextualDisambiguator
         // If we have a student ID to contextualize with
         if (studentItqanId.HasValue)
         {
-            // First check contextual explicit overrides BEFORE graph because graph can have ties
-            var explicitOverride = GetContextualOverride(rawName, studentItqanId.Value);
-            if (explicitOverride.HasValue && candidates.Contains(explicitOverride.Value))
-            {
-                return explicitOverride.Value;
-            }
-
             var studentId = studentItqanId.Value;
             var graphMatches = new List<NarratorNode>();
 
@@ -168,7 +170,7 @@ public class ContextualDisambiguator
         // Fallback: No student context or no graph matches found
         // Use generic static override if exists
         var staticOverride = GetContextualOverride(rawName, null);
-        if (staticOverride.HasValue && candidates.Contains(staticOverride.Value))
+        if (staticOverride.HasValue && (candidates.Contains(staticOverride.Value) || _graph.ContainsKey(staticOverride.Value)))
         {
             return staticOverride.Value;
         }
@@ -189,6 +191,74 @@ public class ContextualDisambiguator
 
     private int? GetContextualOverride(string rawName, int? studentItqanId)
     {
+        if (rawName.Equals("أبي", StringComparison.OrdinalIgnoreCase) ||
+            rawName.Equals("ابي", StringComparison.OrdinalIgnoreCase) ||
+            rawName.Equals("أبيه", StringComparison.OrdinalIgnoreCase) ||
+            rawName.Equals("ابيه", StringComparison.OrdinalIgnoreCase))
+        {
+            if (studentItqanId == 333) // عبد الله بن أحمد بن حنبل عن أبيه
+                return 353; // أحمد بن محمد بن حنبل
+        }
+
+        if (rawName.Equals("أبو سلمة", StringComparison.OrdinalIgnoreCase) ||
+            rawName.Equals("أبي سلمة", StringComparison.OrdinalIgnoreCase) ||
+            rawName.Equals("أبو سلمة بن عبد الرحمن", StringComparison.OrdinalIgnoreCase))
+        {
+            return 303; // أبو سلمة بن عبد الرحمن بن عوف الزهري (التابعي الجليل، لا الصحابي 59420)
+        }
+
+        if (rawName.Equals("محمد بن عمرو", StringComparison.OrdinalIgnoreCase))
+        {
+            return 17; // محمد بن عمرو بن علقمة بن وقاص الليثي (المدار المشهور عن أبي سلمة)
+        }
+
+        if (rawName.Equals("محمد بن عبيد", StringComparison.OrdinalIgnoreCase))
+        {
+            return 2271; // محمد بن عبيد بن أبي أمية الطنافسي (أخو يعلى بن عبيد 502)
+        }
+
+        if (rawName.Equals("يعلى بن عبيد", StringComparison.OrdinalIgnoreCase))
+        {
+            return 502; // يعلى بن عبيد بن أبي أمية الطنافسي
+        }
+
+        if (rawName.Equals("أبو بكر بن أبي شيبة", StringComparison.OrdinalIgnoreCase) ||
+            rawName.Equals("أبو بكر بن أبو شيبة", StringComparison.OrdinalIgnoreCase) ||
+            rawName.Equals("ابن أبي شيبة", StringComparison.OrdinalIgnoreCase))
+        {
+            return 748; // عبد الله بن محمد بن أبي شيبة
+        }
+
+        if (rawName.Equals("إسماعيل بن علية", StringComparison.OrdinalIgnoreCase) ||
+            rawName.Equals("إسماعيل ابن علية", StringComparison.OrdinalIgnoreCase) ||
+            rawName.Equals("ابن علية", StringComparison.OrdinalIgnoreCase))
+        {
+            return 360; // إسماعيل بن إبراهيم بن مقسم الأسدي (ابن علية)
+        }
+
+        if (rawName.Equals("أبو عبد الله الحافظ", StringComparison.OrdinalIgnoreCase))
+        {
+            return 10; // محمد بن عبد الله الحاكم النيسابوري
+        }
+
+        if (rawName.Equals("أبو العباس محمد بن يعقوب", StringComparison.OrdinalIgnoreCase) ||
+            rawName.Equals("أبو العباس الأصم", StringComparison.OrdinalIgnoreCase))
+        {
+            return 842; // محمد بن يعقوب بن يوسف بن معقل بن سنان الأصم النيسابوري
+        }
+
+        if (rawName.Equals("محمد بن يعقوب", StringComparison.OrdinalIgnoreCase) &&
+            (studentItqanId == 10 || studentItqanId == 34))
+        {
+            return 842; // أبو العباس الأصم (شيخ الحاكم والبيهقي بالواسطة)
+        }
+
+        if (rawName.Equals("حجاج بن إبراهيم الأزرق", StringComparison.OrdinalIgnoreCase) ||
+            rawName.Equals("حجاج بن إبراهيم", StringComparison.OrdinalIgnoreCase))
+        {
+            return 4393; // حجاج بن إبراهيم الأزرق البغدادي المصري
+        }
+
         if (rawName.Equals("معمر", StringComparison.OrdinalIgnoreCase) ||
             rawName.Equals("معمر بن راشد", StringComparison.OrdinalIgnoreCase))
         {
@@ -268,8 +338,16 @@ public class ContextualDisambiguator
             return contextualOverride.Value;
         }
 
-        // 2. Highest ID Score (Prominence in Itqan dataset)
-        var ordered = candidates.OrderByDescending(c => c.IdScore).ThenByDescending(c => c.GradeScore).ToList();
+        // Prefer candidates whose FullName actually begins with the queried rawName
+        var prefixMatches = candidates
+            .Where(c => !string.IsNullOrWhiteSpace(c.FullName) &&
+                        c.FullName.StartsWith(rawName, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var pool = prefixMatches.Count > 0 ? prefixMatches : candidates;
+
+        // Highest ID Score (Prominence in Itqan dataset), then GradeScore
+        var ordered = pool.OrderByDescending(c => c.IdScore).ThenByDescending(c => c.GradeScore).ToList();
         return ordered.First().ItqanId;
     }
 }

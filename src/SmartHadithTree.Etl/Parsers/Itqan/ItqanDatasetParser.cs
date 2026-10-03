@@ -393,7 +393,7 @@ public class ItqanDatasetParser : IDataSourceParser
                 dataset.Hadiths.Add(hadith);
                 
                 var matnNoVowels = Regex.Replace(matn, @"\p{Mn}", "");
-                var parts = Regex.Split(matnNoVowels, @"(حدثنا|حدثني|أخبرنا|أخبرني|أنبأنا|أنبأني|أنه\s+سمع|أنها\s+سمعت|سمعت|سمع|سمعت|قرأت\s+على|\bعن\b)");
+                var parts = Regex.Split(matnNoVowels, @"(حدثنا|حدثني|أخبرنا|أخبرني|أنبأنا|أنبأني|\bثنا\b|\bأنا\b|\bنا\b|أنه\s+سمع|أنها\s+سمعت|سمعت|سمع|قرأت\s+على|\bعن\b)");
                 var step = 1;
                 Guid? studentId = null;
                 int? studentItqanId = null;
@@ -413,27 +413,7 @@ public class ItqanDatasetParser : IDataSourceParser
                 for (int i = 1; i < parts.Length - 1; i += 2)
                 {
                     var term = parts[i].Trim();
-                    var nameRaw = parts[i + 1];
-
-                    // split by wao + comma for multiple sheikhs and take first
-                    var multipleNames = Regex.Split(nameRaw, @"،\s*و");
-                    if (multipleNames.Length > 1) {
-                        nameRaw = multipleNames[0].Trim();
-                    }
-
-                    // Remove honorifics
-                    nameRaw = Regex.Replace(nameRaw, @"(رضي\s+الله\s+عنه|رضى\s+الله\s+عنه|رضي\s+الله\s+عنهما|رضى\s+الله\s+عنهما|رضي\s+الله\s+عنها|رضى\s+الله\s+عنها|رضي\s+الله\s+عنهم|رضى\s+الله\s+عنهم|صلى\s+الله\s+عليه\s+وسلم|عليه\s+السلام|رحمه\s+الله)", "");
-                    
-                    // Split on narrative and speech boundaries
-                    nameRaw = Regex.Split(nameRaw, @"(قال|يقول|أنه|أن|أنها|على\s+المنبر|وهو\s+على\s+المنبر)")[0];
-
-                    nameRaw = nameRaw.Trim(' ', '،', ',', '.', ':', '؛');
-                    var nameClean = Regex.Replace(nameRaw, @"[^\p{L}\s]", "").Trim();
-                    nameClean = Regex.Replace(nameClean, "ـ", ""); // Remove Kashida
-                    nameClean = Regex.Replace(nameClean, @"\s+", " ").Trim();
-                    nameClean = Regex.Replace(nameClean, @"\bأبي\b", "أبو");
-                    nameClean = Regex.Replace(nameClean, @"\bأبا\b", "أبو");
-                    nameClean = nameClean.Trim();
+                    var nameClean = Services.ChainReprocessingService.CleanNarratorSegment(parts[i + 1]);
 
                     Guid? sheikhId = null;
                     int? sheikhItqanId = null;
@@ -441,20 +421,7 @@ public class ItqanDatasetParser : IDataSourceParser
                     string previousNameClean = "";
                     if (i >= 3)
                     {
-                        var prevRaw = parts[i - 1];
-                        var multiplePrevNames = Regex.Split(prevRaw, @"،\s*و");
-                        if (multiplePrevNames.Length > 1) {
-                            prevRaw = multiplePrevNames[0].Trim();
-                        }
-                        prevRaw = Regex.Replace(prevRaw, @"(رضي\s+الله\s+عنه|رضى\s+الله\s+عنه|رضي\s+الله\s+عنهما|رضى\s+الله\s+عنهما|رضي\s+الله\s+عنها|رضى\s+الله\s+عنها|رضي\s+الله\s+عنهم|رضى\s+الله\s+عنهم|صلى\s+الله\s+عليه\s+وسلم|عليه\s+السلام|رحمه\s+الله)", "");
-                        prevRaw = Regex.Split(prevRaw, @"(قال|يقول|أنه|أن|أنها|على\s+المنبر|وهو\s+على\s+المنبر)")[0];
-                        prevRaw = prevRaw.Trim(' ', '،', ',', '.', ':', '؛');
-                        previousNameClean = Regex.Replace(prevRaw, @"[^\p{L}\s]", "").Trim();
-                        previousNameClean = Regex.Replace(previousNameClean, "ـ", ""); // Remove Kashida
-                        previousNameClean = Regex.Replace(previousNameClean, @"\s+", " ").Trim();
-                        previousNameClean = Regex.Replace(previousNameClean, @"\bأبي\b", "أبو");
-                        previousNameClean = Regex.Replace(previousNameClean, @"\bأبا\b", "أبو");
-                        previousNameClean = previousNameClean.Trim();
+                        previousNameClean = Services.ChainReprocessingService.CleanNarratorSegment(parts[i - 1]);
                     }
 
                     if (nameClean.Equals("أبيه", StringComparison.OrdinalIgnoreCase) || 

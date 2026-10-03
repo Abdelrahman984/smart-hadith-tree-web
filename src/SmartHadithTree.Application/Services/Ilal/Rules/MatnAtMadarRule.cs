@@ -168,20 +168,66 @@ public sealed class MatnAtMadarRule : IIlalRule
         }
     }
 
+    private static readonly HashSet<string> FramingTokens = new(StringComparer.Ordinal)
+    {
+        "ان", "انه", "انها", "قال", "فقال", "النبي", "رسول", "الله", "نبي"
+    };
+
     /// <summary>Classifies the difference between a reference text and a compared text.</summary>
     internal static DiffKind Classify(AlignmentResult diff)
     {
         if (diff.Similarity < MinRelatedSimilarity) return DiffKind.Unrelated;
 
-        var substituted = diff.SubstitutedCount;
-        var addedOnly = diff.AddedCount - substituted;
-        var removedOnly = diff.RemovedCount - substituted;
+        var addedTokens = diff.Segments
+            .Where(s => s.Kind == AlignmentKind.Added)
+            .SelectMany(s => s.Tokens)
+            .Where(t => !FramingTokens.Contains(t))
+            .ToList();
+        var removedTokens = diff.Segments
+            .Where(s => s.Kind == AlignmentKind.Removed)
+            .SelectMany(s => s.Tokens)
+            .Where(t => !FramingTokens.Contains(t))
+            .ToList();
 
-        if (substituted >= MinSubstitutedWords && diff.Similarity < 0.9) return DiffKind.Contradiction;
+        // Discount word-order transpositions (تقديم وتأخير) where the exact same word appears in both Added and Removed
+        var removedSet = new HashSet<string>(removedTokens, StringComparer.Ordinal);
+        int transposedCount = addedTokens.Count(removedSet.Contains);
+
+        var substituted = diff.SubstitutedCount;
+        var maxSingleSubstitution = MaxSingleSubstitution(diff);
+        var addedOnly = Math.Max(0, addedTokens.Count - substituted - transposedCount);
+        var removedOnly = Math.Max(0, removedTokens.Count - substituted - transposedCount);
+
+        // Multi-word contiguous substitution at a single site is a direct contradiction
+        if (maxSingleSubstitution >= MinSubstitutedWords && diff.Similarity < 0.9) return DiffKind.Contradiction;
         if (addedOnly >= MinSignificantWords && removedOnly >= MinSignificantWords) return DiffKind.Contradiction;
-        if (addedOnly >= MinSignificantWords && diff.LongestAddedRun >= 2) return DiffKind.Addition;
-        if (removedOnly >= MinSignificantWords && LongestRemovedRun(diff) >= 2) return DiffKind.Omission;
+        if ((addedOnly >= MinSignificantWords || (addedTokens.Count - transposedCount >= MinSignificantWords && maxSingleSubstitution < MinSubstitutedWords))
+            && diff.LongestAddedRun >= 2 && removedOnly < MinSignificantWords)
+        {
+            return DiffKind.Addition;
+        }
+        if ((removedOnly >= MinSignificantWords || (removedTokens.Count - transposedCount >= MinSignificantWords && maxSingleSubstitution < MinSubstitutedWords))
+            && LongestRemovedRun(diff) >= 2 && addedOnly < MinSignificantWords)
+        {
+            return DiffKind.Omission;
+        }
+        if (substituted >= MinSubstitutedWords && diff.Similarity < 0.9) return DiffKind.Contradiction;
         return DiffKind.None;
+    }
+
+    private static int MaxSingleSubstitution(AlignmentResult diff)
+    {
+        int max = 0;
+        for (int i = 0; i < diff.Segments.Count - 1; i++)
+        {
+            var a = diff.Segments[i];
+            var b = diff.Segments[i + 1];
+            if (a.Kind != AlignmentKind.Equal && b.Kind != AlignmentKind.Equal && a.Kind != b.Kind)
+            {
+                max = Math.Max(max, Math.Min(a.Tokens.Count, b.Tokens.Count));
+            }
+        }
+        return max;
     }
 
     private static int LongestRemovedRun(AlignmentResult diff) =>

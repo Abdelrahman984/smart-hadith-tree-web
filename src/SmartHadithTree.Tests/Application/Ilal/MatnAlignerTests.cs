@@ -71,4 +71,29 @@ public class MatnAlignerTests
     {
         MatnText.IsMarfu(text).Should().Be(expected);
     }
+
+    [Fact]
+    public void ExtractBody_StripsCompilerNarratorCommentAndModernEditorGrading()
+    {
+        var bayhaqiBody = MatnText.ExtractBody(
+            "أخبرنا أبو عبد الله الحافظ عن المغيرة بن شعبة قال كان النبي صلى الله عليه وسلم إذا ذهب المذهب أبعد قال الشيخ إسماعيل هو ابن جعفر ومحمد هو ابن عمرو");
+        var ibnKhuzaymahBody = MatnText.ExtractBody(
+            "ثنا علي بن حجر عن المغيرة بن شعبة قال كان النبي صلى الله عليه وسلم إذا ذهب المذهب أبعد قال الأعظمي إسناده حسن");
+
+        bayhaqiBody.Should().Be("كان النبي اذا ذهب المذهب ابعد");
+        ibnKhuzaymahBody.Should().Be("كان النبي اذا ذهب المذهب ابعد");
+    }
+
+    [Theory]
+    [InlineData("محمد بن عبد الله بن محمد بن حمدويه بن نعيم بن الحكم", "الحافظ", "أبو عبد الله", "الحاكم النيسابوري")]
+    [InlineData("زيد بن عمرو بن فلان بن علان", "الحافظ", "أبو بكر", "زيد بن عمرو بن فلان")]
+    [InlineData("أبو سلمة بن عبد الرحمن بن عوف ، قيل : اسمه عبد الله", null, "أبو سلمة", "أبو سلمة بن عبد الرحمن بن عوف")]
+    public void NarratorNameFormatter_FiltersGenericHonorificsAndFormatsCleanly(
+        string fullName,
+        string? knownAs,
+        string? kunyah,
+        string expected)
+    {
+        NarratorNameFormatter.FormatDisplayName(fullName, knownAs, kunyah).Should().Be(expected);
+    }
 }

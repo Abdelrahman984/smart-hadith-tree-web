@@ -63,6 +63,17 @@ try
         bool onlyMissing = source.Equals("reprocess-missing-chains", StringComparison.OrdinalIgnoreCase);
         await reprocessor.ReprocessChainsAsync(itqanPath, bookFilter, CancellationToken.None, onlyMissing);
     }
+    else if (source.Equals("reprocess-hadiths", StringComparison.OrdinalIgnoreCase))
+    {
+        var itqanPath = args.Length > 1 ? args[1] : "data/itqan";
+        var rawIds = args.Length > 2 ? args[2] : string.Empty;
+        var hadithIds = rawIds
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(s => Guid.TryParse(s, out var g) ? g : Guid.Empty)
+            .Where(g => g != Guid.Empty)
+            .ToList();
+        await reprocessor.ReprocessHadithIdsAsync(itqanPath, hadithIds, CancellationToken.None);
+    }
     else if (source.Equals("seed-ilal", StringComparison.OrdinalIgnoreCase))
     {
         // Teacher/student relations + mudallisin/mukhtalitun seeds. E.g. dotnet run seed-ilal data/itqan

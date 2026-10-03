@@ -124,43 +124,43 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
         var parameters = hadithIds.Cast<object>().ToArray();
 
         var sql = $@"
-            WITH RecursiveChain AS (
-                -- Anchor: The Compiler (Student of Step 1) for ALL selected Hadiths
+            WITH ChainRows AS (
+                -- Anchor: Distinct Compiler (Student of Step 1) per Hadith
                 SELECT 
                     NEWID() AS Id,
-                    t.StudentId AS NarratorId,
+                    c.StudentId AS NarratorId,
                     0 AS StepOrder,
                     CAST(NULL AS UNIQUEIDENTIFIER) AS ParentNodeId,
                     CAST(NULL AS NVARCHAR(50)) AS TransmissionTerm,
-                    t.HadithId
-                FROM Transmissions t
-                WHERE t.HadithId IN ({paramPlaceholders}) AND t.StepOrder = 1
+                    c.HadithId
+                FROM (
+                    SELECT DISTINCT t.StudentId, t.HadithId
+                    FROM Transmissions t
+                    WHERE t.HadithId IN ({paramPlaceholders}) AND t.StepOrder = 1
+                ) c
 
                 UNION ALL
 
-                -- Recursive: The Sheikh of the current Narrator (per-Hadith chain)
+                -- Edges: Every transmission step (Sheikh -> Student) for the selected Hadiths
                 SELECT 
-                    child.Id,
-                    child.SheikhId AS NarratorId,
-                    child.StepOrder,
-                    parent.Id AS ParentNodeId,
-                    child.TransmissionTerm,
-                    child.HadithId
-                FROM Transmissions child
-                INNER JOIN RecursiveChain parent 
-                    ON child.StudentId = parent.NarratorId 
-                    AND child.HadithId = parent.HadithId
-                    AND child.StepOrder = parent.StepOrder + 1
+                    t.Id,
+                    t.SheikhId AS NarratorId,
+                    t.StepOrder,
+                    t.StudentId AS ParentNodeId,
+                    t.TransmissionTerm,
+                    t.HadithId
+                FROM Transmissions t
+                WHERE t.HadithId IN ({paramPlaceholders})
             )
             SELECT 
-                rc.Id,
-                rc.NarratorId,
+                cr.Id,
+                cr.NarratorId,
                 n.FullName AS NarratorName,
                 n.KnownAs,
                 n.GenerationTier,
-                rc.StepOrder,
-                rc.ParentNodeId,
-                rc.TransmissionTerm,
+                cr.StepOrder,
+                cr.ParentNodeId,
+                cr.TransmissionTerm,
                 n.ItqanGrade AS GradeEn,
                 n.IsMudallis,
                 n.HasMukhtalit,
@@ -171,12 +171,12 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                 n.UniqueHadithCount,
                 CAST(0 AS BIT) AS IsAnomaly,
                 CAST(NULL AS NVARCHAR(MAX)) AS AnomalyReason,
-                rc.HadithId AS SourceHadithId,
+                cr.HadithId AS SourceHadithId,
                 h.BookName AS SourceBookName
-            FROM RecursiveChain rc
-            INNER JOIN Narrators n ON rc.NarratorId = n.Id
-            INNER JOIN Hadiths h ON rc.HadithId = h.Id
-            ORDER BY rc.StepOrder ASC;
+            FROM ChainRows cr
+            INNER JOIN Narrators n ON cr.NarratorId = n.Id
+            INNER JOIN Hadiths h ON cr.HadithId = h.Id
+            ORDER BY cr.StepOrder ASC;
         ";
 
         // Execute raw SQL — returns flat rows with per-hadith attribution
@@ -191,6 +191,15 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
         foreach (var group in narratorGroups)
         {
             var first = group.First();
+            var minStep = group.Min(r => r.StepOrder);
+
+            // If this scholar is a compiler (StepOrder == 0) in at least one selected hadith,
+            // keep the primary ReferenceNode's SourceHadithIds/SourceBooks scoped to the books they compiled,
+            // and emit any intermediate-narrator links (where they are a teacher of a later compiler) as edge nodes.
+            var attributionRows = minStep == 0
+                ? group.Where(r => r.StepOrder == 0).ToList()
+                : group.ToList();
+
             mergedNodes.Add(new ComparativeIsnadNodeDto
             {
                 Id = first.Id,
@@ -198,8 +207,8 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                 NarratorName = first.NarratorName,
                 KnownAs = first.KnownAs,
                 GenerationTier = first.GenerationTier,
-                StepOrder = group.Min(r => r.StepOrder),
-                ParentNodeId = first.ParentNodeId,
+                StepOrder = minStep,
+                ParentNodeId = null,
                 TransmissionTerm = first.TransmissionTerm,
                 GradeEn = first.GradeEn,
                 IsMudallis = first.IsMudallis,
@@ -209,130 +218,95 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                 GawamiRank = first.GawamiRank,
                 TotalNarrationsCount = first.TotalNarrationsCount,
                 UniqueHadithCount = first.UniqueHadithCount,
-                SourceHadithIds = group.Select(r => r.SourceHadithId).Distinct().ToList(),
-                SourceBooks = group.Select(r => r.SourceBookName).Distinct().ToList()
+                SourceHadithIds = attributionRows.Select(r => r.SourceHadithId).Distinct().ToList(),
+                SourceBooks = attributionRows.Select(r => r.SourceBookName).Distinct().ToList()
             });
         }
 
-        // Build edges from the raw rows (preserving per-hadith parent links)
-        // We need edges that connect narrator->narrator, deduplicating across books
-        var edgeNodes = new List<ComparativeIsnadNodeDto>();
-        var seenEdges = new HashSet<string>();
+        var mergedByNarratorId = mergedNodes.ToDictionary(n => n.NarratorId);
 
-        foreach (var row in rawRows)
+        // Helper to validate a directed edge (Sheikh -> Student) and prevent self-loops or non-companions above companions
+        bool IsValidEdge(ComparativeRawRow sheikhRow, out ComparativeIsnadNodeDto? studentNode)
         {
-            if (row.ParentNodeId.HasValue && row.ParentNodeId.Value != Guid.Empty)
+            studentNode = null;
+            if (sheikhRow.StepOrder <= 0 || !sheikhRow.ParentNodeId.HasValue || sheikhRow.ParentNodeId.Value == Guid.Empty)
+                return false;
+
+            if (!mergedByNarratorId.TryGetValue(sheikhRow.ParentNodeId.Value, out var student) ||
+                student.NarratorId == sheikhRow.NarratorId)
             {
-                // Find the parent row to get its NarratorId
-                var parentRow = rawRows.FirstOrDefault(r => r.Id == row.ParentNodeId.Value);
-                if (parentRow != null)
-                {
-                    var edgeKey = $"{row.NarratorId}->{parentRow.NarratorId}";
-                    if (!seenEdges.Contains(edgeKey))
-                    {
-                        seenEdges.Add(edgeKey);
-                        // Update the merged node's ParentNodeId to point to the parent's merged node Id
-                        var mergedNode = mergedNodes.FirstOrDefault(n => n.NarratorId == row.NarratorId);
-                        var mergedParent = mergedNodes.FirstOrDefault(n => n.NarratorId == parentRow.NarratorId);
-                        if (mergedNode != null && mergedParent != null)
-                        {
-                            // Create an edge-representing node entry that preserves the link
-                            // The frontend uses ParentNodeId to find the target narrator
-                        }
-                    }
-                }
+                return false;
             }
+
+            // A Companion (1st generation) cannot have a non-Companion Sheikh above them
+            if (string.Equals(student.GradeEn, "companion", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(sheikhRow.GradeEn, "companion", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            studentNode = student;
+            return true;
         }
 
-        // Reconstruct ParentNodeId references to use merged node Ids
-        // Build a mapping: for each raw row, map (NarratorId, HadithId) -> merged node
-        foreach (var node in mergedNodes)
-        {
-            // Find a raw row for this narrator that has a valid parent
-            var rowWithParent = rawRows
-                .Where(r => r.NarratorId == node.NarratorId && r.ParentNodeId.HasValue && r.ParentNodeId.Value != Guid.Empty)
-                .FirstOrDefault();
-
-            if (rowWithParent != null)
-            {
-                var parentRow = rawRows.FirstOrDefault(r => r.Id == rowWithParent.ParentNodeId!.Value);
-                if (parentRow != null)
-                {
-                    var mergedParent = mergedNodes.FirstOrDefault(n => n.NarratorId == parentRow.NarratorId);
-                    if (mergedParent != null)
-                    {
-                        node.ParentNodeId = mergedParent.Id;
-                    }
-                }
-            }
-            else
-            {
-                node.ParentNodeId = null;
-            }
-        }
-
-        // However, a narrator can have MULTIPLE parents across different books
-        // (e.g., al-Zuhri receives from both Sa'id ibn al-Musayyib in one chain 
-        //  and from 'Urwah in another). We need additional entries for those extra edges.
+        // Group valid directed edges (SheikhNarratorId -> StudentNarratorId) with their exact per-edge hadith/book attribution
+        var edgeGroups = rawRows
+            .Select(r => (Row: r, HasValidEdge: IsValidEdge(r, out var s), StudentNode: s))
+            .Where(x => x.HasValidEdge && x.StudentNode != null)
+            .GroupBy(x => (SheikhId: x.Row.NarratorId, StudentId: x.StudentNode!.NarratorId))
+            .ToList();
         var additionalEdgeNodes = new List<ComparativeIsnadNodeDto>();
-        var primaryParents = new Dictionary<Guid, Guid>(); // narratorId -> first parentNarratorId
 
-        foreach (var node in mergedNodes)
+        // Attach primary and additional edges from edgeGroups
+        foreach (var edgesForSheikh in edgeGroups.GroupBy(g => g.Key.SheikhId))
         {
-            if (node.ParentNodeId.HasValue)
+            if (!mergedByNarratorId.TryGetValue(edgesForSheikh.Key, out var sheikhNode))
+                continue;
+
+            bool isCompilerNode = sheikhNode.StepOrder == 0;
+            bool assignedPrimaryEdge = false;
+
+            foreach (var edgeGroup in edgesForSheikh)
             {
-                var parentNarrator = mergedNodes.FirstOrDefault(n => n.Id == node.ParentNodeId.Value);
-                if (parentNarrator != null)
+                if (!mergedByNarratorId.TryGetValue(edgeGroup.Key.StudentId, out var studentNode))
+                    continue;
+
+                var edgeRows = edgeGroup.Select(x => x.Row).ToList();
+                var firstEdgeRow = edgeRows[0];
+                var edgeHadithIds = edgeRows.Select(r => r.SourceHadithId).Distinct().ToList();
+                var edgeBooks = edgeRows.Select(r => r.SourceBookName).Distinct().ToList();
+
+                // Assign the first edge directly to the primary node ONLY if the primary node is not a StepOrder=0 compiler
+                // and only has a single student across the tree (so its SourceBooks match the node's SourceBooks).
+                if (!isCompilerNode && !assignedPrimaryEdge && edgesForSheikh.Count() == 1)
                 {
-                    primaryParents[node.NarratorId] = parentNarrator.NarratorId;
+                    sheikhNode.ParentNodeId = studentNode.Id;
+                    sheikhNode.TransmissionTerm = firstEdgeRow.TransmissionTerm;
+                    assignedPrimaryEdge = true;
                 }
-            }
-        }
-
-        // Find additional parent links from other chains
-        foreach (var row in rawRows)
-        {
-            if (!row.ParentNodeId.HasValue || row.ParentNodeId.Value == Guid.Empty) continue;
-
-            var parentRow = rawRows.FirstOrDefault(r => r.Id == row.ParentNodeId.Value);
-            if (parentRow == null) continue;
-
-            // Check if this parent is different from the primary parent
-            if (primaryParents.TryGetValue(row.NarratorId, out var primaryParentNarratorId))
-            {
-                if (parentRow.NarratorId != primaryParentNarratorId)
+                else
                 {
-                    var edgeKey = $"extra-{row.NarratorId}->{parentRow.NarratorId}";
-                    if (!seenEdges.Contains(edgeKey))
+                    additionalEdgeNodes.Add(new ComparativeIsnadNodeDto
                     {
-                        seenEdges.Add(edgeKey);
-                        var mergedParent = mergedNodes.FirstOrDefault(n => n.NarratorId == parentRow.NarratorId);
-                        if (mergedParent != null)
-                        {
-                            // Add a duplicate node entry that represents this additional edge
-                            additionalEdgeNodes.Add(new ComparativeIsnadNodeDto
-                            {
-                                Id = Guid.NewGuid(),
-                                NarratorId = row.NarratorId,
-                                NarratorName = row.NarratorName,
-                                KnownAs = row.KnownAs,
-                                GenerationTier = row.GenerationTier,
-                                StepOrder = row.StepOrder,
-                                ParentNodeId = mergedParent.Id,
-                                TransmissionTerm = row.TransmissionTerm,
-                                GradeEn = row.GradeEn,
-                                IsMudallis = row.IsMudallis,
-                                HasMukhtalit = row.HasMukhtalit,
-                                ResidencePlaces = row.ResidencePlaces,
-                                DeathPlace = row.DeathPlace,
-                                GawamiRank = row.GawamiRank,
-                                TotalNarrationsCount = row.TotalNarrationsCount,
-                                UniqueHadithCount = row.UniqueHadithCount,
-                                SourceHadithIds = [row.SourceHadithId],
-                                SourceBooks = [row.SourceBookName]
-                            });
-                        }
-                    }
+                        Id = Guid.NewGuid(),
+                        NarratorId = firstEdgeRow.NarratorId,
+                        NarratorName = firstEdgeRow.NarratorName,
+                        KnownAs = firstEdgeRow.KnownAs,
+                        GenerationTier = firstEdgeRow.GenerationTier,
+                        StepOrder = Math.Max(1, firstEdgeRow.StepOrder),
+                        ParentNodeId = studentNode.Id,
+                        TransmissionTerm = firstEdgeRow.TransmissionTerm,
+                        GradeEn = firstEdgeRow.GradeEn,
+                        IsMudallis = firstEdgeRow.IsMudallis,
+                        HasMukhtalit = firstEdgeRow.HasMukhtalit,
+                        ResidencePlaces = firstEdgeRow.ResidencePlaces,
+                        DeathPlace = firstEdgeRow.DeathPlace,
+                        GawamiRank = firstEdgeRow.GawamiRank,
+                        TotalNarrationsCount = firstEdgeRow.TotalNarrationsCount,
+                        UniqueHadithCount = firstEdgeRow.UniqueHadithCount,
+                        SourceHadithIds = edgeHadithIds,
+                        SourceBooks = edgeBooks
+                    });
                 }
             }
         }

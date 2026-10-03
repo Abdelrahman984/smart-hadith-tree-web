@@ -94,7 +94,12 @@ const ReferenceNode = ({ data, selected }: { data: ReferenceNodeData; selected?:
         </div>
       )}
 
-      {/* Notice: No bottom handle because reference node is the terminal compiler */}
+      {/* Bottom Handle - Output to Student when a compiler is also an intermediate sheikh in a later collection */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="!w-2 !h-2 !bg-transparent !border-none opacity-0 pointer-events-none"
+      />
     </div>
   );
 };

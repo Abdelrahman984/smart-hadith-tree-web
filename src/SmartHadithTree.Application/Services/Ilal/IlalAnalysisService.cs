@@ -100,17 +100,32 @@ public class IlalAnalysisService(IHadithTreeDbContext context) : IIlalAnalysisSe
 
         var narratorIds = chains.SelectMany(c => c.Path).Distinct().ToList();
 
-        var narrators = await context.Narrators.AsNoTracking()
+        var narratorRows = await context.Narrators.AsNoTracking()
             .Where(n => narratorIds.Contains(n.Id))
-            .Select(n => new IlalNarrator(
+            .Select(n => new
+            {
                 n.Id,
-                n.KnownAs ?? n.FullName,
+                n.FullName,
+                n.KnownAs,
+                n.Kunyah,
                 n.ItqanGrade,
                 n.GenerationTier,
                 n.MudallisTier,
                 n.HasMukhtalit,
-                n.IkhtilatNote))
-            .ToDictionaryAsync(n => n.Id, ct);
+                n.IkhtilatNote
+            })
+            .ToListAsync(ct);
+
+        var narrators = narratorRows.ToDictionary(
+            n => n.Id,
+            n => new IlalNarrator(
+                n.Id,
+                NarratorNameFormatter.FormatDisplayName(n.FullName, n.KnownAs, n.Kunyah),
+                n.ItqanGrade,
+                n.GenerationTier,
+                n.MudallisTier,
+                n.HasMukhtalit,
+                n.IkhtilatNote));
 
         var relations = await context.NarratorRelations.AsNoTracking()
             .Where(r => narratorIds.Contains(r.TeacherId) && narratorIds.Contains(r.StudentId))
