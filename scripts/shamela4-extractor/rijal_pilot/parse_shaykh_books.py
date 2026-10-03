@@ -2,7 +2,7 @@
 
 Each book in BOOKS has a layout:
 - 'bracket'  "[n] name" + "سمع:" / "حدث عن:" / "وعنه:" lists + the author's verdict
-             "قلت: [ثقة]" or "قلت: (ثقة)"            (الروض الباسم، إرشاد القاصي والداني)
+             "قلت: [ثقة]" or "قلت: (ثقة)"   (الروض الباسم، إرشاد القاصي والداني، الدليل المغني)
 - 'paren'    "(n) name" + "روى عن:" / "سمع منه:" lists + "وورد:" forms of the name as the
              compiler writes it in his books, kept as exact aliases       (إتحاف المرتقي)
 - 'star'     "* name." entries quoting other rijal books ("يروي عن:" / "روى عنه:")
@@ -32,6 +32,7 @@ COMPILERS = {
     'tabarani': 'سليمان بن أحمد بن أيوب بن مطير اللخمي الطبراني، أبو القاسم',
     'bayhaqi': 'أحمد بن الحسين بن علي بن موسى الخسروجردي البيهقي، أبو بكر',
     'ibnhibban': 'محمد بن حبان بن أحمد بن حبان بن معاذ التميمي البستي، أبو حاتم',
+    'daraqutni': 'علي بن عمر بن أحمد بن مهدي البغدادي الدارقطني، أبو الحسن',
 }
 # How other compilers name a compiler in their isnads (al-Bayhaqi: "أبو عبد الله الحافظ" = al-Hakim).
 # These become exact aliases, so keep them specific.
@@ -42,6 +43,7 @@ BOOKS = [   # full-head books first: short-head books merge into them
     {'id': 14463, 'source': 'rawd', 'layout': 'bracket', 'compiler': 'hakim'},
     {'id': 29745, 'source': 'irshad', 'layout': 'bracket', 'compiler': 'tabarani'},
     {'id': 123667, 'source': 'salsabil', 'layout': 'bracket', 'compiler': 'bayhaqi'},
+    {'id': 7852, 'source': 'dalil', 'layout': 'bracket', 'compiler': 'daraqutni'},
     {'id': 123666, 'source': 'ithaf', 'layout': 'paren', 'compiler': 'bayhaqi'},
     {'id': 1498, 'source': 'rayy', 'layout': 'dash', 'compiler': 'ibnhibban'},
     {'id': 29742, 'source': 'rijal_hakim', 'layout': 'isnad', 'isnad_marker': 'الحاكم'},
@@ -187,7 +189,7 @@ for book in BOOKS:
         body = text[m.end():heads[k + 1].start() if k + 1 < len(heads) else len(text)]
         if layout == 'dash':                              # namesakes, kunya table, appendix
             body = re.split(r'\[تمييز\]|\[\*\]|\n\s*\*?\s*[٠-٩]+\s*-\s', body)[0]
-        header = ASIDE.sub(' ', m.group(2))
+        header = ASIDE.sub(' ', m.group(2)).replace(',', '،')     # الدليل المغني: "يعقوب, أبو إسحاق"
         header = re.sub(r'\s*\([٠-٩]+\)\s*$', '', header).strip(' .')   # "زحر بن ربيعة (٧٢٧٦)"
         if re.search(r'وهو\s*:', header):                     # "القاضي أبو العلاء وهو: صاعد بن محمد ..."
             header = re.split(r'وهو\s*:', header, maxsplit=1)[1].strip()
