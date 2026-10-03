@@ -444,7 +444,7 @@ cd ../.. && python scripts/shamela4-extractor/rijal_pilot/check_record_boundarie
 `compare_current.py` options (environment variables):
 - `CHAIN_MODE=greedy` — use the old link-by-link walk instead of the joint resolver.
 - `SHOW_DIFF=20` — list disagreements with the current system for review.
-- `NO_CACHE=1` — do not use `data/shamela_rijal/cache/`. Linking the registry's ~70k list names takes most of a run (36 s per book); the result is cached under a hash of every registry file and every script in `rijal_pilot/`, so any change to data or code recomputes it. Checked on all 31 books: the old code, the new code without cache, with an empty cache and with a filled cache gave byte-identical results; a run of all 31 went from 373 s to 99 s.
+- `NO_CACHE=1` — do not use `data/shamela_rijal/cache/`. Linking the registry's ~70k list names takes most of a run (36 s per book); the result is cached under a hash of every registry file and every script in `rijal_pilot/`, so any change to data or code recomputes it. Checked on all 31 books: the old code, the new code without cache, with an empty cache and with a filled cache gave byte-identical results; a run of all 31 went from 373 s to 99 s. `bench.py` runs its first book alone so that, after a change, the other books load the rebuilt cache instead of each rebuilding it in parallel: a run of all 31 after a change went from 168 s to 133 s, with identical results.
 - `SAVE=<file>.json` — save every sampled isnad with each name's resolution (ours, how, from which book) and the current chain, to review a run or diff two runs.
 
 Python output with Arabic needs `PYTHONIOENCODING=utf-8` on Windows.

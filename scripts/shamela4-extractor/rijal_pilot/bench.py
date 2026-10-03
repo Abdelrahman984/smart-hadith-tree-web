@@ -120,8 +120,11 @@ def main() -> None:
     base = a.base or next((t for t in reversed(runs_with(books)) if t != a.tag), None)
     os.makedirs(os.path.join(RESULTS, a.tag), exist_ok=True)
 
+    # The first book runs alone: after any change to the data or the scripts it rebuilds the cache
+    # (link_tahdhib.cached), which the others then load instead of each rebuilding it in parallel.
+    stats = {books[0]: run_book(a.tag, books[0])}
     with ThreadPoolExecutor(max_workers=5) as pool:
-        stats = dict(zip(books, pool.map(lambda b: run_book(a.tag, b), books)))
+        stats.update(zip(books[1:], pool.map(lambda b: run_book(a.tag, b), books[1:])))
     old = json.load(open(os.path.join(RESULTS, base, 'summary.json'), encoding='utf-8'))['stats'] if base else {}
     json.dump({'books': books, 'stats': stats}, open(os.path.join(RESULTS, a.tag, 'summary.json'), 'w',
                                                     encoding='utf-8'), ensure_ascii=False, indent=1)
