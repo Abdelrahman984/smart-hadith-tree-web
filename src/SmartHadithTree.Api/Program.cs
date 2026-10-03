@@ -16,7 +16,11 @@ builder.Services.AddDbContext<HadithTreeDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sqlOptions =>
         {
-            sqlOptions.CommandTimeout(60);
+            sqlOptions.CommandTimeout(120);
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorNumbersToAdd: null);
             sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory");
         }));
 
@@ -86,8 +90,16 @@ var app = builder.Build();
 // ── Apply Pending Migrations ───────────────────────────────────────
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<HadithTreeDbContext>();
-    await db.Database.MigrateAsync();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<HadithTreeDbContext>();
+        await db.Database.MigrateAsync();
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Database migration check failed at startup. Ensure the 'MSSQLSERVER' Windows service is running.");
+    }
 }
 
 // ── Middleware Pipeline ────────────────────────────────────────────
