@@ -1,13 +1,23 @@
-# Export the current system's chains (Transmissions) for al-Bukhari and al-Mustadrak to UTF-8 JSON.
-param([string]$Out = "$PSScriptRoot\current_chains.json")
+# Export the current system's chains (Transmissions) for the given books to UTF-8 JSON.
+# -Books holds substrings of Hadiths.BookName (default: al-Bukhari and al-Mustadrak).
+param(
+    [string]$Out = "$PSScriptRoot\current_chains.json",
+    [string[]]$Books = @('البخاري', 'المستدرك')
+)
 
 $conn = New-Object System.Data.SqlClient.SqlConnection "Server=.;Database=SmartHadithTree;Integrated Security=True;TrustServerCertificate=True"
 $conn.Open()
+
+# "h.BookName LIKE @b0 OR h.BookName LIKE @b1 ..." with the values passed as parameters.
+$bookFilter = ($Books | ForEach-Object -Begin { $i = 0 } -Process { "h.BookName LIKE @b$i"; $i++ }) -join ' OR '
 
 function Query([string]$sql) {
     $cmd = $conn.CreateCommand()
     $cmd.CommandText = $sql
     $cmd.CommandTimeout = 600
+    for ($i = 0; $i -lt $Books.Count; $i++) {
+        [void]$cmd.Parameters.AddWithValue("@b$i", "%$($Books[$i])%")
+    }
     $table = New-Object System.Data.DataTable
     $table.Load($cmd.ExecuteReader())
     return ,$table
@@ -16,7 +26,7 @@ function Query([string]$sql) {
 $hadiths = Query @"
 SELECT h.Id, h.BookName, h.HadithNumber, LEFT(h.MatnArabic, 400) AS Head
 FROM Hadiths h
-WHERE h.BookName LIKE N'%البخاري%' OR h.BookName LIKE N'%المستدرك%'
+WHERE $bookFilter
 "@
 
 $links = Query @"
@@ -27,7 +37,7 @@ FROM Transmissions t
 JOIN Hadiths h ON h.Id = t.HadithId
 JOIN Narrators st ON st.Id = t.StudentId
 JOIN Narrators sh ON sh.Id = t.SheikhId
-WHERE h.BookName LIKE N'%البخاري%' OR h.BookName LIKE N'%المستدرك%'
+WHERE $bookFilter
 ORDER BY t.HadithId, t.StepOrder
 "@
 $conn.Close()

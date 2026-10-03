@@ -114,7 +114,11 @@ def name_candidates(name: str) -> frozenset[int]:
         k, rest = toks[1], toks[2:]
         pool = kunya_index.get(k, set())
         if re.match(r'\s*أب[وي] \S+ بن ', name):
-            return frozenset(j for j in pool if nasab[j][1:2] == rest[:1])
+            # "أبو بكر بن إسحاق" names the father; "أبو بكر بن أبي شيبة" names an ancestor
+            # (عبد الله بن محمد بن أبي شيبة), and "أبي شيبة" is two tokens.
+            anc = rest[:2] if rest[0] == 'ابو' else rest[:1]
+            return frozenset(j for j in pool
+                             if any(nasab[j][p:p + len(anc)] == anc for p in range(1, 5)))
         return frozenset(j for j in pool if set(rest) <= (own_tokens[j] | entry_tokens[j]) and chain_fits(j))
     # Fallback: ism + father must match the entry's own ism + father, and a grandfather named in
     # the item ("X بن Y بن Z") must not contradict the entry's grandfather.
