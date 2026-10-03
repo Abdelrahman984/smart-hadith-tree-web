@@ -13,7 +13,8 @@ import java.util.*;
  * Run:
  *   "D:\Islamic\shamela4\app\win\64\jre\2\bin\java.exe" "--add-modules=jdk.incubator.vector" ^
  *     -cp "D:\Islamic\shamela4\app\lucene\2\*;scripts\shamela4-extractor" ShamelaLuceneDumper ^
- *     "D:\Islamic\shamela4\database\store" "data\shamela_dump"
+ *     "D:\Islamic\shamela4\database\store" "data\shamela_dump" [bookId,bookId,...]
+ * The optional third argument is a comma-separated list of Shamela book IDs (default: the 19 hadith books).
  */
 public class ShamelaLuceneDumper {
     public static void main(String[] args) throws Exception {
@@ -43,7 +44,7 @@ public class ShamelaLuceneDumper {
         Object indexOrderSort = sortClass.getField("INDEXORDER").get(null);
         Method queryRows = luceneBulkClass.getMethod("queryRows", searcherClass, queryClass, int.class, sortClass, String[].class);
 
-        String[] bookIds = new String[]{
+        String[] bookIds = args.length > 2 ? args[2].split(",") : new String[]{
             "13174", "1456", "9344", "8493", "13122", "13159", "12981",
             "8361", "12520", "1446", "18144", "537", "1733", "28171",
             "13068", "9771", "1424", "148486", "10660"
@@ -79,6 +80,6 @@ public class ShamelaLuceneDumper {
             long t1 = System.currentTimeMillis();
             System.out.println("Dumped book " + bid + ": " + pages.size() + " pages, " + titles.size() + " titles in " + (t1 - t0) + "ms");
         }
-        System.out.println("ALL 19 BOOKS DUMPED in " + (System.currentTimeMillis() - totalStart) + "ms!");
+        System.out.println("ALL " + bookIds.length + " BOOKS DUMPED in " + (System.currentTimeMillis() - totalStart) + "ms!");
     }
 }
