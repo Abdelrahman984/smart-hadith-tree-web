@@ -116,6 +116,8 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
   - "ابن X" is checked first: X must be a father or ancestor.
   - A bare laqab or nisba ("الأعمش", "الزهري") is matched when it starts with `ال`.
   - A laqab without `ال` ("بندار") is matched only when it is nobody's ism, and only when it is the last word of the entry's kunya phrase ("أبو بكر البصري بندار") or follows "الملقب". Matching any header word picked up verbs ("خرج", "بعث").
+- **Names by grandfather or "ابن X"** (only when nobody has the given father): the words after the ism come in order in the narrator's own name part, and a word from the nasab is at most the grandfather ("عبد الله بن أحمد بن حنبل", "علي بن المديني", "عثمان بن أبي شيبة"). Entries headed by a kunya («أم عثمان») are excluded.
+- **Unnamed narrators** («رجل», «امرأة», «شيخ») match nobody.
 - **Book symbols:** "(خ م)" must be covered by the candidate's own symbols.
 - **Aliases from shaykh books:**
   - Exact: a form of 3+ words ("أبو القاسم الفقيه") matches only that narrator, before any other rule. A 2-word form is loose: as exact, Ithaf's "عبد الله بن يوسف" (ابن بامويه) replaced al-Tinnisi in Bukhari's and al-Bazzar's isnads.
@@ -135,49 +137,49 @@ The segmentation:
 
 ## 6. Results so far (samples, same hadiths as the current DB)
 
-Coverage means the share of narrator names in the first 8 links of each chain that were identified. Agreement means the share of our identified narrators that the current system also identified (same ism + father).
+Coverage means the share of narrator names in the first 8 links of each chain that were identified. Agreement means the share of our identified narrators that the current system also identified (same ism + father; a Companion known by his kunya also agrees when his Tahdhib header gives the current system's name, «أبو هريرة» = «عبد الرحمن بن صخر»). A name past the end of the current chain ("… ← عروة" with no «عائشة») has nothing to compare with: it is counted in the last column, not as a disagreement. Before the clean-up step below, those names counted as disagreements, so older agreement figures in commit messages are lower.
 
-| Book (sample) | Ours: first greedy | Ours: now | Current system | Agreement |
-|---|---|---|---|---|
-| al-Bukhari (500) | 54% | **77%** | 88% | 77% |
-| al-Mustadrak (1,000) | 59% | **73%** | 93% | 49% † |
-| al-Mu'jam al-Kabir (500) | 70%* | **80%** | 83% | 76% |
-| al-Mu'jam al-Awsat (500) | 65%* | **76%** | 90% | 81% |
-| al-Mu'jam al-Saghir (500) | 65%* | **80%** | 86% | 78% |
-| al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **73%** | — † | — † |
-| Shu'ab al-Iman (500) | 60%* | **67%** | — † | — † |
-| Sahih Ibn Hibban (500) | 74%* | **81%** | 87% | 84% |
-| Musnad Ahmad (500) | 75%* | **75%** | 90% | 79% |
-| al-Muwatta (500) | 53%* | **57%** ‡ | 88% ‡ | 69% |
-| Sunan al-Daraqutni (500) | 68%* | **76%** | 90% | 75% |
-| Sahih Ibn Khuzaymah (500) | 68%* | **72%** | 82% | 74% |
-| Mustakhraj Abi Awanah (500) | 67%* | **70%** | 71% | 65% |
-| Musannaf Abd al-Razzaq (500) | — | **71%** | 83% | 80% |
-| Musnad al-Tayalisi (500) | — | **76%** | ✱ | 78% |
-| Musnad al-Shafi'i (500) | — | **74%** | 87% | 81% |
-| Musnad al-Humaydi (500) | 44% | **74%** | 72% | 82% |
-| Sunan Sa'id b. Mansur (500) | — | **76%** | ✱ | 80% |
-| Musnad Ishaq (500) | — | **74%** | 85% | 80% |
-| Musnad al-Bazzar (500) | — | **74%** | 95% | 71% |
-| Musnad Abi Ya'la (500) | — | **77%** | 90% | 83% |
-| Sahih Muslim (500) | — | **74%** | 72% | 71% § |
-| Sunan Abi Dawud (500) | — | **73%** | 83% | 80% |
-| Jami' al-Tirmidhi (500) | — | **82%** | 91% | 83% |
-| Sunan al-Nasa'i (500) | — | **78%** | 85% | 78% |
-| Sunan Ibn Majah (500) | — | **78%** | 86% | 81% |
-| Sunan al-Darimi (500) | — | **80%** | 91% | 81% |
-| al-Adab al-Mufrad (500) | 58% | **77%** | 86% | 80% |
-| al-Shama'il (396) | 72% | **81%** | 87% | 87% |
-| Musannaf Ibn Abi Shayba (500) | — | **73%** | 97% | 76% |
-| al-Sunan al-Kubra, al-Nasa'i (500) | — | **79%** | 90% | 80% |
+| Book (sample) | Ours: first greedy | Ours: now | Current system | Agreement | Ours past the current chain |
+|---|---|---|---|---|---|
+| al-Bukhari (500) | 54% | **83%** | 82% | 81% | 199 |
+| al-Mustadrak (1,000) | 59% | **75%** | 92% | 60% † | 901 |
+| al-Mu'jam al-Kabir (500) | 70%* | **84%** | 82% | 87% | 372 |
+| al-Mu'jam al-Awsat (500) | 65%* | **78%** | 88% | 86% | 112 |
+| al-Mu'jam al-Saghir (500) | 65%* | **82%** | 85% | 83% | 138 |
+| al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **75%** | ✱ † | 44% † | 512 |
+| Shu'ab al-Iman (500) | 60%* | **68%** | 95% † | 78% † | 269 |
+| Sahih Ibn Hibban (500) | 74%* | **84%** | 85% | 89% | 177 |
+| Musnad Ahmad (500) | 75%* | **78%** | 87% | 83% | 106 |
+| al-Muwatta (500) | 53%* | **66%** ‡ | 78% ‡ | 75% | 134 |
+| Sunan al-Daraqutni (500) | 68%* | **80%** | 88% | 80% | 226 |
+| Sahih Ibn Khuzaymah (500) | 68%* | **74%** | 82% | 83% | 276 |
+| Mustakhraj Abi Awanah (500) | 67%* | **76%** | 68% | 82% | 510 |
+| Musannaf Abd al-Razzaq (500) | — | **73%** | 76% | 87% | 104 |
+| Musnad al-Tayalisi (500) | — | **80%** | ✱ | 78% | 21 |
+| Musnad al-Shafi'i (500) | — | **78%** | 81% | 86% | 125 |
+| Musnad al-Humaydi (500) | 44% | **77%** | 88% | 86% | 68 |
+| Sunan Sa'id b. Mansur (500) | — | **75%** | ✱ | 80% | 36 |
+| Musnad Ishaq (500) | — | **75%** | 82% | 85% | 136 |
+| Musnad al-Bazzar (500) | — | **76%** | 94% | 75% | 94 |
+| Musnad Abi Ya'la (500) | — | **79%** | 87% | 86% | 99 |
+| Sahih Muslim (500) | — | **82%** | 69% | 85% § | 477 |
+| Sunan Abi Dawud (500) | — | **79%** | 80% | 86% | 211 |
+| Jami' al-Tirmidhi (500) | — | **85%** | 90% | 86% | 112 |
+| Sunan al-Nasa'i (500) | — | **82%** | 83% | 84% | 198 |
+| Sunan Ibn Majah (500) | — | **81%** | 84% | 89% | 208 |
+| Sunan al-Darimi (500) | — | **80%** | 86% | 85% | 104 |
+| al-Adab al-Mufrad (500) | 58% | **77%** | 82% | 83% | 91 |
+| al-Shama'il (396) | 72% | **82%** | 86% | 90% | 75 |
+| Musannaf Ibn Abi Shayba (500) | — | **73%** | 90% | 76% | 45 |
+| al-Sunan al-Kubra, al-Nasa'i (500) | — | **83%** | 87% | 83% | 125 |
 
 \* Joint resolver already applied, before that compiler's shaykh books were added.
 ✱ Over 100%: the current system counts more links than our name segments (it also links the book's transmitters), so its share is not comparable.
 ‡ Measured after the chain starts behind the compiler's own name (see §6.2). The earlier 53% counted the transmitter «يحيى» and «مالك» himself, mostly resolved wrongly. The drop from 62% to 57% with تاريخ بغداد is 65 wrong links removed: "عن مالك أنه بلغه" had been resolved to the Companion «مالك بن صعصعة»; agreement rose from 63% to 69%.
-§ Low mostly because of the current system: 18% of its Muslim chains are cut short (§6.3).
+§ The current system's coverage is low because 18% of its Muslim chains are cut short (§6.3).
 † Not comparable: many records have shifted boundaries (§6.1), so the two systems read different isnads from the same record. A manual review of ~50 resolved al-Bayhaqi narrators found 1 error ("أبي إسحاق" from Zuhayr, which should be al-Sabi'i).
 
-Since the shifted-record fix in `gap_test.py`, al-Mustadrak's agreement drops to 49% for the same reason (†).
+Since the shifted-record fix in `gap_test.py`, al-Mustadrak's agreement is low (60%) for the same reason (†).
 
 The table is measured after Ibn Hibban's book (`ري الظمآن`) was added. That step:
 - Raised Ibn Hibban from 74% to 79%.
@@ -230,6 +232,12 @@ Ibn Abi Shayba has 22 of 500 hadiths with no narrator resolved (the current syst
 - Text not cleaned: «أبي هريرة رضى الله عنه» (ى), accusative «أبا هريرة» / «جابرا» / «أنسا», «مسدد قالا», «أبي، ح».
 - Companions and famous single names left ambiguous when the neighbour is unresolved («ابن عمر», «ابن عباس», «الزهري»).
 
+**Clean-up and names by grandfather** fixed the first two. Bukhari went from 77% to 83%, Muslim from 74% to 82%, the Kabir from 80% to 84%, al-Daraqutni from 76% to 80%, the Muwatta from 57% to 66%; every book gained. Ours is now above the current system in Bukhari, the Kabir, Muslim and Abu Awanah, and level in Ibn Hibban, Abu Dawud and al-Nasa'i.
+- **Clean-up** (`clean_segment`): "رضي/رضى الله عنه" and similar end the name; a comma ends it unless the nasab goes on ("عائشة، زوج النبي", "ابن جريج، أخبرهم"; but "عبد الملك، بن أبي بكر"); a trailing "ح" (tahwil); "قالا:" after a name; accusative «أبا هريرة» → «أبي هريرة», «جابرا» → «جابر» (only when the form without ا is a known ism). Alone this added 33 «أبي هريرة», 17 «عائشة», 15 «ابن عباس» to 500 Bukhari isnads.
+- **Unnamed narrators**: «رجل», «امرأة», «شيخ» no longer match entries such as "رجل من آل سهل بن حنيف".
+- **Names by grandfather or by "ابن X"** (`by_grandfather`): when nobody has the given father, the words after the ism must come in order in the narrator's own name part, and a name taken from the nasab must be the grandfather at most. This finds «عبد الله بن أحمد بن حنبل», «عثمان بن أبي شيبة», «سعيد بن أبي مريم», «علي بن المديني», «إسحاق بن راهويه», «إسماعيل ابن علية», «محمد بن أبي عدي», «إسماعيل بن أبي أويس», «محمد بن إشكاب», «حفص بن أبي داود» (حفص بن سليمان). Allowing any ancestor gave «أحمد بن أسد» → Ahmad b. Hanbal and «أيوب بن جابر» → أيوب بن خالد بن صفوان بن أوس بن جابر.
+- A manual review of 20 random new resolutions (four books, Companions excluded) found 1 error, from an older path: «ابن منيع» as al-Daraqutni's shaykh → محمد بن سعد بن منيع; it is al-Baghawi, whose entry does not record that name.
+
 A manual review of 12 Ibn Hibban chains (~70 names) found 1 likely error: "أبي جعفر" from يحيى بن أبي كثير → al-Baqir, probably al-Ansari al-Mu'adhdhin.
 
 ### 6.1 Data finding: shifted hadith records (affects the live app today)
@@ -265,7 +273,7 @@ In the live database, **1,296 of Muslim's 7,368 hadiths (18%)** have a first cha
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** the matching gaps found with تاريخ بغداد (§6): grandfather / "ابن X" names and the uncleaned text. They are worth more than the remaining rijal books. The record-boundary fix (§6.1) stays in Phase 4 unless the user asks for it earlier.
+**Next task:** the first unchecked item of Phase 2's resolver gaps (common single names and Companions when context is weak). The record-boundary fix (§6.1) stays in Phase 4 unless the user asks for it earlier.
 
 ### Overview
 
@@ -325,8 +333,9 @@ General rijal books for what remains (each needs its own parser):
 - [ ] الثقات ممن لم يقع في الكتب الستة (96165)
 
 Remaining resolver gaps:
-- [ ] **Names by grandfather or by "ابن X"** («عبد الله بن أحمد بن حنبل», «عثمان بن أبي شيبة», «علي بن المديني», «إسحاق بن راهويه», «إسماعيل ابن علية»)
-- [ ] **Isnad clean-up:** «رضى الله عنه» with ى, accusative «أبا هريرة» / «جابرا», «قالا» after a name, «أبي، ح»
+- [x] Names by grandfather or by "ابن X" («عبد الله بن أحمد بن حنبل», «عثمان بن أبي شيبة», «علي بن المديني», «إسحاق بن راهويه», «إسماعيل ابن علية») (`afaef5c`)
+- [x] Isnad clean-up: «رضى الله عنه» with ى, accusative «أبا هريرة» / «جابرا», «قالا» after a name, «أبي، ح»; agreement no longer counts names past the end of the current chain (`afaef5c`)
+- [ ] Al-Baghawi as «ابن منيع» (and other shaykhs known by a maternal grandfather)
 - [ ] Common single names ("عطاء", "هشام", "عبدان", "سفيان") and Companions («ابن عمر», «ابن عباس») when context is weak
 - [ ] Namesakes of the same name and generation, who belong to different compilers (Ibn Hibban's «محمد بن عبد السلام» against al-Hakim's): use the compiler's own shaykh list as context for the first link
 - [ ] "عن أبيه" after an unresolved narrator
