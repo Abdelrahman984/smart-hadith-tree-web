@@ -14,6 +14,9 @@ Each book in BOOKS has a layout:
                                                       (ري الظمآن، شيوخ ابن حبان)
 - 'runs'     "[n]" parts whose numbering restarts: the compiler's shaykh list, his student
              list, then biographies with "روى عن:" / "وروى عنه:"     (المسالك القويمة)
+- 'tajil'    one paragraph per narrator: "N - <symbols>name عن X وعنه Y <verdict>"
+                                    (تعجيل المنفعة: narrators of Ahmad, Malik, al-Shafi'i,
+                                     Abu Hanifa who are not in Tahdhib)
 
 A book with a 'compiler' key lists that compiler's own shaykhs: a synthetic entry for the
 compiler gets all of them as shuyukh, so isnads can be walked from the compiler down.
@@ -55,6 +58,7 @@ BOOKS = [   # full-head books first: short-head books merge into them
      'runs': ['shuyukh', 'talamidh', 'entries']},
     {'id': 29742, 'source': 'rijal_hakim', 'layout': 'isnad', 'isnad_marker': 'الحاكم'},
     {'id': 1208, 'source': 'tuhfa', 'layout': 'star'},
+    {'id': 1893, 'source': 'tajil', 'layout': 'tajil'},
 ]
 
 AR_DIGITS = str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789')
@@ -98,8 +102,11 @@ def norm_tokens(s: str, n: int = 3) -> tuple:
     return tuple(w for w in re.sub(r'[^ء-ي_ ]', ' ', s).split() if w not in STOP)[:n]
 
 
-def split_names(seg: str) -> list[dict]:
-    """'X، وببغداد: Y -وأكثر عنه- وZ، وآخرون' -> [X, Y, Z]"""
+def split_names(seg: str, short_ok: bool = False) -> list[dict]:
+    """'X، وببغداد: Y -وأكثر عنه- وZ، وآخرون' -> [X, Y, Z]
+
+    short_ok keeps names without بن/أبو of up to 3 words ("عكرمة", "حماد بن سلمة" is kept
+    anyway): تعجيل المنفعة lists narrators the way isnads name them."""
     seg = re.sub(r'-[^-\n]{0,40}-', ' ', seg)
     seg = re.sub(r'"[^"]*"', ' ', seg)                    # book titles
     seg = re.sub(r'\([^)\n]{0,30}\)', ' ', seg)           # symbols "(خز، حم)", grades "(ثقة)"
@@ -113,9 +120,11 @@ def split_names(seg: str) -> list[dict]:
         part = re.sub(r'\s+في\s*$', '', part)
         if not part or len(part.split()) > 9 or NOT_NAME.match(part):
             continue
-        if not re.search(r'(?:^|\s)(?:بن|ابن|أبو|أبي|أبا|بنت|أم)\s', part + ' '):
+        full = re.search(r'(?:^|\s)(?:بن|ابن|أبو|أبي|أبا|بنت|أم)\s', part + ' ')
+        if not full and not (short_ok and len(part.split()) <= 3):
             continue
-        items.append({'name': part, 'symbols': '', 'note': ''})
+        # 'short' items ("نافع") give a teacher/student link only when they name one narrator.
+        items.append({'name': part, 'symbols': '', 'note': '' if full else 'short'})
     return items
 
 
@@ -168,6 +177,88 @@ def lists(body: str) -> tuple[list, list]:
     return sh, tl
 
 
+# تعجيل المنفعة: "N - اأبان بن خالد الحنفي عن عبيد الله بن رواحة عن أنس وعنه أخوه ... وثقه ابن حبان".
+# Book symbols lead the entry, and Ahmad's "ا" is often glued to the name ("اإبراهيم", "احرب").
+TAJIL_SYMBOLS = {'ك', 'فع', 'ش', 'فه', 'ه', 'عب', 'هب', 'ا', 'خ', 'م', 'د', 'ت', 'س', 'ق', 'ع', 'خت', 'بخ', 'مد', 'كن'}
+TAJIL_SHUYUKH = re.compile(r'\s(?:عن|روى عن|يروي عن|يروى عن)\s')
+TAJIL_TALAMIDH = re.compile(r'\s(?:وعنه|روى عنه|روت عنه|وروى عنه|يروي عنه|وعنها)\s')
+TAJIL_END = re.compile(r'\s(?:وثقه|قال|وقال|قلت|مجهول|فيه|ذكره|وذكره|ليس|ضعيف|صدوق|ثقة|لا يعرف|له صحبة'
+                       r'|حديثه|مستور|ذكر|أخرج|اخرج|يأتي|وله|له|حديث|في|أن|انه|أنه)\s')
+first_words = {re.split(r'\s', e['header'].strip())[0] for e in json.load(open(TAHDHIB, encoding='utf-8'))
+               if e['header'].strip()}
+
+
+def nasab_key(s: str) -> tuple:
+    """"شعبة بن الحجاج بن الورد العتكي" -> (شعبه, حجاج, ورد): the names linked by بن."""
+    s = re.sub('[أإآ]', 'ا', s).replace('ى', 'ي').replace('ة', 'ه')
+    s = re.sub(r'\bعبد\s+(?:ال)?(\S+)', r'عبد_\1', s)
+    m = re.match(r'\s*(\S+(?:\s+(?:بن|ابن)\s+(?:ابي\s+)?\S+)*)', re.split(r'[،.:(]', s)[0])
+    return tuple(re.sub(r'^ال', '', w) for w in m.group(1).split() if w not in ('بن', 'ابن')) if m else ()
+
+
+# Every nasab prefix of a Tahdhib narrator: a تعجيل entry "شعبة بن الحجاج" or "عمرو بن شعيب" is a
+# remark on an isnad of that narrator, not a new narrator.
+tahdhib_prefixes = set()
+tahdhib_by_ism: dict[str, list[tuple]] = {}
+for _e in json.load(open(TAHDHIB, encoding='utf-8')):
+    _k = nasab_key(_e['header'])
+    tahdhib_prefixes |= {_k[:n] for n in range(2, len(_k) + 1)}
+    if _k:
+        tahdhib_by_ism.setdefault(_k[0], []).append(_k)
+
+
+def is_tahdhib_narrator(k: tuple) -> bool:
+    """A prefix of a Tahdhib nasab, or with 3+ names an in-order subsequence of one that keeps
+    the ism: "محمد بن عبد الرحمن بن أبي ذئب" skips المغيرة بن الحارث."""
+    if k in tahdhib_prefixes:
+        return True
+    if len(k) < 3:
+        return False
+    for t in tahdhib_by_ism.get(k[0], ()):
+        it = iter(t[1:])
+        if all(w in it for w in k[1:]):
+            return True
+    return False
+
+
+def tajil_entry(book: dict, num: int, whole: str) -> dict | None:
+    words = whole.split()
+    # Symbols, alone or glued to Ahmad's "ا" ("اه", "اك"), and "تمييز" (a namesake note).
+    while words and (words[0] in TAJIL_SYMBOLS or words[0] == 'تمييز'
+                     or (words[0][:1] == 'ا' and words[0][1:] in TAJIL_SYMBOLS)):
+        words.pop(0)
+    # A real name in this edition starts with أ/إ, the article or "ابن"; any other leading "ا" is
+    # Ahmad's symbol: "اإبراهيم" -> "إبراهيم", "افزارة" -> "فزارة", "االحارث" -> "الحارث".
+    if (words and words[0].startswith('ا') and len(words[0]) > 2 and words[0] not in first_words
+            and not re.match(r'ال|ابن$|امرأة', words[0])):
+        words[0] = words[0][1:]
+    whole = ' ' + ' '.join(words) + ' '
+    s, t = TAJIL_SHUYUKH.search(whole), TAJIL_TALAMIDH.search(whole)
+    cut = min((x.start() for x in (s, t) if x), default=None)
+    end = TAJIL_END.search(whole)
+    header = whole[:cut if cut is not None else (end.start() if end else 80)].strip(' .،')
+    if not header or re.search(r'\s(?:في ترجمة|يأتي في|تقدم في)|\sفي\s', ' ' + header + ' ') and cut is None:
+        return None                                          # redirects: "زيد بن طلحة في يزيد بن ركانة"
+    if len(header.split()) > 14 or header.startswith('من '):
+        return None                                          # "من أهل الثغور", "من بلغ عائشة"
+    if is_tahdhib_narrator(nasab_key(header)):
+        stats[f'{book["source"]}: a Tahdhib narrator (remark)'] += 1
+        return None
+    shuyukh, talamidh = [], []
+    if s and (not t or s.start() < t.start()):
+        seg = whole[s.end():t.start() if t else len(whole)]
+        seg = TAJIL_SHUYUKH.split(' ' + seg)[0]              # "عن X عن أنس": only X is his shaykh
+        stop = TAJIL_END.search(' ' + seg + ' ')
+        shuyukh = split_names(seg[:stop.start()] if stop else seg, short_ok=True)
+    if t:
+        seg = whole[t.end():]
+        stop = TAJIL_END.search(' ' + seg)
+        talamidh = split_names(seg[:stop.start()] if stop else seg[:200], short_ok=True)
+    if not shuyukh and not talamidh:
+        return None     # notes on a name ("عبد الرزاق", "زيد بن يثيع" = ابن أثيع): would only add a namesake
+    return entry(book, num, header, shuyukh, talamidh, None)
+
+
 for book in BOOKS:
     text = load(book['id'])
     layout = book['layout']
@@ -213,8 +304,19 @@ for book in BOOKS:
             for m in run:
                 name = re.sub(r'^\([^)]*\)\s*:?\s*', '', m.group(2))
                 target[book['lists_of']].append(re.split(r'\s*[(\[]', name)[0].strip(' .،'))
+    elif layout == 'tajil':
+        # Numbers repeat and jump in this edition, but every entry starts a line with "N -".
+        text = text[re.search(r'(?m)^\s*١\s*-\s*\S*أبان بن خالد', text).start():]
+        heads = list(re.finditer(r'(?m)^\s*([٠-٩]+)\s*-\s*([^\n]+)', text))
     else:
         heads = list(re.finditer(r'(?m)^\s*([٠-٩]+)\s*-\s*([^\n:]{3,120}):?\s*$', text))
+    if layout == 'tajil':
+        for k, m in enumerate(heads):
+            whole = (m.group(2) + ' ' + text[m.end():heads[k + 1].start() if k + 1 < len(heads) else len(text)])
+            e = tajil_entry(book, int(m.group(1).translate(AR_DIGITS)), re.sub(r'\s+', ' ', whole))
+            if e is not None:
+                add(e, short_head=False)         # early narrators: no fuzzy merge with later namesakes
+        continue
     for k, m in enumerate(heads):
         body = text[m.end():heads[k + 1].start() if k + 1 < len(heads) else len(text)]
         if layout == 'dash':                              # namesakes, kunya table, appendix

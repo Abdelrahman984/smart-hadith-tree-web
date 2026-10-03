@@ -21,7 +21,9 @@ shuyukh_of = []
 for i, e in enumerate(entries):
     s = set()
     for it in e['shuyukh']:
-        s |= set(symbol_filter(set(candidates(it['name'])) - {i}, it['symbols']))
+        c = set(symbol_filter(set(candidates(it['name'])) - {i}, it['symbols']))
+        if it.get('note') != 'short' or len(c) == 1:    # "نافع" in تعجيل المنفعة: only if unique
+            s |= c
     shuyukh_of.append(s)
 
 # Later books abbreviate the transmission verbs: ثنا، نا، أنا، أنبأ.
@@ -92,7 +94,9 @@ print('compiler entry:', entries[compiler]['header'][:60] if compiler is not Non
 hadiths = []
 for f in glob.glob(f'{BOOK_DIR}/*.json'):
     if not f.endswith('index.json'):
-        hadiths += [h['arabic'] for h in json.load(open(f, encoding='utf-8')) if h.get('arabic')]
+        data = json.load(open(f, encoding='utf-8'))      # Itqan books also hold non-hadith files
+        hadiths += [h['arabic'] for h in (data if isinstance(data, list) else [])
+                    if isinstance(h, dict) and h.get('arabic')]
 random.seed(1)
 sample = random.sample(hadiths, min(SAMPLE, len(hadiths)))
 

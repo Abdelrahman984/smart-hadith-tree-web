@@ -36,7 +36,17 @@ for h in json.load(open(CURRENT, encoding='utf-8')):
 
 
 def our_chain(text: str) -> list[tuple[str, int | None, str]]:
-    segs = [s for s in chain_segments(text) if is_name(s)][:8]
+    segs = [s for s in chain_segments(text) if is_name(s)]
+    # The book's transmitter and the compiler himself open some chains: "حدثني يحيى، عن مالك،
+    # عن نافع" (al-Muwatta). The chain starts after the compiler's own name. It must be the
+    # most-cited candidate of that name, so "محمد" in a Bukhari isnad is not taken for him.
+    if compiler is not None:
+        for i, s in enumerate(segs[:2]):
+            c = candidates(s)
+            if compiler in c and max(c, key=lambda j: fame[j]) == compiler:
+                segs = segs[i + 1:]
+                break
+    segs = segs[:8]
     if JOINT:
         return resolve(segs, compiler)
     out, prev = [], compiler

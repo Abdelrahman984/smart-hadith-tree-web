@@ -25,7 +25,9 @@ talamidh_of = []
 for _i, _e in enumerate(entries):
     _s = set()
     for _it in _e['talamidh']:
-        _s |= set(symbol_filter(set(candidates(_it['name'])) - {_i}, _it['symbols']))
+        _c = set(symbol_filter(set(candidates(_it['name'])) - {_i}, _it['symbols']))
+        if _it.get('note') != 'short' or len(_c) == 1:  # short names: only if unique
+            _s |= _c
     talamidh_of.append(_s)
 
 
