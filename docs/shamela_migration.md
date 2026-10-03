@@ -222,7 +222,7 @@ Ibn Abi Shayba has 22 of 500 hadiths with no narrator resolved (the current syst
 
 **تاريخ بغداد (736)** added ~4,900 later narrators, with the shaykh and student lists from al-Khatib's opening paragraph ("سمع X، وY. روى عنه Z"), not from his own isnads. Al-Daraqutni went from 74% to 76%; the other books moved by at most a point. On the way:
 - **Namesakes of Tahdhib narrators** («محمد بن الصباح، أبو يعقوب الصوفي» is not al-Dulabi) are kept. An entry is skipped as a Tahdhib narrator only when the nasab matches and, if al-Khatib gives a kunya or nisba, one of those words is in the Tahdhib header too; with ism + father only, a shared kunya is not enough.
-- **Cross-book duplicates** («ابن صاعد» had four entries under four heads) made names tie that a single entry resolves. All shaykh-book entries now go through one merge: same nasab as far as both go (one-letter typos allowed), no conflicting kunya, never two entries of the same book, and a shared rare nisba/laqab (a common one such as «الكاتب» needs a second shared word or the kunya), or a shared kunya with four names. Complete linkage: a narrator joins a group only if he fits every member. A review of 50 merged groups found no wrong merge after these rules; the first, looser version had merged nine different «إبراهيم بن محمد بن أحمد».
+- **Cross-book duplicates** («ابن صاعد» had four entries under four heads) made names tie that a single entry resolves. All shaykh-book entries now go through one merge: same nasab as far as both go (one-letter typos allowed), no conflicting kunya, never two entries of the same book, and a shared rare nisba/laqab (a common one such as «الكاتب» needs a second shared word or the kunya), or a shared kunya with four names. Complete linkage: a narrator joins a group only if he fits every member. A review of 25 merged groups under these rules found no clear wrong merge; the first, looser version had merged nine different «إبراهيم بن محمد بن أحمد».
 - "المعروف بالشافعي" in a header now gives the laqab «الشافعي» (أبو بكر الشافعي).
 
 **What is left is mostly our matching, not missing books.** In the al-Daraqutni, Kabir, Mustadrak and Bukhari samples, the unresolved names are mainly:
@@ -319,7 +319,7 @@ Compilers' shaykh books (via `parse_shaykh_books.py`):
 - [x] Measure every remaining book of the 31 against the current system at least once: 72–82%. Direction marks stripped from isnads, "عن أبيه" via the father's kunya (`d65b670`)
 
 General rijal books for what remains (each needs its own parser):
-- [x] تاريخ بغداد (736): `khatib` layout, stricter Tahdhib skip, cross-book duplicate merge; al-Daraqutni 74% → 76% (COMMIT)
+- [x] تاريخ بغداد (736): `khatib` layout, stricter Tahdhib skip, cross-book duplicate merge; al-Daraqutni 74% → 76% (`bcf95f2`)
 - [ ] سير أعلام النبلاء (10906)
 - [ ] لسان الميزان (36357)
 - [ ] الثقات ممن لم يقع في الكتب الستة (96165)
