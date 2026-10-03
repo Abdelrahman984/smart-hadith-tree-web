@@ -25,8 +25,8 @@ for i, e in enumerate(entries):
     shuyukh_of.append(s)
 
 # Later books abbreviate the transmission verbs: ثنا، نا، أنا، أنبأ.
-VERBS = (r'(?:^|\s|،)(?:حدثنا|حدثني|حدثه|أخبرنا|أخبرني|أخبره|أنبأنا|أنبأني|أنبأ|ثنا|نا|أنا|أبنا|سمعت|سمع'
-         r'|عن|قال|قالت|أن|يقول)(?=\s|،|:)')
+VERBS = (r'(?:^|\s|،)و?(?:حدثناه|أخبرناه|أنبأناه|حدثنا|حدثني|حدثه|أخبرنا|أخبرني|أخبره|أنبأنا|أنبأني|أنبأ'
+         r'|ثنا|نا|أنا|أبنا|سمعت|سمع|عن|قال|قالت|أن|يقول)(?=\s|،|:)')
 HARAKAT_RE = re.compile(r'[ً-ْٰـ]')
 
 
@@ -38,6 +38,10 @@ TRAILER = re.compile(r'(?:\s+(?:ب(?:بغداد|مكة|مرو|الكوفة|ال�
 # Hadith records sometimes start with the previous hadith's verdict and number:
 # "هذا حديث صحيح ... ولم يخرجاه. ٣٧٦٣ - حدثنا ..." -> keep what follows the last "N -".
 PREVIOUS_TAIL = re.compile(r'^.*(?:يخرجاه|يخرجه|الإسناد|الشيخين|شرط مسلم|شرط البخاري)[^٠-٩]{0,40}[٠-٩]+\s*م?\s*-\s*', re.S)
+# Some extracted books (al-Sunan al-Kubra of al-Bayhaqi) have shifted record boundaries: a record
+# holds a matn and then "١٠٨٣٨ - أخبرنا ..." — the next isnad. Start from the last such marker.
+NUMBERED_ISNAD = re.compile(r'[٠-٩]+\s*م?\s*-\s*(?=و?(?:أخبرنا|أخبرني|حدثنا|حدثني|أنبأنا|أنبأ|ثنا|أنا))')
+NOT_A_NARRATOR_START = ('قال', 'يقول', 'ورواه', 'رواه', 'وقد', 'ومنها', 'أخرجه', 'وأخرجه', 'تابعه', 'وكذلك')
 
 
 def clean_segment(s: str) -> str:
@@ -56,9 +60,12 @@ def clean_segment(s: str) -> str:
 def chain_segments(arabic: str) -> list[str]:
     t = HARAKAT_RE.sub('', arabic)
     t = PREVIOUS_TAIL.sub('', t)
+    marks = list(NUMBERED_ISNAD.finditer(t))
+    if marks:
+        t = t[marks[-1].end():]
     t = re.split(r'رسول الله|النبي|ﷺ|صلى الله عليه وسلم', t)[0]
     segs = [clean_segment(s) for s in re.split(VERBS, t)]
-    return [s for s in segs if 1 < len(s) < 70 and not s.startswith(('قال', 'يقول'))]
+    return [s for s in segs if 1 < len(s) < 70 and not s.startswith(NOT_A_NARRATOR_START)]
 
 
 # A segment that is not shaped like a name (verdicts, matn, numbers) is reported apart from real misses.

@@ -176,11 +176,21 @@ if os.path.exists(_taqrib):
             taqrib_alias_hits += 1
 
 
+# Exact name forms recorded by shaykh books ("وورد: أبو القاسم الفقيه"): tokens -> entries.
+exact_aliases: dict[tuple, set[int]] = defaultdict(set)
+for _j, _e in enumerate(entries):
+    for _a in _e.get('aliases', []):
+        if len(tokens(_a)) >= 2:
+            exact_aliases[tuple(tokens(_a))].add(_j)
+
+
 @lru_cache(maxsize=None)
 def candidates(name: str) -> frozenset[int]:
     toks = tokens(name)
     if not toks or toks[0] == 'نبي':
         return frozenset()
+    if tuple(toks) in exact_aliases:        # the compiler's own spelling of his shaykh (إتحاف المرتقي)
+        return frozenset(exact_aliases[tuple(toks)])
     raw = soft_norm(name).strip()
     if raw.startswith('ابن ') and len(toks) <= 3:
         # "ابن جريج", "ابن أبي ذئب": the words must be a father/ancestor in the narrator's own nasab

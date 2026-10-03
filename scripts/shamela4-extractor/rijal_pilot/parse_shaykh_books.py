@@ -3,6 +3,8 @@
 Each book in BOOKS has a layout:
 - 'bracket'  "[n] name" + "سمع:" / "حدث عن:" / "وعنه:" lists + the author's verdict
              "قلت: [ثقة]" or "قلت: (ثقة)"            (الروض الباسم، إرشاد القاصي والداني)
+- 'paren'    "(n) name" + "روى عن:" / "سمع منه:" lists + "وورد:" forms of the name as the
+             compiler writes it in his books, kept as exact aliases       (إتحاف المرتقي)
 - 'star'     "* name." entries quoting other rijal books ("يروي عن:" / "روى عنه:")
                                                       (تحفة الغريب)
 - 'isnad'    "n - name:" + the compiler's isnad where the narrator occurs; the names right
@@ -25,10 +27,18 @@ DUMP, TAHDHIB, OUT = sys.argv[1:4]
 COMPILERS = {
     'hakim': 'محمد بن عبد الله بن محمد بن حمدويه الحاكم، أبو عبد الله النيسابوري، ابن البيع',
     'tabarani': 'سليمان بن أحمد بن أيوب بن مطير اللخمي الطبراني، أبو القاسم',
+    'bayhaqi': 'أحمد بن الحسين بن علي بن موسى الخسروجردي البيهقي، أبو بكر',
+}
+# How other compilers name a compiler in their isnads (al-Bayhaqi: "أبو عبد الله الحافظ" = al-Hakim).
+# These become exact aliases, so keep them specific.
+COMPILER_ALIASES = {
+    'hakim': ['أبو عبد الله الحافظ', 'أبو عبد الله محمد بن عبد الله الحافظ'],
 }
 BOOKS = [   # full-head books first: short-head books merge into them
     {'id': 14463, 'source': 'rawd', 'layout': 'bracket', 'compiler': 'hakim'},
     {'id': 29745, 'source': 'irshad', 'layout': 'bracket', 'compiler': 'tabarani'},
+    {'id': 123667, 'source': 'salsabil', 'layout': 'bracket', 'compiler': 'bayhaqi'},
+    {'id': 123666, 'source': 'ithaf', 'layout': 'paren', 'compiler': 'bayhaqi'},
     {'id': 29742, 'source': 'rijal_hakim', 'layout': 'isnad', 'isnad_marker': 'الحاكم'},
     {'id': 1208, 'source': 'tuhfa', 'layout': 'star'},
 ]
@@ -38,7 +48,12 @@ HARAKAT = re.compile(r'[ً-ْٰـ]')
 STOP = {'بن', 'ابن', 'بنت', 'ابو', 'ام'}
 VERB = r'(?:حدثنا|حدثني|حدثناه|أخبرنا|أخبرني|أخبرناه|أنبأنا|أنبأ|أنبأني|ثنا|نا|أنا|عن|قالا|قالوا)'
 SHUYUKH_RE = re.compile(r'(?:^|\n)\s*(?:سمع|روى عن|حدث عن|يروي عن|روت عن|تروي عن)\s*(?:من)?\s*:\s*([^\n]+)')
-TALAMIDH_RE = re.compile(r'(?:^|\n)\s*(?:وعنه|روى عنه|روى عنها|حدث عنه|روت عنه|يروي عنه)\s*:\s*([^\n]+)')
+TALAMIDH_RE = re.compile(r'(?:^|\n)\s*(?:وعنه|روى عنه|روى عنها|حدث عنه|روت عنه|يروي عنه|سمع منه'
+                         r'|و?روى عنه أيضا)\s*:\s*([^\n]+)')
+# إتحاف المرتقي lists every form in which al-Bayhaqi names the shaykh:
+# "وقد ورد هذا الاسم في مصنفات البيهقي:\n<form>\nوورد: <form>\nوورد: <form>"
+ALIAS_FIRST_RE = re.compile(r'ورد هذا الاسم في مصنفات[^\n]*:\s*\n([^\n]+)')
+ALIAS_RE = re.compile(r'(?m)^\s*وورد\s*:\s*([^\n]+)')
 VERDICT_RE = re.compile(r'قلت\s*:\s*[\[(]([^\])\n]{2,80})[\])]')
 ASIDE = re.compile(r'\s*-[^-\n]{1,60}-\s*')        # "علي بن حمشاذ -واسمه محمد- بن سختويه"
 NOT_NAME = re.compile(r'(?:آخرون|غيرهم|طبقته|جماعة|أقران|خلق|حج|صفه|وصفه|أكثر|سمع|فسمع|رحل|قدم|كان|ولد|قال|'
@@ -57,7 +72,7 @@ def load(bid: int) -> str:
     pages.sort()
     text = '\n'.join(b for _, b in pages)
     text = re.sub(r'<span[^>]*>|</span>', '', text)
-    text = re.sub(r'\s*\(¬?[٠-٩]+\)', '', text)            # footnote refs
+    text = re.sub(r'\s*\(¬[٠-٩]+\)', '', text)             # footnote refs "(¬١)"; "(٩٣)" is an entry number
     return HARAKAT.sub('', text)
 
 
@@ -107,12 +122,15 @@ def add(entry: dict, short_head: bool) -> None:
     if old is None and short_head:
         same = full_by_two.get(norm_tokens(entry['header'], 2), [])
         old = same[0] if len(same) == 1 else None
-    if old is not None and entry['source'] not in old['source'].split('+'):
+    same_text = old is not None and old['header'] == entry['header']   # a book repeating an entry verbatim
+    if old is not None and (same_text or entry['source'] not in old['source'].split('+')):
         old['shuyukh'] += entry['shuyukh']
         old['talamidh'] += entry['talamidh']
+        old['aliases'] = old.get('aliases', []) + entry.get('aliases', [])
         old['verdict'] = old['verdict'] or entry['verdict']
-        old['source'] += '+' + entry['source']
-        stats[f'{entry["source"]}: merged into another book'] += 1
+        if entry['source'] not in old['source'].split('+'):
+            old['source'] += '+' + entry['source']
+        stats[f'{entry["source"]}: merged into another entry'] += 1
         return
     entries.append(entry)
     by_key.setdefault(key, entry)
@@ -138,6 +156,9 @@ for book in BOOKS:
     layout = book['layout']
     if layout == 'bracket':
         heads = list(re.finditer(r'\[([٠-٩]+)\]\s*([^\n]+)', text))
+    elif layout == 'paren':                               # "(٩٣) عبيد الله بن عمر ..." at a line start
+        heads = [m for m in re.finditer(r'(?m)^\s*\(([٠-٩]+)\)\s*([^\n]+)', text)
+                 if re.search(r'(?:^|\s)(?:بن|أبو)\s', m.group(2))]
     elif layout == 'star':
         heads = list(re.finditer(r'(?m)^\s*\*\s*()([^\n]{3,160})', text))
     else:
@@ -146,6 +167,8 @@ for book in BOOKS:
         body = text[m.end():heads[k + 1].start() if k + 1 < len(heads) else len(text)]
         header = ASIDE.sub(' ', m.group(2))
         header = re.sub(r'\s*\([٠-٩]+\)\s*$', '', header).strip(' .')   # "زحر بن ربيعة (٧٢٧٦)"
+        if re.search(r'وهو\s*:', header):                     # "القاضي أبو العلاء وهو: صاعد بن محمد ..."
+            header = re.split(r'وهو\s*:', header, maxsplit=1)[1].strip()
         if not header or re.search(r'انظره|انظر', header) or re.match(r'\[|هامش', header):
             continue                                       # redirects and footnote markers
         if re.search(r'\sعن\s', header):
@@ -176,14 +199,26 @@ for book in BOOKS:
         else:
             shuyukh, talamidh = lists(body)
             verdict = VERDICT_RE.findall(body)
-            add(entry(book, num, header, shuyukh, talamidh, verdict[-1].strip() if verdict else None),
-                short_head=(layout == 'star'))
+            e = entry(book, num, header, shuyukh, talamidh, verdict[-1].strip() if verdict else None)
+            aliases = ALIAS_FIRST_RE.findall(body) + ALIAS_RE.findall(body)
+            e['aliases'] = [a.strip(' .') for a in aliases if 2 <= len(a.split()) <= 12]
+            add(e, short_head=(layout == 'star'))
 
 for c, names in compiler_shuyukh.items():
+    shuyukh = [{'name': n, 'symbols': '', 'note': 'shaykh book'} for n in names]
+    # A compiler can also be another compiler's shaykh (al-Hakim in al-Bayhaqi's books): give the
+    # existing entry the shuyukh instead of creating a second al-Hakim.
+    aliases = COMPILER_ALIASES.get(c, [])
+    same = by_key.get(norm_tokens(COMPILERS[c], KEY_LEN))
+    if same is not None:
+        same['shuyukh'] += shuyukh
+        same['aliases'] = same.get('aliases', []) + aliases
+        same['source'] += '+compiler'
+        stats[f'compiler {c}: merged into an existing entry'] += 1
+        continue
     entries.append({'kind': 'entry', 'num': 0, 'num_suspect': False, 'symbols': '', 'source': 'compiler',
                     'header': COMPILERS[c], 'name': COMPILERS[c].split('،')[0], 'verdict': 'الإمام الحافظ',
-                    'shuyukh': [{'name': n, 'symbols': '', 'note': 'shaykh book'} for n in names],
-                    'talamidh': [], 'quotes': [], 'rawa_lahu': None})
+                    'shuyukh': shuyukh, 'talamidh': [], 'quotes': [], 'rawa_lahu': None, 'aliases': aliases})
 
 for k, v in sorted(stats.items()):
     print(f'{k:42} {v}')
