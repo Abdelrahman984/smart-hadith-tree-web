@@ -56,7 +56,7 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 | `taqrib.json` | `parse_taqrib.py` | 8,828 Taqrib entries + 1,419 "X هو Y" redirects |
 | `align.json` | `align_taqrib.py` | Tahdhib ↔ Taqrib alignment (92.8% of Tahdhib) |
 | `extra_shaykh_books.json` | `parse_shaykh_books.py` | 9,560 narrators from the compilers' shaykh books (746 name forms from Ithaf + 8 kunyas from ري الظمآن) + compiler entries |
-| `current_chains.json`, `current_chains_tabarani.json`, `current_chains_bayhaqi.json`, `current_chains_hibban.json`, `current_chains_daraqutni.json`, `current_chains_khuzaymah_awanah.json`, `current_chains_ahmad_malik.json` | `export_chains.ps1` | The **current system's** chains, for comparison |
+| `current_chains.json`, `current_chains_tabarani.json`, `current_chains_bayhaqi.json`, `current_chains_hibban.json`, `current_chains_daraqutni.json`, `current_chains_khuzaymah_awanah.json`, `current_chains_ahmad_malik.json`, `current_chains_early.json` (the 8 early compilers) | `export_chains.ps1` | The **current system's** chains, for comparison |
 
 `link_tahdhib.py` automatically loads `taqrib.json` and every `extra_*.json` that sits next to the `tahdhib.json` it is given.
 
@@ -105,6 +105,7 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
   - "المعروف بأبي الزناد" counts as a kunya (عبد الله بن ذكوان).
 - **Nasab order:** the chain must agree in order, so "محمد بن علي" does not match "محمد بن عمر بن علي". Only words linked by `بن` count as nasab; a trailing nisba is not a grandfather.
   - The aligned Taqrib entry's nasab is accepted as a second nasab (1,277 entries). This corrects typos in Shamela's Tahdhib text, e.g. "عبيد الله بن عتبة" printed for عبيد الله بن عبد الله بن عتبة.
+  - The words of the aligned Taqrib name also count as the narrator's own words (laqab, nisbas). Tahdhib may give them only in a later sentence: «الحميدي» comes after "وقيل:".
 - **Kunya forms:**
   - "أبو بكر بن إسحاق": kunya, then father or ancestor.
   - "أبو زكريا العنبري": kunya, then nisba.
@@ -116,7 +117,7 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
   - A laqab without `ال` ("بندار") is matched only when it is nobody's ism, and only when it is the last word of the entry's kunya phrase ("أبو بكر البصري بندار") or follows "الملقب". Matching any header word picked up verbs ("خرج", "بعث").
 - **Book symbols:** "(خ م)" must be covered by the candidate's own symbols.
 - **Aliases from shaykh books:**
-  - Exact: a form of 3+ words ("أبو القاسم الفقيه") matches only that narrator, before any other rule.
+  - Exact: a form of 3+ words ("أبو القاسم الفقيه") matches only that narrator, before any other rule. A 2-word form is loose: as exact, Ithaf's "عبد الله بن يوسف" (ابن بامويه) replaced al-Tinnisi in Bukhari's and al-Bazzar's isnads.
   - Loose: a bare kunya ("أبو إسحاق", "أبو خليفة") only adds a candidate; the chain context decides. As exact aliases they turned "أبي إسحاق" from Shu'ba into al-Bayhaqi's shaykh يحيى بن إبراهيم.
 - **Fame tie-break** (`fame_pick`): only when one candidate has three times the students of the next.
   - In the joint resolver it applies only when no candidate has any edge **and** the isnad gives kunya + ism + father ("أبو العباس محمد بن يعقوب" → al-Asamm, not al-Ahwazi).
@@ -137,21 +138,30 @@ Coverage means the share of narrator names in the first 8 links of each chain th
 
 | Book (sample) | Ours: first greedy | Ours: now | Current system | Agreement |
 |---|---|---|---|---|
-| al-Bukhari (500) | 54% | **76%** | 88% | 77% |
-| al-Mustadrak (1,000) | 59% | **72%** | 93% | 49% † |
+| al-Bukhari (500) | 54% | **77%** | 88% | 77% |
+| al-Mustadrak (1,000) | 59% | **73%** | 93% | 49% † |
 | al-Mu'jam al-Kabir (500) | 70%* | **80%** | 83% | 76% |
 | al-Mu'jam al-Awsat (500) | 65%* | **77%** | 90% | 81% |
 | al-Mu'jam al-Saghir (500) | 65%* | **79%** | 86% | 79% |
 | al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **72%** | — † | — † |
-| Shu'ab al-Iman (500) | 60%* | **66%** | — † | — † |
+| Shu'ab al-Iman (500) | 60%* | **65%** | — † | — † |
 | Sahih Ibn Hibban (500) | 74%* | **81%** | 87% | 84% |
 | Musnad Ahmad (500) | 75%* | **75%** | 90% | 79% |
 | al-Muwatta (500) | 53%* | **63%** ‡ | 88% ‡ | 63% |
 | Sunan al-Daraqutni (500) | 68%* | **74%** | 90% | 74% |
 | Sahih Ibn Khuzaymah (500) | 68%* | **72%** | 82% | 73% |
-| Mustakhraj Abi Awanah (500) | 67%* | **68%** | 71% | 65% |
+| Mustakhraj Abi Awanah (500) | 67%* | **69%** | 71% | 65% |
+| Musannaf Abd al-Razzaq (500) | — | **72%** | 83% | 80% |
+| Musnad al-Tayalisi (500) | — | **76%** | ✱ | 78% |
+| Musnad al-Shafi'i (500) | — | **74%** | 87% | 81% |
+| Musnad al-Humaydi (500) | 44% | **75%** | 72% | 82% |
+| Sunan Sa'id b. Mansur (500) | — | **76%** | ✱ | 81% |
+| Musnad Ishaq (500) | — | **75%** | 85% | 79% |
+| Musnad al-Bazzar (500) | — | **75%** | 95% | 71% |
+| Musnad Abi Ya'la (500) | — | **77%** | 90% | 82% |
 
 \* Joint resolver already applied, before that compiler's shaykh books were added.
+✱ Over 100%: the current system counts more links than our name segments (it also links the book's transmitters), so its share is not comparable.
 ‡ Measured after the chain starts behind the compiler's own name (see §6.2). The earlier 53% counted the transmitter «يحيى» and «مالك» himself, mostly resolved wrongly.
 † Not comparable: many records have shifted boundaries (§6.1), so the two systems read different isnads from the same record. A manual review of ~50 resolved al-Bayhaqi narrators found 1 error ("أبي إسحاق" from Zuhayr, which should be al-Sabi'i).
 
@@ -185,6 +195,12 @@ Abu Awanah's remaining misses are mostly his own shaykhs (أبو أمية الط
 - Entries without lists (notes on names, «عبد الرزاق») are skipped.
 - Its lists name narrators briefly ("نافع"). Such 'short' items give a teacher/student link only when they resolve to one narrator; otherwise every Nafi' became a link.
 
+The early compilers (no shaykh books needed) read 72–77% with 78–82% agreement, since their narrators are in Tahdhib. Two fixes came from them:
+- Musnad al-Humaydi went from 44% to 75%. "حدثنا الحميدي، ثنا سفيان" opens almost every chain. «الحميدي» was neither recognised as the compiler nor found at all: his laqab is in Tahdhib's second sentence, and is now taken from Taqrib.
+- Sa'id b. Mansur's agreement went from 60% to 81% once «سعيد» opening the chain was taken as the compiler.
+
+Al-Bazzar's 71% agreement is mostly the current system's errors: «نافع» → نافع بن همام, «عكرمة» → عكرمة بن منصور, «عبيد الله» → عبيد الله بن معاذ.
+
 A manual review of 12 Ibn Hibban chains (~70 names) found 1 likely error: "أبي جعفر" from يحيى بن أبي كثير → al-Baqir, probably al-Ansari al-Mu'adhdhin.
 
 ### 6.1 Data finding: shifted hadith records (affects the live app today)
@@ -204,7 +220,7 @@ The other books are clean, or have no numbered markers. Abd al-Razzaq, Ibn Khuza
 
 The Muwatta's isnads open with its transmitter: "حدثني يحيى، عن مالك، عن ابن شهاب". The current database reads "يحيى" as يحيى بن سعيد الأنصاري and makes him Malik's shaykh. This produces the loop Malik → يحيى بن سعيد → Malik → ابن شهاب in **576 of the 1,860 Muwatta hadiths**. In 74 more, "نافع" is linked to نافع بن همام.
 
-Our resolver had the same problem, and now `compare_current.py` starts each chain after the compiler's own name. The name must have the compiler as its most-cited candidate, so "محمد" in a Bukhari isnad is not taken for al-Bukhari. Phase 5 must do the same when chains are rebuilt.
+Our resolver had the same problem, and now `compare_current.py` starts each chain after the compiler's own name. The name, in the first two positions, must include the compiler among its candidates, and be either his most-cited candidate or one of the book's usual openers (first two positions of 20%+ of the sample: «الحميدي», «سعيد»). So "محمد" in a Bukhari isnad is not taken for al-Bukhari. Phase 5 must do the same when chains are rebuilt.
 
 **Precision (manual review of the disagreements):**
 - **Bukhari:** of 20 disagreements, ours was right in ~15, there was 1 clear error of ours, and the rest were the same person spelled differently or undecided. The current system has repeated errors: "نافع" → نافع بن همام, "الليث" → "الليثي", "أبو الوليد" (from Shu'ba) → هشام بن عمار, "أبو معمر" → إسماعيل بن إبراهيم.
@@ -216,7 +232,7 @@ Our resolver had the same problem, and now `compare_current.py` starts each chai
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** the first unchecked item of Phase 2 (the early compilers: measure first). The record-boundary fix (§6.1) stays in Phase 4 unless the user asks for it earlier.
+**Next task:** the first unchecked item of Phase 2 (measure the remaining books: Muslim, Abu Dawud, al-Tirmidhi, al-Nasa'i, Ibn Majah, al-Darimi, al-Adab al-Mufrad, al-Shama'il, Ibn Abi Shayba, al-Sunan al-Kubra of al-Nasa'i). The record-boundary fix (§6.1) stays in Phase 4 unless the user asks for it earlier.
 
 ### Overview
 
@@ -266,8 +282,8 @@ Compilers' shaykh books (via `parse_shaykh_books.py`):
 - [x] al-Daraqutni: الدليل المغني لشيوخ الدارقطني (7852), same `bracket` layout (`2c51097`)
 - [x] Ibn Khuzaymah: المسالك القويمة (151171), `runs` layout. Abu Awanah: no dedicated book (241 checked). General matching fixes found on the way, and five Companions recovered in the Tahdhib parse (`38c03f9`)
 - [x] Ahmad and Malik: تعجيل المنفعة (1893), `tajil` layout; chains start after the compiler's own name (`10461aa`)
-- [ ] **Early compilers** (Abd al-Razzaq, al-Tayalisi, al-Shafi'i, al-Humaydi, Sa'id b. Mansur, Ishaq, al-Bazzar, Abu Ya'la): measure first, since they are mostly covered by Tahdhib
-- [ ] Measure every remaining book of the 31 against the current system at least once
+- [x] Early compilers (Abd al-Razzaq, al-Tayalisi, al-Shafi'i, al-Humaydi, Sa'id b. Mansur, Ishaq, al-Bazzar, Abu Ya'la): measured, 72–77%; no shaykh books needed. Compiler openers and Taqrib laqabs fixed al-Humaydi (`34125c6`)
+- [ ] **Measure every remaining book of the 31** against the current system at least once
 
 General rijal books for what remains (each needs its own parser):
 - [ ] تاريخ بغداد (736)
@@ -341,6 +357,11 @@ python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.j
 python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/mustakhraj_abi_awanah current_chains_khuzaymah_awanah.json "يعقوب بن إسحاق بن إبراهيم بن يزيد أبو عوانة" 500 0
 python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/ahmed current_chains_ahmad_malik.json "أحمد بن محمد بن حنبل" 500 0
 python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/malik current_chains_ahmad_malik.json "مالك بن أنس بن مالك" 500 0
+# Early compilers, all against current_chains_early.json: musannaf_abdurrazzaq "عبد الرزاق بن همام بن نافع",
+# musnad_tayalisi "سليمان بن داود بن الجارود", musnad_shafii "محمد بن إدريس بن العباس",
+# musnad_humaydi "عبد الله بن الزبير بن عيسى", sunan_said_ibn_mansur "سعيد بن منصور بن شعبة",
+# musnad_ishaq "إسحاق بن إبراهيم بن مخلد", musnad_bazzar "أحمد بن عمرو بن عبد الخالق", musnad_abi_yala "أحمد بن علي بن المثنى"
+python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/musnad_humaydi current_chains_early.json "عبد الله بن الزبير بن عيسى" 500 0
 cd ../.. && python scripts/shamela4-extractor/rijal_pilot/check_record_boundaries.py data/itqan/sunni
 ```
 
