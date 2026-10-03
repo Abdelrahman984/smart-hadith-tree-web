@@ -13,7 +13,7 @@ from functools import lru_cache
 
 data = json.load(open(sys.argv[1], encoding='utf-8'))
 entries = [e for e in data if e['kind'] == 'entry']
-# Entries from other rijal books (e.g. extra_hakim.json from parse_hakim_books.py) sit next to tahdhib.json.
+# Entries from other rijal books (e.g. extra_shaykh_books.json from parse_shaykh_books.py) sit next to tahdhib.json.
 for _extra in sorted(glob.glob(os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), 'extra_*.json'))):
     entries += [e for e in json.load(open(_extra, encoding='utf-8')) if e['kind'] == 'entry']
 xrefs = [e for e in data if e['kind'] == 'crossref']

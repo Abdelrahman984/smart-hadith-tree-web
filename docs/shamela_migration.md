@@ -85,13 +85,11 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 | `align_taqrib.py` | Unique-name anchors, then an in-order fill between anchors. |
 | `build_registry.py` | Merges Tahdhib + Taqrib and maps verdicts to ranks T1–T12. Output is not consumed yet. |
 | `parse_shaykh_books.py` | **Generic parser for compilers' shaykh / rijal books**. Configured by `BOOKS` (layouts: `bracket`, `paren`, `star`, `isnad`, `dash`) and `COMPILERS`. Merges duplicates across books and adds one compiler entry per compiler, whose shuyukh are that compiler's shaykh-book narrators. |
-| `parse_hakim_books.py` | **Superseded** by `parse_shaykh_books.py`; kept until the user agrees to delete it. |
 | `link_tahdhib.py` | Name → entry matching (the core). Reports list-linking statistics when run directly. |
 | `chain_resolver.py` | **Joint isnad resolution** (Viterbi over candidate sets, scored by mutual teacher/student listing). Exec'd by `compare_current.py`. |
 | `gap_test.py` | Isnad segmentation and clean-up, plus a per-depth coverage report. Its helpers are reused by the other scripts. |
 | `gap_books.py` | Which rijal books would cover the missing narrators. |
 | `check_record_boundaries.py` | Classifies every record in `data/itqan/sunni` as clean, prefix tail, or **shifted** (the isnad belongs to the next hadith). See §6.1. |
-| `isnad_test.py` | Older Bukhari-only link-by-link test. |
 | `compare_current.py` | **Main benchmark**: our resolution versus the current DB chains on the same hadiths, plus the agreement rate. |
 | `export_chains.ps1` | Exports current chains: `-Books 'المعجم'` (substrings of `Hadiths.BookName`; use `'بيهقي'`, not `'البيهقي'`, since the DB name is «للبيهقي»), `-Out <file>`. |
 
@@ -242,7 +240,7 @@ Remaining resolver gaps:
 - [ ] Measure precision on a larger, systematic sample (not only small manual reviews)
 
 Housekeeping:
-- [ ] Delete `parse_hakim_books.py`, which is superseded (needs the user's approval)
+- [x] Delete the superseded `parse_hakim_books.py` and `isnad_test.py` (user approved)
 - [ ] Turn the pilot scripts into one reproducible pipeline that writes the final registry (IDs, names, verdicts, ranks, lists, quotes, sources)
 
 ### Phase 3 — Ilal data ⬜

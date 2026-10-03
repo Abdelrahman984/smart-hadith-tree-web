@@ -1,7 +1,7 @@
 """Measure how much of a book's isnads the Tahdhib/Taqrib registry covers.
 
-Unlike isnad_test.py, the compiler need not be in the registry: each chain is walked from
-the compiler's shaykh down, a name is looked up among the previous narrator's shuyukh when
+The compiler need not be in the registry: each chain is walked from the compiler's shaykh
+down, a name is looked up among the previous narrator's shuyukh when
 that narrator is known, and globally otherwise.
 Usage: python gap_test.py tahdhib.json book_dir [sample]
 """
