@@ -46,8 +46,21 @@ NUMBERED_ISNAD = re.compile(r'[٠-٩]+\s*م?\s*-\s*(?=و?(?:أخبرنا|أخب�
 NOT_A_NARRATOR_START = ('قال', 'يقول', 'ورواه', 'رواه', 'وقد', 'ومنها', 'أخرجه', 'وأخرجه', 'تابعه', 'وكذلك')
 
 
+AFTER_NAME = re.compile(r'\s*(?:رض[يى] الله (?:عنه|عنها|عنهما|عنهم)|عليه السلام|﵁|﵂|﵄|﵃|﵀)')
+# A comma inside a segment ends the name unless the nasab goes on ("عبد الملك، بن أبي بكر"):
+# "عائشة، زوج النبي", "ابن جريج، أخبرهم", "أبي، ح" (tahwil).
+NAME_GOES_ON = re.compile(r'\s*(?:بن|ابن|بنت|أبو|أبي|أبا|وهو|يعني|هو)\s')
+
+
 def clean_segment(s: str) -> str:
     s = re.sub(r'\(¬?[٠-٩]+\)', ' ', s).strip()
+    s = s.replace(' , ', '، ').replace(',', '،')
+    s = AFTER_NAME.split(s)[0]
+    if '،' in s:
+        head, tail = s.split('،', 1)
+        if head.strip() and not NAME_GOES_ON.match(tail + ' '):
+            s = head
+    s = re.sub(r'\s+ح\s*$', '', s.strip(' ،:.'))       # "أبي ح": tahwil mark
     # "سعيد هو المقبري", "أبي معاذ هو عطاء بن أبي ميمونة": the part after "هو" identifies the narrator.
     if re.search(r'\sهو\s', s):
         s = re.split(r'\sهو\s', s, maxsplit=1)[1]
@@ -55,8 +68,13 @@ def clean_segment(s: str) -> str:
     # name that itself starts with و ("وهب بن جرير") is not taken for a conjunction.
     s = re.split(r'\s+و(?=\S+ بن )', s)[0]
     s = HONORIFIC.sub('', s.strip())
-    s = TRAILER.sub('', s)
-    return re.sub(r'\s+', ' ', s).strip(' ،,:.')
+    s = TRAILER.sub('', s.strip(' ،,:.'))                 # "مسدد قالا:" -> "مسدد"
+    s = re.sub(r'\s+', ' ', s).strip(' ،,:.')
+    # Accusative after "سمعت" / "أن": "أبا هريرة" -> "أبي هريرة", "جابرا" -> "جابر".
+    s = re.sub(r'^أبا(?=\s)', 'أبي', s)
+    if re.fullmatch(r'\S{3,}ا', s) and norm(s).strip() not in isms and norm(s[:-1]).strip() in isms:
+        s = s[:-1]
+    return s
 
 
 def chain_segments(arabic: str) -> list[str]:

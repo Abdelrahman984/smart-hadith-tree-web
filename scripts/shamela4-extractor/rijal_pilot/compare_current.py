@@ -120,20 +120,34 @@ def ism_father(name: str) -> tuple:
     return tuple(nasab_chain(re.split(r'[،:.\n]', name.lstrip('- '))[0])[:2])
 
 
-agree, disagree, cases = 0, 0, []
+def named_in_kunya_entry(j: int, sheikh: str) -> bool:
+    """A Companion known by his kunya has a kunya-only Tahdhib entry ("أبو هريرة الدوسي") whose
+    header gives the names proposed for him ("اسمه عبد الرحمن بن صخر"); the current system uses one."""
+    head = entries[j]['header']
+    if not re.match(r'\s*(?:أبو|أم)\s', head):
+        return False
+    name = ' '.join(re.split(r'[،:.\n]', sheikh)[0].split()[:3])
+    return len(name.split()) == 3 and key(name) in key(head[:800])
+
+
+agree, disagree, beyond, cases = 0, 0, 0, []
 for text, ours, links in rows:
     now = {ism_father(l['sheikh']) for l in links}
-    for seg, j, how in ours:
+    for pos, (seg, j, how) in enumerate(ours):
         if j is None:
             continue
-        if ism_father(entries[j]['header']) in now:
+        if ism_father(entries[j]['header']) in now or any(named_in_kunya_entry(j, l['sheikh']) for l in links):
             agree += 1
+        elif pos >= len(links):
+            # The current chain stops before this name ("... ← عروة" without عائشة): nothing to
+            # compare with, so it is neither agreement nor disagreement.
+            beyond += 1
         else:
             disagree += 1
             cases.append((seg, entries[j]['header'][:45].replace('\n', ' '), how,
                           ' ← '.join(l['sheikh'][:22] for l in links)))
 print(f'our resolved narrators found in the current chain: {agree} agree, {disagree} differ '
-      f'({agree / max(1, agree + disagree):.0%} agreement)')
+      f'({agree / max(1, agree + disagree):.0%} agreement); {beyond} past the end of the current chain')
 print('by how ours resolved them:', Counter(c[2] for c in cases))
 import random
 random.seed(5)

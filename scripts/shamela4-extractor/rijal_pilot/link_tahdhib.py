@@ -103,7 +103,9 @@ def starts_like(toks: list[str], j: int) -> bool:
 def name_candidates(name: str) -> frozenset[int]:
     """Entries whose own name (ism/kunya + nasab) matches `name`."""
     toks = tokens(name)
-    if not toks or toks[0] == 'نبي':        # "النبي ﷺ" is not a narrator entry
+    # "النبي ﷺ" is not a narrator entry; "رجل" / "امرأة" / "شيخ" are unnamed narrators, not the
+    # entries "رجل من آل سهل بن حنيف" or "امرأة من عبد القيس".
+    if not toks or toks[0] in ('نبي', 'رجل', 'امراه', 'شيخ', 'غلام'):
         return frozenset()
     # The "X بن Y بن Z" part of the name, after a leading kunya if any ("أبو بكر محمد بن أحمد").
     chain = nasab_chain(re.sub(r'^\s*أب[وي]\s+(?:عبد\s+)?\S+\s+(?!بن\s)', '', name))
@@ -116,7 +118,9 @@ def name_candidates(name: str) -> frozenset[int]:
         anchored = {j for j in exact if starts_like(toks, j) and chain_fits(j)}
         if toks[0] == 'ابو' and len(toks) > 2:      # "أبي أمامة أسعد ..." -> the ism after the kunya decides
             anchored = {j for j in anchored if toks[2] == ism[j][0]} or anchored
-        return frozenset(anchored)          # unanchored matches are usually relatives: drop them
+        if anchored or len(toks) < 2:
+            return frozenset(anchored)      # unanchored matches are usually relatives: drop them
+        return by_grandfather(toks)
     # Kunya-led forms common in later isnads:
     #   "أبو بكر بن إسحاق"         -> kunya بكر, father إسحاق
     #   "أبو زكريا العنبري"         -> kunya زكريا + a nisba of the narrator's own name
@@ -140,7 +144,31 @@ def name_candidates(name: str) -> frozenset[int]:
         if base:
             best = max(len(set(toks) & entry_tokens[i]) for i in base)
             return frozenset(i for i in base if len(set(toks) & entry_tokens[i]) == best)
+        return by_grandfather(toks)
     return frozenset()
+
+
+def by_grandfather(toks: list[str]) -> frozenset[int]:
+    """Named by grandfather or by the family's "ابن X", nobody having that father:
+    "عبد الله بن أحمد بن حنبل" (… بن محمد بن حنبل), "عثمان بن أبي شيبة", "محمد بن أبي عدي",
+    "علي بن المديني", "إسحاق بن راهويه", "إسماعيل ابن علية". The words after the ism must come
+    in order in the narrator's own name part."""
+    if toks[0] == 'ابو':
+        return frozenset()
+
+    def near(i: int) -> bool:
+        # A name from the nasab must be the grandfather: "أحمد بن أسد" is not
+        # أحمد بن محمد بن حنبل بن هلال بن أسد. Words outside the nasab (المديني، ابن أبي شيبة) are fine.
+        p = nasab[i].index(toks[1]) if toks[1] in nasab[i] else 0
+        return p <= 2
+
+    return frozenset(i for i in ism_index.get(toks[0], ()) if in_order(toks[1:], own_seq[i][1:])
+                     and near(i) and not re.match(r'\s*(?:أم|أبو)\s', entries[i]['header']))  # "أم عثمان"
+
+
+def in_order(words: list[str], seq: list[str]) -> bool:
+    it = iter(seq)
+    return all(w in it for w in words)
 
 
 # ── Shuhra (أسماء الشهرة) ──────────────────────────────────────────────
@@ -150,6 +178,12 @@ def name_candidates(name: str) -> frozenset[int]:
 alias_index: dict[tuple, set[int]] = defaultdict(set)
 RELATION = re.compile(r'\s(?:أخو|أخي|والد|والدة|ابن عم|ابن أخي|ابن أخت|عم|خال|زوج|جد|صهر|ختن)\s')
 own_tokens = [set(tokens(RELATION.split(re.split(r'[.\n]', e['header'])[0] + ' ')[0])) for e in entries]
+# The same words in order (ism, nasab, kunya, nisbas, "ابن X"), for names given by grandfather.
+own_seq = [tokens(RELATION.split(re.split(r'[.\n]', e['header'])[0] + ' ')[0]) for e in entries]
+ism_index = defaultdict(set)
+for _j, _i in enumerate(ism):
+    if _i:
+        ism_index[_i[0]].add(_j)
 
 
 def laqabs_of(header: str) -> set[str]:
