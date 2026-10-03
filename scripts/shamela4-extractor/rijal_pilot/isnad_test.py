@@ -70,6 +70,8 @@ for text in sample:
             # Look ahead: keep the candidates among whose shaykhs the next name is found.
             ahead = {j for j in within if lookup(segs[depth + 1], j) & shuyukh_of[j]}
             within = ahead or within
+        if len(within) > 1 and (p := fame_pick(within)) is not None:
+            within = {p}                          # e.g. "الزهري" among Ma'mar's shuyukh
         if len(within) == 1:
             stats['resolved via teacher list'] += 1
             prev = next(iter(within))

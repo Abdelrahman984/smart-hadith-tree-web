@@ -62,6 +62,8 @@ for text in sample:
         within = c & shuyukh_of[prev] if prev is not None else set()
         if len(within) > 1 and depth + 1 < len(segs):
             within = {j for j in within if lookup(segs[depth + 1], j) & shuyukh_of[j]} or within
+        if len(within) > 1 and (p := fame_pick(within)) is not None:
+            within = {p}
         if len(within) == 1:
             status, prev = 'resolved (teacher list)', next(iter(within))
         elif len(c) == 1:

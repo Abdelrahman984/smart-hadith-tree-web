@@ -4,6 +4,7 @@ A link A -> B (B listed as a shaykh of A) is "confirmed" when B's own entry list
 Usage: python link_tahdhib.py tahdhib.json
 """
 import json
+import os
 import re
 import sys
 from collections import Counter, defaultdict
@@ -77,7 +78,8 @@ def starts_like(toks: list[str], j: int) -> bool:
 
 
 @lru_cache(maxsize=None)
-def candidates(name: str) -> frozenset[int]:
+def name_candidates(name: str) -> frozenset[int]:
+    """Entries whose own name (ism/kunya + nasab) matches `name`."""
     toks = tokens(name)
     if not toks or toks[0] == 'نبي':        # "النبي ﷺ" is not a narrator entry
         return frozenset()
@@ -96,6 +98,71 @@ def candidates(name: str) -> frozenset[int]:
     return frozenset()
 
 
+# ── Shuhra (أسماء الشهرة) ──────────────────────────────────────────────
+# 1. Aliases from Taqrib redirects: "سليمان الأعمش هو ابن مهران" -> سليمان بن مهران.
+# 2. A bare laqab/nisba or "ابن X" ("الأعمش", "الزهري", "ابن جريج") matches the entry's own
+#    name part (not its relatives); context (teacher lists) and fame then pick one.
+alias_index: dict[tuple, set[int]] = defaultdict(set)
+RELATION = re.compile(r'\s(?:أخو|أخي|والد|والدة|ابن عم|ابن أخي|ابن أخت|عم|خال|زوج|جد|صهر|ختن)\s')
+own_tokens = [set(tokens(RELATION.split(re.split(r'[.\n]', e['header'])[0] + ' ')[0])) for e in entries]
+fame = [len(e['talamidh']) for e in entries]
+# The nasab chain in order (ism, father, grandfather, ...), from the name before the first comma.
+nasab = [tokens(re.split(r'[،.\n]', e['header'])[0]) for e in entries]
+laqab_index = defaultdict(set)
+for j, toks in enumerate(own_tokens):
+    for w in toks:
+        laqab_index[w].add(j)
+
+_dir = os.path.dirname(os.path.abspath(sys.argv[1]))
+_taqrib = os.path.join(_dir, 'taqrib.json')
+taqrib_alias_hits = 0
+if os.path.exists(_taqrib):
+    NOTE = re.compile(r'\s(?:بضم|بفتح|بكسر|بالتصغير|مصغر|عن|شيخ|روى|يروي|تقدم|يأتي|في الكنى)\b.*')
+    for x in json.load(open(_taqrib, encoding='utf-8'))['xrefs']:
+        alias = NOTE.sub('', x['alias']).strip()
+        target = NOTE.sub('', x['target']).strip()
+        a_toks, t_raw = tokens(alias), norm(target).split()
+        if not a_toks or not t_raw:
+            continue
+        # "X الأعمش هو ابن مهران" completes X's nasab; otherwise the target is a full name.
+        full = f'{alias.split()[0]} {target}' if t_raw[0] in ('ابن', 'بن') else target
+        hit = name_candidates(full)
+        if len(hit) == 1:
+            alias_index[tuple(a_toks)] |= hit
+            taqrib_alias_hits += 1
+
+
+@lru_cache(maxsize=None)
+def candidates(name: str) -> frozenset[int]:
+    toks = tokens(name)
+    if not toks or toks[0] == 'نبي':
+        return frozenset()
+    if tuple(toks) in alias_index:
+        return frozenset(alias_index[tuple(toks)])
+    found = name_candidates(name)
+    if found:
+        return found
+    raw = soft_norm(name).strip()
+    if raw.startswith('ابن ') and len(toks) <= 3:
+        # "ابن جريج", "ابن أبي ذئب": the words must be a father/ancestor in the narrator's own nasab.
+        n = len(toks)
+        return frozenset(j for j in laqab_index.get(toks[0], ())
+                         if any(nasab[j][p:p + n] == toks for p in range(1, 5)))
+    if len(toks) == 1 and re.match(r'ال\S', name.strip()):
+        return frozenset(laqab_index.get(toks[0], ()))   # bare laqab / nisba: "الأعمش", "الزهري"
+    return frozenset()
+
+
+def fame_pick(cands: set[int]) -> int | None:
+    """The clearly most-cited narrator among `cands` (3x the students of the runner-up), if any."""
+    ranked = sorted(cands, key=lambda j: -fame[j])
+    if len(ranked) == 1:
+        return ranked[0]
+    if fame[ranked[0]] >= 3 * max(1, fame[ranked[1]]):
+        return ranked[0]
+    return None
+
+
 # Cross-references add alias names: "أحمد بن بكار الدمشقي، هو: أحمد بن عبد الرحمن بن بكار".
 alias_hits = 0
 for x in xrefs:
@@ -110,7 +177,8 @@ for x in xrefs:
         entry_tokens[j] |= set(tokens(alias))
         alias_hits += 1
 candidates.cache_clear()
-print(f'entries: {len(entries)}  crossref aliases attached: {alias_hits}/{len(xrefs)}')
+name_candidates.cache_clear()
+print(f'entries: {len(entries)}  crossref aliases attached: {alias_hits}/{len(xrefs)}  Taqrib aliases: {taqrib_alias_hits}')
 
 
 @lru_cache(maxsize=None)
