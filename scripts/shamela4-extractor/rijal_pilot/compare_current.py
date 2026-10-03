@@ -94,16 +94,6 @@ for text in sample:
     tot['hadiths with nothing resolved by ours'] += not any(j is not None for _, j, _ in ours)
     rows.append((text, ours, links))
 
-# SAVE=<file>: every sampled isnad with each name's resolution (ours) and the current chain, so a
-# run can be reviewed later or diffed against another run.
-if os.environ.get('SAVE'):
-    json.dump([{'isnad': re.sub(r'\s+', ' ', HARAKAT.sub('', text))[:400],
-                'ours': [{'name': seg, 'narrator': entries[j]['header'][:100] if j is not None else None,
-                          'source': entries[j].get('source', 'tahdhib') if j is not None else None, 'how': how}
-                         for seg, j, how in ours],
-                'current': [l['sheikh'][:100] for l in links]} for text, ours, links in rows],
-              open(os.environ['SAVE'], 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
-
 print(f'sample: {len(sample)}  matched in DB: {matched}')
 n = tot['name segments']
 print(f'name segments (first 8 per chain): {n}')
@@ -131,23 +121,38 @@ def named_in_kunya_entry(j: int, sheikh: str) -> bool:
 
 
 agree, disagree, beyond, cases = 0, 0, 0, []
-for text, ours, links in rows:
+vs_current = {}                     # (row, position) -> 'agree' / 'differ' / 'past', for SAVE
+for r, (text, ours, links) in enumerate(rows):
     now = {ism_father(l['sheikh']) for l in links}
     for pos, (seg, j, how) in enumerate(ours):
         if j is None:
             continue
         if ism_father(entries[j]['header']) in now or any(named_in_kunya_entry(j, l['sheikh']) for l in links):
             agree += 1
+            vs_current[r, pos] = 'agree'
         elif pos >= len(links):
             # The current chain stops before this name ("... ← عروة" without عائشة): nothing to
             # compare with, so it is neither agreement nor disagreement.
             beyond += 1
+            vs_current[r, pos] = 'past'
         else:
             disagree += 1
+            vs_current[r, pos] = 'differ'
             cases.append((seg, entries[j]['header'][:45].replace('\n', ' '), how,
                           ' ← '.join(l['sheikh'][:22] for l in links)))
 print(f'our resolved narrators found in the current chain: {agree} agree, {disagree} differ '
       f'({agree / max(1, agree + disagree):.0%} agreement); {beyond} past the end of the current chain')
+# SAVE=<file>: every sampled isnad with each name's resolution (ours) and the current chain, so a
+# run can be reviewed later or diffed against another run.
+if os.environ.get('SAVE'):
+    json.dump([{'isnad': re.sub(r'\s+', ' ', HARAKAT.sub('', text))[:400],
+                'ours': [{'name': seg, 'narrator': entries[j]['header'][:100] if j is not None else None,
+                          'source': entries[j].get('source', 'tahdhib') if j is not None else None, 'how': how,
+                          'vs_current': vs_current.get((r, pos))}
+                         for pos, (seg, j, how) in enumerate(ours)],
+                'current': [l['sheikh'][:100] for l in links]} for r, (text, ours, links) in enumerate(rows)],
+              open(os.environ['SAVE'], 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+
 print('by how ours resolved them:', Counter(c[2] for c in cases))
 import random
 random.seed(5)

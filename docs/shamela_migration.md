@@ -96,6 +96,7 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 | `gap_books.py` | Which rijal books would cover the missing narrators. |
 | `check_record_boundaries.py` | Classifies every record in `data/itqan/sunni` as clean, prefix tail, or **shifted** (the isnad belongs to the next hadith). See §6.1. |
 | `compare_current.py` | **Main benchmark**: our resolution versus the current DB chains on the same hadiths, plus the agreement rate. |
+| `bench.py` | **Runs `compare_current.py` on 4 or all 31 books** (in parallel), keeps each run in `data/shamela_rijal/results/<tag>/`, and prints one line per book with the change since the previous run, the names gained and lost, and a sample of new disagreements to review. |
 | `export_chains.ps1` | Exports current chains: `-Books 'المعجم'` (substrings of `Hadiths.BookName`; use `'بيهقي'`, not `'البيهقي'`, since the DB name is «للبيهقي»), `-Out <file>`. |
 
 ### Name matching rules in `link_tahdhib.py` (learned the hard way)
@@ -382,6 +383,17 @@ Housekeeping:
 
 ## 8. How to re-run everything
 
+Day to day, from `data/shamela_rijal`:
+
+```bash
+python ../../scripts/shamela4-extractor/rijal_pilot/bench.py <tag>               # 4 books, vs the previous run
+python ../../scripts/shamela4-extractor/rijal_pilot/bench.py <tag> --books all   # all 31, before a commit
+```
+
+`--base <tag>` picks the run to compare with, `--review N` the number of new disagreements shown (default 12; use 20–25 before a commit). Each name in a saved run carries `vs_current` (`agree` / `differ` / `past`). Checked against the verified run: the same numbers on all 31 books, the same saved results, and `vs_current` reproduces the agreement figures; with no change it reports 0 gained / 0 lost, and with the grandfather rule switched off it lists exactly the lost names.
+
+The full pipeline:
+
 From the repo root, in Git Bash (the dump step in §3 comes first):
 
 ```bash
@@ -430,7 +442,7 @@ The sample input texts come from `data/itqan/sunni/<book>/`. The 19 non-Itqan bo
 - **Shell escaping:** in the Bash tool, `\\n`, `\b` and `\s` inside heredocs or `python -c` get mangled. Write scripts with the file-writing tool, not heredocs.
 - **Arabic from SQL Server:** `sqlcmd` output loses Arabic. Use `export_chains.ps1` (System.Data.SqlClient → UTF-8 JSON). `pyodbc` is not installed.
 - **SQL Server file access:** restores must target the instance data folder; the service cannot write to user temp folders.
-- **Workflow:** while changing the resolver, measure 4 representative books (Bukhari, the Kabir, the Mustadrak, al-Daraqutni) with `SAVE=` and diff the runs; measure all 31 once before committing.
+- **Workflow:** while changing the resolver, `bench.py <tag>` (4 books, ~15 s with a warm cache) with a 10–15 item review; before a commit, `bench.py <tag> --books all --review 25`.
 - **Measure the right thing:**
   - A higher "resolved" rate can hide wrong links. Always check agreement and review disagreements manually.
   - Numbers reported mid-way were corrected several times. For example, a 70.4% Bukhari figure turned out to include wrong shuhra matches.
