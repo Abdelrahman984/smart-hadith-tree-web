@@ -1,4 +1,4 @@
-import ELK from 'elkjs/lib/elk.bundled.js';
+import ELK, { type ElkNode, type ElkExtendedEdge } from 'elkjs/lib/elk.bundled.js';
 import { Node, Edge } from '@xyflow/react';
 
 const elk = new ELK();
@@ -19,17 +19,20 @@ const elkOptions = {
   'elk.layered.crossingMinimization.greedySwitchCrossingMinimizer.activationThreshold': '1',
   'elk.layered.thoroughness': '7',
   'elk.alignment': 'CENTER',
+  // Route edges around nodes; the routes are rendered by ElkEdge.
+  'elk.edgeRouting': 'ORTHOGONAL',
+  'elk.layered.unnecessaryBendpoints': 'true',
 };
 
 export const getLayoutedElements = async (nodes: Node[], edges: Edge[]) => {
-  const graph = {
+  const graph: ElkNode = {
     id: 'root',
     layoutOptions: elkOptions,
     children: nodes.map((node) => ({
       ...node,
-      // Target widths and heights for ELK to compute layout
-      width: node.type === 'reference' ? 270 : 250, 
-      height: node.type === 'reference' ? 145 : 135,
+      // Prefer the size React Flow measured; fall back to estimates on the first pass.
+      width: node.measured?.width ?? (node.type === 'reference' ? 270 : 250),
+      height: node.measured?.height ?? (node.type === 'reference' ? 145 : 135),
     })),
     edges: edges.map((edge) => ({
       id: edge.id,
@@ -40,10 +43,11 @@ export const getLayoutedElements = async (nodes: Node[], edges: Edge[]) => {
 
   try {
     const layoutedGraph = await elk.layout(graph);
-    
+    const routedEdges = (layoutedGraph.edges ?? []) as ElkExtendedEdge[];
+
     const layoutedNodes = nodes.map((node) => {
       const layoutedNode = layoutedGraph.children?.find((n) => n.id === node.id);
-      
+
       return {
         ...node,
         position: {
@@ -53,7 +57,25 @@ export const getLayoutedElements = async (nodes: Node[], edges: Edge[]) => {
       };
     });
 
-    return { nodes: layoutedNodes, edges };
+    const positionById = new Map(layoutedNodes.map((n) => [n.id, n.position]));
+
+    // Attach ELK's routed polyline to each edge so ElkEdge can draw it.
+    const layoutedEdges = edges.map((edge) => {
+      const section = routedEdges.find((e) => e.id === edge.id)?.sections?.[0];
+      if (!section) return edge;
+      return {
+        ...edge,
+        type: 'elk',
+        data: {
+          ...edge.data,
+          points: [section.startPoint, ...(section.bendPoints ?? []), section.endPoint],
+          sourcePos: positionById.get(edge.source),
+          targetPos: positionById.get(edge.target),
+        },
+      };
+    });
+
+    return { nodes: layoutedNodes, edges: layoutedEdges };
   } catch (error) {
     console.error("ELK Layout Error:", error);
     return { nodes, edges };

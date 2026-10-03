@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
   ReactFlow,
   Controls,
@@ -10,11 +10,14 @@ import {
   Node,
   Edge,
   MarkerType,
+  ReactFlowInstance,
 } from "@xyflow/react";
 import { getLayoutedElements } from "../utils/elkLayout";
+import { useMeasuredRelayout } from "../hooks/useMeasuredRelayout";
 import { formatTwoPartNarratorName, formatScholarlyNarratorName } from "../utils/formatNarratorName";
 import ComparativeNarratorNode from "./ComparativeNarratorNode";
 import ReferenceNode from "./ReferenceNode";
+import ElkEdge from "./ElkEdge";
 import { getFamousReferenceOwnerName } from "../utils/formatFamousReferenceName";
 import { ComparativeTreeResponseDto, NarratorSummaryDto } from "@/types/api";
 import { useNarratorDrawerStore } from "@/features/narrator-details/store/useNarratorDrawerStore";
@@ -23,6 +26,8 @@ import BookLegend from './BookLegend';
 import { useIlalStore } from '@/features/ilal/store/useIlalStore';
 import { getIlalEdgeDecorations } from '@/features/ilal/utils/ilalLabels';
 import { getBookMeta } from '@/lib/bookTheme';
+
+const edgeTypes = { elk: ElkEdge };
 
 const nodeTypes = {
   comparativeNarrator: ComparativeNarratorNode,
@@ -41,6 +46,9 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { openDrawer } = useNarratorDrawerStore();
   const [showWeakOnly, setShowWeakOnly] = useState(false);
+  const flowRef = useRef<ReactFlowInstance | null>(null);
+  const refit = useCallback(() => flowRef.current?.fitView({ duration: 0 }), []);
+  const { phase, setPhase } = useMeasuredRelayout({ nodes, edges, setNodes, setEdges, onRelaid: refit });
 
   const activeBooks = useMemo(
     () => Array.from(new Set((treeData.sources || []).map((s) => s.bookName))),
@@ -49,6 +57,7 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
 
   useEffect(() => {
     if (!treeData || treeData.nodes.length === 0) return;
+    setPhase("idle");
 
     const uniqueNarrators = new Map<string, Node>();
     const compilerEntryByNarrator = new Map<string, (typeof treeData.nodes)[number]>();
@@ -195,8 +204,9 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
     getLayoutedElements(initialNodes, initialEdges).then(({ nodes: layoutedNodes, edges: layoutedEdges }) => {
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
+      setPhase("measure");
     });
-  }, [treeData, narratorsTooltips, setNodes, setEdges]);
+  }, [treeData, narratorsTooltips, setNodes, setEdges, setPhase]);
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     openDrawer(node.id);
@@ -237,7 +247,10 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
   }, [edges, ilalReport]);
 
   return (
-    <div className="absolute inset-0 bg-slate-50" dir="ltr">
+    <div
+      className={`absolute inset-0 bg-slate-50 transition-opacity duration-150 ${phase === "ready" ? "opacity-100" : "opacity-0"}`}
+      dir="ltr"
+    >
       <ReactFlow
         nodes={nodes}
         edges={decoratedEdges}
@@ -245,6 +258,10 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        onInit={(instance) => {
+          flowRef.current = instance;
+        }}
         fitView
         attributionPosition="bottom-right"
         className="bg-slate-50"

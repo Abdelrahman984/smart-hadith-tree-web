@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
   ReactFlow,
   Controls,
@@ -10,11 +10,14 @@ import {
   Node,
   Edge,
   MarkerType,
+  ReactFlowInstance,
 } from "@xyflow/react";
 import { getLayoutedElements } from "../utils/elkLayout";
+import { useMeasuredRelayout } from "../hooks/useMeasuredRelayout";
 import { formatTwoPartNarratorName } from "../utils/formatNarratorName";
 import NarratorNode from "./NarratorNode";
 import ReferenceNode from "./ReferenceNode";
+import ElkEdge from "./ElkEdge";
 import { getFamousReferenceOwnerName } from "../utils/formatFamousReferenceName";
 import { IsnadTreeResponseDto, NarratorSummaryDto } from "@/types/api";
 import { useNarratorDrawerStore } from "@/features/narrator-details/store/useNarratorDrawerStore";
@@ -22,6 +25,8 @@ import GraphControls from './GraphControls';
 import BookLegend from './BookLegend';
 import { useIlalStore } from '@/features/ilal/store/useIlalStore';
 import { getIlalEdgeDecorations } from '@/features/ilal/utils/ilalLabels';
+
+const edgeTypes = { elk: ElkEdge };
 
 const nodeTypes = {
   narrator: NarratorNode,
@@ -38,9 +43,13 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { openDrawer } = useNarratorDrawerStore();
   const [showWeakOnly, setShowWeakOnly] = useState(false);
+  const flowRef = useRef<ReactFlowInstance | null>(null);
+  const refit = useCallback(() => flowRef.current?.fitView({ duration: 0 }), []);
+  const { phase, setPhase } = useMeasuredRelayout({ nodes, edges, setNodes, setEdges, onRelaid: refit });
 
   useEffect(() => {
     if (!treeData || treeData.nodes.length === 0) return;
+    setPhase("idle");
 
     // We want Narrators to be the Nodes, and Transmissions to be the Edges.
     // The API returns a flat list of Transmissions (IsnadNodeDto), where:
@@ -147,9 +156,10 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
     getLayoutedElements(initialNodes, initialEdges).then(({ nodes: layoutedNodes, edges: layoutedEdges }) => {
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
+      setPhase("measure");
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [treeData?.hadithId, narratorsTooltips, setNodes, setEdges]);
+  }, [treeData?.hadithId, narratorsTooltips, setNodes, setEdges, setPhase]);
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     // node.id is now the narratorId!
@@ -191,7 +201,10 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
   }, [edges, ilalReport]);
 
   return (
-    <div className="absolute inset-0 bg-slate-50" dir="ltr">
+    <div
+      className={`absolute inset-0 bg-slate-50 transition-opacity duration-150 ${phase === "ready" ? "opacity-100" : "opacity-0"}`}
+      dir="ltr"
+    >
       <ReactFlow
         nodes={nodes}
         edges={decoratedEdges}
@@ -199,6 +212,10 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        onInit={(instance) => {
+          flowRef.current = instance;
+        }}
         fitView
         attributionPosition="bottom-right"
         className="bg-slate-50"
