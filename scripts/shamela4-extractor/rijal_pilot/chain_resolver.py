@@ -9,7 +9,7 @@ consistency along the chain:
 
 A choice is accepted only when it beats every alternative at its position given its
 chosen neighbours (strictly higher local score), so coverage does not come at the cost of
-guessing. When no candidate has any edge and the name is given in full (kunya + ism +
+guessing; on a tie, only a clearly more cited candidate (fame_pick) wins. When no candidate has any edge and the name is given in full (kunya + ism +
 father), fame_pick (3x the students) may still decide. Loaded with exec() by
 compare_current.py / gap_test-style scripts after gap_test.py's helpers (chain_segments,
 is_name, lookup, shuyukh_of, compiler).
@@ -18,6 +18,7 @@ import math
 import re
 
 MAX_CANDIDATES = 80
+KUNYA_FIRST = re.compile(r'\s*(?:أبو|أبي|أبا)\s')
 FULL_KUNYA_NAME = re.compile(r'\s*(?:أبو|أبي|أبا)\s+(?:عبد\s+)?\S+\s+(?:عبد\s+)?\S+\s+بن\s+\S+')
 
 # Students as resolved from each entry's talamidh list (the mirror of shuyukh_of).
@@ -108,6 +109,13 @@ def resolve(segs: list[str], start: int | None) -> list[tuple[str, int | None, s
             out.append((seg, c[0], 'unique'))
         elif j is not None and local(j) > 0 and all(local(x) < local(j) for x in c if x != j):
             out.append((seg, j, 'chain'))
+        elif (j is not None and local(j) > 0 and not (i == 0 and start is not None and KUNYA_FIRST.match(seg))
+              and (f := fame_pick({x for x in c if local(x) == local(j)})) is not None):
+            # Equally linked to the neighbours: Abu Nadra lists both Abu Sa'id al-Khudri and Samura
+            # b. Jundub (also "أبو سعيد"); the far more cited one (3x the students) is meant. Not for
+            # the compiler's own shaykh named by kunya: al-Hakim's "أبو بكر بن إسحاق" is Ahmad b.
+            # Ishaq al-Faqih, not the far more cited Ibn Khuzayma (who died before al-Hakim was born).
+            out.append((seg, f, 'chain_fame'))
         elif (FULL_KUNYA_NAME.match(seg) and all(local(x) == 0 for x in c)
               and (f := fame_pick(set(c))) is not None):
             # No context at all: "أبو العباس محمد بن يعقوب" is al-Asamm (18 students listed),

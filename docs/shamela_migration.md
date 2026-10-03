@@ -52,7 +52,7 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 | File | Produced by | Contents |
 |---|---|---|
 | `dump/<id>_pages.tsv`, `dump/<id>_titles.tsv` | `ShamelaLuceneDumper` | Raw book text |
-| `tahdhib.json` | `parse_tahdhib.py` | 8,449 Tahdhib al-Kamal entries + 121 cross-references |
+| `tahdhib.json` | `parse_tahdhib.py` | 8,471 Tahdhib al-Kamal entries + 120 cross-references |
 | `taqrib.json` | `parse_taqrib.py` | 8,828 Taqrib entries + 1,419 "X هو Y" redirects |
 | `align.json` | `align_taqrib.py` | Tahdhib ↔ Taqrib alignment (92.8% of Tahdhib) |
 | `extra_shaykh_books.json` | `parse_shaykh_books.py` | 15,052 narrators from the compilers' shaykh books, تعجيل المنفعة and تاريخ بغداد, after merging 899 cross-book duplicates (plus Ithaf's name forms, ري الظمآن's kunyas and the compiler entries) |
@@ -85,7 +85,7 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 
 | Script | Role |
 |---|---|
-| `parse_tahdhib.py` | Splits Tahdhib into entries: book symbols, shuyukh/talamidh, attributed quotes, cross-references. Copes with typo'd, repeated or missing entry numbers (longest increasing subsequence + recovery; a repeated "٣٤٩١" had dropped Abu Musa al-Ash'ari, Ibn Mas'ud and three other Companions). |
+| `parse_tahdhib.py` | Splits Tahdhib into entries: book symbols, shuyukh/talamidh, attributed quotes, cross-references. Copes with typo'd, repeated or missing entry numbers (longest increasing subsequence + recovery; a repeated "٣٤٩١" had dropped Abu Musa al-Ash'ari, Ibn Mas'ud and three other Companions) and heads without a dash ("١٠٢٥: الحارث الأعور"). Lists: women's «روت عن» / «روى عنها»; a list goes on over a line break unless the line ends with a full stop or the next line is a remark; items are also split at a Latin comma or after a symbols bracket. |
 | `parse_taqrib.py` | Ibn Hajr's verdict (full phrase), tabaqa, death, symbols, redirects. |
 | `align_taqrib.py` | Unique-name anchors, then an in-order fill between anchors. |
 | `build_registry.py` | Merges Tahdhib + Taqrib and maps verdicts to ranks T1–T12. Output is not consumed yet. |
@@ -101,20 +101,20 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 
 ### Name matching rules in `link_tahdhib.py` (learned the hard way)
 
-- **Tokens:** harakat removed, `أإآ→ا`, `ى→ي`, `ة→ه`, `أبي→أبو`, `زكرياء→زكريا`, the article dropped, and **`عبد X` and `عبيد الله` kept as one token**. As two words, "عبيد الله" cut al-Zuhri's nasab short, so "ابن شهاب" went to عاصم بن كليب بن شهاب.
+- **Tokens:** harakat removed, `أإآ→ا`, `ى→ي`, `ة→ه`, `أبي→أبو` (not before «بن»: «أبي بن كعب» is Ubayy), `زكرياء→زكريا`, the article dropped, and **`عبد X` and `عبيد الله` kept as one token**. As two words, "عبيد الله" cut al-Zuhri's nasab short, so "ابن شهاب" went to عاصم بن كليب بن شهاب.
 - **Anchoring:** a name must start with the entry's own ism, or with its own kunya followed by the ism. Otherwise relatives match ("أخو محمد بن سيرين").
   - Kunya-only entries ("أبو زيد. عن: أبي هريرة") must match on their own kunya. Before this, any word in their header counted, which gave "أبي هريرة" 13 candidates.
-  - "المعروف بأبي الزناد" counts as a kunya (عبد الله بن ذكوان).
+  - "المعروف بأبي الزناد" counts as a kunya (عبد الله بن ذكوان), and so does a kunya right after the ism («ذكوان أبو صالح السمان»), but not in "ابن أبي X".
 - **Nasab order:** the chain must agree in order, so "محمد بن علي" does not match "محمد بن عمر بن علي". Only words linked by `بن` count as nasab; a trailing nisba is not a grandfather.
   - The aligned Taqrib entry's nasab is accepted as a second nasab (1,277 entries). This corrects typos in Shamela's Tahdhib text, e.g. "عبيد الله بن عتبة" printed for عبيد الله بن عبد الله بن عتبة.
   - The words of the aligned Taqrib name also count as the narrator's own words (laqab, nisbas). Tahdhib may give them only in a later sentence: «الحميدي» comes after "وقيل:".
 - **Kunya forms:**
-  - "أبو بكر بن إسحاق": kunya, then father or ancestor.
+  - "أبو بكر بن إسحاق": kunya, then father or ancestor. "أبو سلمة بن عبد الرحمن" is matched on the father (or the kunya-headed entry's own words), not on narrators whose ism is عبد الرحمن.
   - "أبو زكريا العنبري": kunya, then nisba.
   - "أبو بكر محمد بن أحمد": kunya, then ism and nasab.
 - **Shuhra:**
   - Taqrib redirects are aliases, used only when the plain match finds nobody.
-  - "ابن X" is checked first: X must be a father or ancestor.
+  - "ابن X" is checked first: X must be a father or ancestor. When a son of X is at least as cited as the grandsons, only the sons count («ابن عمر» is not Salim b. Abdullah b. Umar); «ابن جريج» stays the grandson.
   - A bare laqab or nisba ("الأعمش", "الزهري") is matched when it starts with `ال`.
   - A laqab without `ال` ("بندار") is matched only when it is nobody's ism, and only when it is the last word of the entry's kunya phrase ("أبو بكر البصري بندار") or follows "الملقب". Matching any header word picked up verbs ("خرج", "بعث").
 - **Names by grandfather or "ابن X"** (only when nobody has the given father): the words after the ism come in order in the narrator's own name part, and a word from the nasab is at most the grandfather ("عبد الله بن أحمد بن حنبل", "علي بن المديني", "عثمان بن أبي شيبة"). Entries headed by a kunya («أم عثمان») are excluded.
@@ -126,6 +126,7 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 - **Fame tie-break** (`fame_pick`): only when one candidate has three times the students of the next.
   - In the joint resolver it applies only when no candidate has any edge **and** the isnad gives kunya + ism + father ("أبو العباس محمد بن يعقوب" → al-Asamm, not al-Ahwazi).
   - On shorter forms it was wrong too often: "ابن أبي مليكة" → يعقوب بن زيد, "عبدان" → al-Marwazi, "ابن صاعد" → خلف بن خليفة.
+  - It also breaks a **tie between candidates equally linked to their neighbours** (`chain_fame`): Abu Nadra lists both Abu Sa'id al-Khudri (126 students) and Samura b. Jundub (26), both «أبو سعيد». Not for the compiler's own shaykh given by kunya: al-Hakim's «أبو بكر بن إسحاق» is Ahmad b. Ishaq, not Ibn Khuzaymah.
 - **Edition typos tolerated:** "بن بن", "ثقه", numbers without a dash ("٩٣٣ ق:"), missing numbers.
 
 ### Isnad segmentation (`gap_test.py`)
@@ -138,41 +139,41 @@ The segmentation:
 
 ## 6. Results so far (samples, same hadiths as the current DB)
 
-Coverage means the share of narrator names in the first 8 links of each chain that were identified. Agreement means the share of our identified narrators that the current system also identified (same ism + father; a Companion known by his kunya also agrees when his Tahdhib header gives the current system's name, «أبو هريرة» = «عبد الرحمن بن صخر»). A name past the end of the current chain ("… ← عروة" with no «عائشة») has nothing to compare with: it is counted in the last column, not as a disagreement. Before the clean-up step below, those names counted as disagreements, so older agreement figures in commit messages are lower.
+Coverage means the share of narrator names in the first 8 links of each chain that were identified. Agreement means the share of our identified narrators that the current system also identified (same ism + father; a Companion known by his kunya also agrees when his Tahdhib header gives the current system's name, «أبو هريرة» = «عبد الرحمن بن صخر»; the Taqrib form of a typo'd Tahdhib name counts too, «عبيد الله بن عتبة» = «عبيد الله بن عبد الله بن عتبة»). A name past the end of the current chain ("… ← عروة" with no «عائشة») has nothing to compare with: it is counted in the last column, not as a disagreement. Before the clean-up step below, those names counted as disagreements, so older agreement figures in commit messages are lower.
 
 | Book (sample) | Ours: first greedy | Ours: now | Current system | Agreement | Ours past the current chain |
 |---|---|---|---|---|---|
-| al-Bukhari (500) | 54% | **83%** | 82% | 81% | 199 |
-| al-Mustadrak (1,000) | 59% | **75%** | 92% | 60% † | 901 |
-| al-Mu'jam al-Kabir (500) | 70%* | **84%** | 82% | 87% | 372 |
-| al-Mu'jam al-Awsat (500) | 65%* | **78%** | 88% | 86% | 112 |
-| al-Mu'jam al-Saghir (500) | 65%* | **82%** | 85% | 83% | 138 |
-| al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **75%** | ✱ † | 44% † | 512 |
-| Shu'ab al-Iman (500) | 60%* | **68%** | 95% † | 78% † | 269 |
-| Sahih Ibn Hibban (500) | 74%* | **84%** | 85% | 89% | 177 |
-| Musnad Ahmad (500) | 75%* | **78%** | 87% | 83% | 106 |
-| al-Muwatta (500) | 53%* | **66%** ‡ | 78% ‡ | 75% | 134 |
-| Sunan al-Daraqutni (500) | 68%* | **80%** | 88% | 80% | 226 |
-| Sahih Ibn Khuzaymah (500) | 68%* | **74%** | 82% | 83% | 276 |
-| Mustakhraj Abi Awanah (500) | 67%* | **76%** | 68% | 82% | 510 |
-| Musannaf Abd al-Razzaq (500) | — | **73%** | 76% | 87% | 104 |
-| Musnad al-Tayalisi (500) | — | **80%** | ✱ | 78% | 21 |
-| Musnad al-Shafi'i (500) | — | **78%** | 81% | 86% | 125 |
-| Musnad al-Humaydi (500) | 44% | **77%** | 88% | 86% | 68 |
-| Sunan Sa'id b. Mansur (500) | — | **75%** | ✱ | 80% | 36 |
-| Musnad Ishaq (500) | — | **75%** | 82% | 85% | 136 |
-| Musnad al-Bazzar (500) | — | **76%** | 94% | 75% | 94 |
-| Musnad Abi Ya'la (500) | — | **79%** | 87% | 86% | 99 |
-| Sahih Muslim (500) | — | **82%** | 69% | 85% § | 477 |
-| Sunan Abi Dawud (500) | — | **79%** | 80% | 86% | 211 |
-| Jami' al-Tirmidhi (500) | — | **85%** | 90% | 86% | 112 |
-| Sunan al-Nasa'i (500) | — | **82%** | 83% | 84% | 198 |
-| Sunan Ibn Majah (500) | — | **81%** | 84% | 89% | 208 |
-| Sunan al-Darimi (500) | — | **80%** | 86% | 85% | 104 |
-| al-Adab al-Mufrad (500) | 58% | **77%** | 82% | 83% | 91 |
-| al-Shama'il (396) | 72% | **82%** | 86% | 90% | 75 |
-| Musannaf Ibn Abi Shayba (500) | — | **73%** | 90% | 76% | 45 |
-| al-Sunan al-Kubra, al-Nasa'i (500) | — | **83%** | 87% | 83% | 125 |
+| al-Bukhari (500) | 54% | **85%** | 82% | 83% | 218 |
+| al-Mustadrak (1,000) | 59% | **78%** | 92% | 60% † | 946 |
+| al-Mu'jam al-Kabir (500) | 70%* | **86%** | 82% | 88% | 387 |
+| al-Mu'jam al-Awsat (500) | 65%* | **83%** | 88% | 87% | 121 |
+| al-Mu'jam al-Saghir (500) | 65%* | **86%** | 85% | 84% | 126 |
+| al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **78%** | ✱ † | 44% † | 533 |
+| Shu'ab al-Iman (500) | 60%* | **72%** | 95% † | 78% † | 277 |
+| Sahih Ibn Hibban (500) | 74%* | **88%** | 85% | 89% | 187 |
+| Musnad Ahmad (500) | 75%* | **83%** | 87% | 85% | 113 |
+| al-Muwatta (500) | 53%* | **69%** ‡ | 78% ‡ | 78% | 136 |
+| Sunan al-Daraqutni (500) | 68%* | **83%** | 88% | 81% | 230 |
+| Sahih Ibn Khuzaymah (500) | 68%* | **79%** | 82% | 84% | 296 |
+| Mustakhraj Abi Awanah (500) | 67%* | **80%** | 68% | 83% | 522 |
+| Musannaf Abd al-Razzaq (500) | — | **76%** | 76% | 88% | 114 |
+| Musnad al-Tayalisi (500) | — | **84%** | ✱ | 79% | 21 |
+| Musnad al-Shafi'i (500) | — | **83%** | 81% | 88% | 145 |
+| Musnad al-Humaydi (500) | 44% | **82%** | 88% | 90% | 75 |
+| Sunan Sa'id b. Mansur (500) | — | **78%** | ✱ | 80% | 43 |
+| Musnad Ishaq (500) | — | **81%** | 82% | 87% | 193 |
+| Musnad al-Bazzar (500) | — | **84%** | 94% | 77% | 77 |
+| Musnad Abi Ya'la (500) | — | **83%** | 87% | 87% | 114 |
+| Sahih Muslim (500) | — | **86%** | 69% | 86% § | 505 |
+| Sunan Abi Dawud (500) | — | **83%** | 80% | 87% | 216 |
+| Jami' al-Tirmidhi (500) | — | **88%** | 90% | 88% | 123 |
+| Sunan al-Nasa'i (500) | — | **87%** | 83% | 86% | 215 |
+| Sunan Ibn Majah (500) | — | **87%** | 84% | 90% | 224 |
+| Sunan al-Darimi (500) | — | **84%** | 86% | 87% | 113 |
+| al-Adab al-Mufrad (500) | 58% | **81%** | 82% | 84% | 93 |
+| al-Shama'il (396) | 72% | **85%** | 86% | 92% | 92 |
+| Musannaf Ibn Abi Shayba (500) | — | **75%** | 90% | 78% | 53 |
+| al-Sunan al-Kubra, al-Nasa'i (500) | — | **86%** | 87% | 85% | 137 |
 
 \* Joint resolver already applied, before that compiler's shaykh books were added.
 ✱ Over 100%: the current system counts more links than our name segments (it also links the book's transmitters), so its share is not comparable.
@@ -239,6 +240,18 @@ Ibn Abi Shayba has 22 of 500 hadiths with no narrator resolved (the current syst
 - **Names by grandfather or by "ابن X"** (`by_grandfather`): when nobody has the given father, the words after the ism must come in order in the narrator's own name part, and a name taken from the nasab must be the grandfather at most. This finds «عبد الله بن أحمد بن حنبل», «عثمان بن أبي شيبة», «سعيد بن أبي مريم», «علي بن المديني», «إسحاق بن راهويه», «إسماعيل ابن علية», «محمد بن أبي عدي», «إسماعيل بن أبي أويس», «محمد بن إشكاب», «حفص بن أبي داود» (حفص بن سليمان). Allowing any ancestor gave «أحمد بن أسد» → Ahmad b. Hanbal and «أيوب بن جابر» → أيوب بن خالد بن صفوان بن أوس بن جابر.
 - A manual review of 20 random new resolutions (four books, Companions excluded) found 1 error, from an older path: «ابن منيع» as al-Daraqutni's shaykh → محمد بن سعد بن منيع; it is al-Baghawi, whose entry does not record that name.
 
+**Companions and common names** (the resolver gap of §7). The cause was mostly not ambiguity but **lists missing from the Tahdhib parse**, which left the most frequent narrators without context:
+- Women's lists say «روت عن» / «روى عنها»: Aisha, Umm Salama, Hafsa, Asma', Amra had none.
+- A line break inside a list ended it: Abu Hurayra's students stopped at 17 (now 329), Shu'ba's at 10, Ibn Uyayna's at 2 (now 188), Qatada's at 8.
+- Items joined without "، و" («(بخ) ومسلم», «(س) , ويحيى») were swallowed by the item before: Abu Salih al-Samman had 17 students, Mu'awiya, Jabir and Mu'adh lost dozens.
+- 21 entries with a head «١٠٢٥:» (no dash) were missing: al-Harith al-A'war, Jumay' b. Umayr, Abu Umayya al-Tarsusi.
+
+Fixing them added ~5,600 list items. Complete lists also make real namesakes tie, so the fame tie-break now settles ties between candidates equally linked to their neighbours (rules in §5), and four matching bugs it exposed were fixed: «ابن عمر» → his grandsons, «أبو سلمة بن عبد الرحمن» missing Abu Salama b. Awf, «أبي بن كعب» read as «أبو كعب», and «ذكوان أبو صالح» without his kunya. The agreement metric was also corrected: a compound name («عبد الرحمن بن صخر») was cut to three words, and the header compared only to its first 120 characters. Against the old code measured with the same metric:
+- Coverage rose 2–8 points in every book (Bukhari 83% → 85%, Muslim 82% → 86%, Ibn Majah 81% → 87%, al-Bazzar 76% → 84%); overall agreement 81.8% → 82.1%.
+- 2,576 names newly resolved agree with the current system, 727 differ, 621 are past its chain (186 «عائشة»). 314 earlier disagreements were dropped and 212 corrected (Sufyan b. Uyayna, al-Sabi'i, al-Harith al-A'war); 218 agreeing names were lost or changed.
+- Many "disagreements" are the current system's: «أبي صالح» from al-A'mash → باذام (it is Dhakwan al-Samman, whom it also names «ذكوان بن الله», so every Dhakwan counts as a disagreement), «عكرمة» → عكرمة بن منصور, «عبيد الله» from Yahya → عبيد الله بن معاذ, «نافع» → نافع بن همام, Ibn Sirin as «محمد بن أبي عمرة».
+- Tie-break resolutions agree 73% (ordinary chain resolutions 81%), largely for the reasons above.
+
 A manual review of 12 Ibn Hibban chains (~70 names) found 1 likely error: "أبي جعفر" from يحيى بن أبي كثير → al-Baqir, probably al-Ansari al-Mu'adhdhin.
 
 ### 6.1 Data finding: shifted hadith records (affects the live app today)
@@ -274,7 +287,7 @@ In the live database, **1,296 of Muslim's 7,368 hadiths (18%)** have a first cha
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** the first unchecked item of Phase 2's resolver gaps (common single names and Companions when context is weak). The record-boundary fix (§6.1) stays in Phase 4 unless the user asks for it earlier.
+**Next task:** the first unchecked item of Phase 2's resolver gaps (al-Baghawi as «ابن منيع»). The record-boundary fix (§6.1) stays in Phase 4 unless the user asks for it earlier.
 
 ### Overview
 
@@ -337,7 +350,8 @@ Remaining resolver gaps:
 - [x] Names by grandfather or by "ابن X" («عبد الله بن أحمد بن حنبل», «عثمان بن أبي شيبة», «علي بن المديني», «إسحاق بن راهويه», «إسماعيل ابن علية») (`afaef5c`)
 - [x] Isnad clean-up: «رضى الله عنه» with ى, accusative «أبا هريرة» / «جابرا», «قالا» after a name, «أبي، ح»; agreement no longer counts names past the end of the current chain (`afaef5c`)
 - [ ] Al-Baghawi as «ابن منيع» (and other shaykhs known by a maternal grandfather)
-- [ ] Common single names ("عطاء", "هشام", "عبدان", "سفيان") and Companions («ابن عمر», «ابن عباس») when context is weak
+- [x] Companions and common names when context is weak: Tahdhib lists repaired (women, line breaks, separators, «N:» heads), fame tie-break for equally linked candidates, «ابن عمر» / «أبو سلمة بن عبد الرحمن» / «أبي بن كعب» / «ذكوان أبو صالح» matching (`COMMIT`)
+- [ ] Real ties left undecided: «أبو إسحاق» (al-Sabi'i / al-Shaybani), «أبو معاوية» (al-Darir / Hushaym), «عبد الله» bare
 - [ ] Namesakes of the same name and generation, who belong to different compilers (Ibn Hibban's «محمد بن عبد السلام» against al-Hakim's): use the compiler's own shaykh list as context for the first link
 - [ ] "عن أبيه" after an unresolved narrator
 - [ ] Port the contextual overrides of `ContextualDisambiguator` (e.g. Sufyan / Hammad by student) to the new IDs

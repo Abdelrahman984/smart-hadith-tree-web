@@ -40,8 +40,9 @@ text = strip_harakat(text)
 #    Numbers must increase by a small step; anything else (numbered lists inside
 #    the front matter or inside an entry) stays part of the current entry.
 # Some volumes drop the dash ("٩٣٣ ق: جعفر ..."); then the symbols block and colon are required.
+# A few drop the dash ("١٠٢٥: الحارث بن عبد الله الأعور", "٨١٠: س: توبة أبو صدقة").
 ENTRY = re.compile(
-    r'(?:^|[\n\x01])\s*([٠-٩]+)(?:\s*-\s*(?:([^:\n\x01]{0,40}?)\s*:)?|\s+([ء-ي][ء-ي ٠-٩()]{0,30}?)\s*:)\s*(?=\S)')
+    r'(?:^|[\n\x01])\s*([٠-٩]+)(?:\s*-\s*(?:([^:\n\x01]{0,40}?)\s*:)?|\s+([ء-ي][ء-ي ٠-٩()]{0,30}?)\s*:|:(?:\s*([ء-ي][ء-ي ٠-٩]{0,15}?)\s*:)?)\s*(?=\S)')
 SYMBOL_OK = re.compile(r'^[\u0621-\u064A ٠-٩]*$')
 cands = [(int(m.group(1).translate(AR_DIGITS)), m) for m in ENTRY.finditer(text)]
 first = next(i for i, (n, m) in enumerate(cands) if n == 1 and 'أحمد بن إبراهيم' in text[m.end():m.end() + 40])
@@ -71,7 +72,7 @@ in_lis = {id(m) for _, m in accepted}
 starts = sorted(m.start() for _, m in cands)
 recovered = 0
 for n, m in seq:
-    sym = (m.group(2) or m.group(3) or '').strip()
+    sym = (m.group(2) or m.group(3) or m.group(4) or '').strip()
     if id(m) in in_lis or not sym or not SYMBOL_OK.match(sym):
         continue
     k = bisect.bisect_right(starts, m.start())
@@ -98,15 +99,16 @@ suspect = {id(m) for _, m in accepted} - in_lis
 entries = []
 for i, (n, m) in enumerate(accepted):
     end = accepted[i + 1][1].start() if i + 1 < len(accepted) else len(text)
-    symbols = (m.group(2) or m.group(3) or '').strip()
+    symbols = (m.group(2) or m.group(3) or m.group(4) or '').strip()
     body = text[m.end():end]
     if symbols and not SYMBOL_OK.match(symbols):  # the colon belonged to the text
         body, symbols = symbols + ': ' + body, ''
     entries.append({'num': n, 'num_suspect': id(m) in suspect, 'symbols': symbols, 'raw': body})
 
 # 3. Parse each entry.
-SHUYUKH = re.compile(r'روى\s+عن\s*:')
-TALAMIDH = re.compile(r'روى\s+عنه\s*:')
+# Women's entries say "روت عن:" / "روى عنها:" (Aisha, Umm Salama, Amra bint Abd al-Rahman).
+SHUYUKH = re.compile(r'(?:روى|روت)\s+عن\s*:')
+TALAMIDH = re.compile(r'روى\s+عنها?\s*:')
 # A quote starts at a line/page start: "وقال X، عن Y: ..." or "وقال عن Y أيضا: ...".
 QUOTE = re.compile(
     r'(?:^|[\n\x01])\s*(?:و)?قال\s+(?:(عن\s+[^:،\n\x01]{2,60}?)|([^:،\n\x01]{2,60}?)\s*(?:،\s*عن\s+([^:،\n\x01]{2,60}?))?)\s*:\s*')
@@ -122,11 +124,17 @@ FATHER_OF = {
 SAME_AS_PREVIOUS = {'في موضع آخر', 'أيضا', 'في رواية', 'مرة'}
 
 
+# Items are joined by "، و". Some lists use a Latin comma or no comma after the symbols:
+# "ومسلم بن أبي مريم (م كن) ، والمسيب (س) , ويحيى (م س) ويزيد" (Abu Salih al-Samman's students
+# stopped at 17); not before a note on the item ("(خ) وهو ابن ...", "(س) وقيل: ...").
+ITEM_SEP = re.compile(r'\s*[،,]\s*(?=و)|(?<=\))\s*(?=و(?!(?:هو|هي|قيل|يقال|كان|لم|ليس|له|لها|في|قد|إن|ان|لا|ما|ذلك|غيره)[\s:،]))')
+
+
 def split_list(seg: str) -> list[dict]:
     """Split 'A (د) ، وB (س) ، وقيل: C' into items; 'قيل: C' becomes an alias of the previous item."""
     seg = seg.strip().rstrip('.').strip()
     items = []
-    for p in re.split(r'\s*،\s*(?=و)', seg):
+    for p in ITEM_SEP.split(seg):
         p = re.sub(r'^و', '', p.strip())
         syms = ITEM_SYMBOLS.findall(p)
         name = ITEM_SYMBOLS.split(p)[0].strip(' ،')
@@ -140,9 +148,21 @@ def split_list(seg: str) -> list[dict]:
     return items
 
 
+LIST_GOES_ON = re.compile(
+    r'\s*(?!و?(?:قال|ذكر|كان|قيل|سمع|مات|توفي|روى|روت|حدث|أخرج|أخبر|أنبأ|اختلف|ولد|يقال|لها|له)\S*\s)\S')
+
+
 def section(raw: str, start: re.Match, stop: re.Match | None) -> str:
-    end = stop.start() if stop and stop.start() > start.end() else raw.find('\n', start.end())
-    return raw[start.end():end if end > 0 else len(raw)]
+    if stop and stop.start() > start.end():
+        return raw[start.end():stop.start()]
+    # A list ends at the end of its paragraph. A long one can be broken by a line break in the
+    # middle ("وثابت بن قيس الزرقي\n(بخ د سي ق) ، وثور ..." cut Abu Hurayra's students at 17):
+    # it goes on when the line does not end with a full stop and the next line is not a remark
+    # ("وقال ...", "وذكره ابن حبان"). Ibn Uyayna's breaks inside a name ("وإبراهيم بن دينار\nالتمار").
+    end = raw.find('\n', start.end())
+    while end > 0 and not raw[:end].rstrip().endswith('.') and LIST_GOES_ON.match(raw, end + 1):
+        end = raw.find('\n', end + 1)
+    return raw[start.end():end if end > 0 else len(raw)].replace('\n', ' ')
 
 
 # '- ت: أحمد بن بكار الدمشقي، هو: أحمد بن عبد الرحمن ...' is a redirect, not an entry.

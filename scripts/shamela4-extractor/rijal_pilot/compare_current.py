@@ -116,8 +116,11 @@ def named_in_kunya_entry(j: int, sheikh: str) -> bool:
     head = entries[j]['header']
     if not re.match(r'\s*(?:أبو|أم)\s', head):
         return False
-    name = ' '.join(re.split(r'[،:.\n]', sheikh)[0].split()[:3])
-    return len(name.split()) == 3 and key(name) in key(head[:800])
+    words = re.split(r'[،:.\n]', sheikh)[0].split()
+    n = 4 if words[:1] == ['عبد'] else 3            # "عبد الرحمن بن صخر"
+    name = ' '.join(words[:n])
+    flat = re.sub(r'\s+', ' ', HARAKAT.sub('', head[:800]))     # not key(): it keeps 120 characters
+    return len(words) >= n and key(name) in flat
 
 
 agree, disagree, beyond, cases = 0, 0, 0, []
@@ -127,7 +130,10 @@ for r, (text, ours, links) in enumerate(rows):
     for pos, (seg, j, how) in enumerate(ours):
         if j is None:
             continue
-        if ism_father(entries[j]['header']) in now or any(named_in_kunya_entry(j, l['sheikh']) for l in links):
+        # alt_nasab: the Taqrib form of a typo'd Tahdhib header ("عبيد الله بن عتبة" for عبيد الله بن
+        # عبد الله بن عتبة) is the same narrator.
+        if (ism_father(entries[j]['header']) in now or (alt_nasab[j] and tuple(alt_nasab[j][:2]) in now)
+                or any(named_in_kunya_entry(j, l['sheikh']) for l in links)):
             agree += 1
             vs_current[r, pos] = 'agree'
         elif pos >= len(links):

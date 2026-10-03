@@ -66,7 +66,8 @@ STOP = {'بن', 'ابن', 'بنت', 'ويقال', 'يقال', 'وهو', 'مول�
 def norm(s: str) -> str:
     s = re.sub(r'[ً-ْٰـ]', '', s)
     s = re.sub('[أإآ]', 'ا', s).replace('ى', 'ي').replace('ة', 'ه')
-    s = re.sub(r'\bابي\b', 'ابو', s)            # genitive kunya in lists: "عن أبي مسلم"
+    # Genitive kunya in lists: "عن أبي مسلم". "أبي بن كعب" is a name (Ubayy), not a kunya.
+    s = re.sub(r'\bابي\b(?!\s+بن\b)', 'ابو', s)
     s = re.sub(r'\bزكرياء\b', 'زكريا', s)       # both spellings occur in isnads and headers
     s = re.sub(r'\bابيه\b', '', s)              # "أبيه السائب" -> "السائب"
     # "عبيد الله" is one name too: as two words it pushed "شهاب" out of reach in al-Zuhri's
@@ -92,7 +93,7 @@ def soft_norm(s: str) -> str:
     """Like norm() but keeps the comma, so kunya positions can be read."""
     s = re.sub(r'[ً-ْٰـ]', '', s)
     s = re.sub('[أإآ]', 'ا', s).replace('ى', 'ي').replace('ة', 'ه')
-    s = re.sub(r'\bابي\b', 'ابو', s)
+    s = re.sub(r'\bابي\b(?!\s+بن\b)', 'ابو', s)
     s = re.sub(r'\bزكرياء\b', 'زكريا', s)
     s = re.sub(r'\bعبيد\s+الله\b', 'عبيد_الله', s)
     s = re.sub(r'\bال(?=\S)', '', s)
@@ -120,8 +121,9 @@ def all_tokens_match(toks: list[str]) -> set[int]:
 # item must start with the entry's ism, or with one of its kunyas followed by the ism.
 ism = [tokens(e['header'][:120])[:1] for e in entries]
 isms = {i[0] for i in ism if i}
-# Own kunya only: at the start or after "،"/"ويقال:", never "والد أبي X" / "أخو أبي X".
-KUNYA = re.compile(r'(?:^|،\s*|يقال\s*:?\s*|وهو\s+)ابو ([^\s،.:]+)')
+# Own kunya only: at the start, right after the ism ("ذكوان أبو صالح السمان") or after "،"/"ويقال:",
+# never "والد أبي X" / "أخو أبي X" / "ابن أبي X".
+KUNYA = re.compile(r'(?:^(?!(?:ابن|ابنه|بن)\s)(?:[^\s،.:]+\s+)?|،\s*|يقال\s*:?\s*|وهو\s+)ابو ([^\s،.:]+)')
 # A kunya the narrator is known by: "عبد الله بن ذكوان ... المعروف بأبي الزناد".
 KNOWN_AS = re.compile(r'(?:معروف|يعرف)\s+ب(?:ابو|ابي)\s+([^\s،.:]+)')
 kunyas = [set(KUNYA.findall(soft_norm(e['header'][:200]).strip()))
@@ -159,7 +161,12 @@ def name_candidates(name: str) -> frozenset[int]:
     exact = all_tokens_match(toks)
     if exact:
         anchored = {j for j in exact if starts_like(toks, j) and chain_fits(j)}
-        if toks[0] == 'ابو' and len(toks) > 2:      # "أبي أمامة أسعد ..." -> the ism after the kunya decides
+        if toks[0] == 'ابو' and len(toks) > 2 and re.match(r'\s*أب[وي]\s+\S+\s+بن\s', name):
+            # "أبو سلمة بن عبد الرحمن": the word after "بن" is the father (or the kunya-headed
+            # entry's own "أبو سلمة بن عبد الرحمن بن عوف"), not the ism of عبد الرحمن بن حماد أبو سلمة.
+            anchored = {j for j in anchored
+                        if nasab[j][1:2] == toks[2:3] or own_seq[j][:3] == toks[:3]} or anchored
+        elif toks[0] == 'ابو' and len(toks) > 2:    # "أبي أمامة أسعد ..." -> the ism after the kunya decides
             anchored = {j for j in anchored if toks[2] == ism[j][0]} or anchored
         if anchored or len(toks) < 2:
             return frozenset(anchored)      # unanchored matches are usually relatives: drop them
@@ -348,6 +355,12 @@ def _candidates(name: str) -> frozenset[int]:
         n = len(toks)
         found = frozenset(j for j in laqab_index.get(toks[0], ())
                           if any(nasab[j][p:p + n] == toks for p in range(1, 5)))
+        # "ابن عمر" is Abdullah b. Umar, not his sons Salim and Ubaydullah (… بن عبد الله بن عمر): when
+        # a son of X is at least as cited as the grandsons, only the sons count. "ابن جريج" is still
+        # the grandson عبد الملك بن عبد العزيز بن جريج, far more cited than the son عبد العزيز.
+        sons = frozenset(j for j in found if nasab[j][1:1 + n] == toks)
+        if sons and max(fame[j] for j in sons) >= max(fame[j] for j in found):
+            found = sons
         return found or frozenset(alias_index.get(tuple(toks), ()))
     found = name_candidates(name)
     if found:
