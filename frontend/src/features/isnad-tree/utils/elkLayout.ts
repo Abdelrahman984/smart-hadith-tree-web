@@ -7,7 +7,7 @@ const elkOptions = {
   'elk.algorithm': 'layered',
   'elk.direction': 'DOWN', // Top-to-bottom transmission flow
   'elk.spacing.nodeNode': '85', // Generous horizontal spacing between nodes
-  'elk.layered.spacing.nodeNodeBetweenLayers': '115', // Vertical spacing between generational tiers
+  'elk.layered.spacing.nodeNodeBetweenLayers': '135', // Vertical spacing between generational tiers
   'elk.spacing.edgeNode': '35', // Clearance between edges and nodes
   'elk.spacing.edgeEdge': '25', // Separation between edges to avoid clustering
   'elk.layered.spacing.edgeNodeBetweenLayers': '45',
@@ -28,8 +28,8 @@ export const getLayoutedElements = async (nodes: Node[], edges: Edge[]) => {
     children: nodes.map((node) => ({
       ...node,
       // Target widths and heights for ELK to compute layout
-      width: node.type === 'reference' ? 260 : 250, 
-      height: node.type === 'reference' ? 120 : 85,
+      width: node.type === 'reference' ? 270 : 250, 
+      height: node.type === 'reference' ? 145 : 135,
     })),
     edges: edges.map((edge) => ({
       id: edge.id,

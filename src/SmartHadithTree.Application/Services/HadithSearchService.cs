@@ -568,11 +568,14 @@ public class HadithSearchService(
 
                 if (hasSubstantiveVariation)
                 {
-                    var compilerNode = nodes.FirstOrDefault(n => n.StepOrder == 1 && n.SourceHadithIds.Contains(source.HadithId));
-                    if (compilerNode != null)
+                    var matchingEdgeNodes = nodes.Where(n =>
+                        n.StepOrder == 1 &&
+                        n.ParentNodeId.HasValue &&
+                        n.SourceHadithIds.Contains(source.HadithId));
+                    foreach (var edgeNode in matchingEdgeNodes)
                     {
-                        compilerNode.HasMatnVariation = true;
-                        compilerNode.MatnVariationSnippet = "يوجد اختلاف أو زيادة في لفظ المتن مقارنة بالرواية الأساسية.";
+                        edgeNode.HasMatnVariation = true;
+                        edgeNode.MatnVariationSnippet = "يوجد اختلاف أو زيادة في لفظ المتن مقارنة بالرواية الأساسية.";
                     }
                 }
             }

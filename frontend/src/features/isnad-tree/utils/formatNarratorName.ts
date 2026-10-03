@@ -1,3 +1,69 @@
+const GENERIC_HONORIFICS = new Set([
+  'الحافظ',
+  'الإمام',
+  'الشيخ',
+  'شيخ الإسلام',
+  'العلامة',
+  'الفقيه',
+  'المحدث',
+  'القاضي',
+  'الأمير',
+  'الزاهد',
+  'العابد',
+  'الشهيد',
+  'المقرئ',
+  'النحوي',
+  'اللغوي',
+  'المفسر',
+  'المؤرخ',
+  'الأصولي',
+  'الفرضي',
+  'الأديب',
+  'الشاعر',
+  'الخطيب',
+  'الواعظ',
+  'الطبيب',
+  'الفأفأ',
+  'الفأفأ.',
+  'الأحول',
+  'الأحدب',
+  'الصغير',
+  'الكبير',
+  'الطويل',
+  'القصير',
+  'الأعرج',
+  'الأعمى',
+  'البصير',
+  'الضرير',
+  'الأصم',
+  'الأشج',
+  'الوراق',
+  'القطان',
+  'البزاز',
+  'الطحان',
+  'الخياط',
+  'الحذاء',
+  'الصفار',
+  'العطار',
+  'البقال',
+  'القصاب',
+  'النجار',
+  'الحداد',
+  'الصائغ',
+  'الصيرفي',
+  'الجوهري',
+  'الحريري',
+  'الكتاني',
+  'الأنماطي',
+  'القراطيسي',
+  'ذو الأذنين',
+  'ذو العينين',
+  'حبر الأمة',
+  'حبر العرب',
+  'البحر',
+  'الحميراء',
+]);
+
 /**
  * Formats a narrator's full name to display only the first two names (الاسم الثنائي: اسم الراوي واسم أبيه),
  * e.g. "عمر بن الخطاب", "محمد بن إسماعيل", "عبد الله بن الزبير", "هند بنت أبي أمية".
@@ -9,6 +75,9 @@ export function formatTwoPartNarratorName(rawName: string | null | undefined): s
 
   // 1. Remove leading numbering, parentheses, braces, slashes, e.g. "( 1564 ) ", "123 - ", "/ "
   name = name.replace(/^[\s\(\[\{/\\0-9\-\.\)]+/, '').trim();
+
+  // 1b. Handle "محمد بن ماجه : يزيد" where ": <realFatherName>" clarifies the grandfather/mother nickname
+  name = name.replace(/^(\S+\s+(?:بن|ابن)\s+)\S+\s*:\s*(\S+)$/, '$1$2');
 
   // 2. Truncate trailing annotations, variants or glosses after punctuation:
   // e.g. " ، وقيل : ...", " [وهو ...]", " : القرد"
@@ -85,3 +154,37 @@ export function formatTwoPartNarratorName(rawName: string | null | undefined): s
 
   return `${firstName} ${firstConnector} ${fatherName}`.trim();
 }
+
+/**
+ * Formats a narrator's display name for comparative tree cards:
+ * prefers distinctive scholarly titles in `knownAs` (e.g. "أبو بكر بن أبي شيبة", "أبو العباس الأصم")
+ * or well-known nisbahs/shuhrahs (e.g. "إسماعيل بن علية") while filtering out generic honorifics ("الحافظ").
+ */
+export function formatScholarlyNarratorName(
+  rawName: string | null | undefined,
+  knownAs?: string | null
+): string {
+  const full = (rawName || '').trim();
+
+  if (full.startsWith('إسماعيل بن إبراهيم بن مقسم')) {
+    return 'إسماعيل بن علية';
+  }
+
+  if (knownAs && knownAs.trim()) {
+    const parts = knownAs
+      .split(/[،,]/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 1 && !GENERIC_HONORIFICS.has(p));
+
+    if (parts.length > 0) {
+      const candidate = parts[0];
+      // Use multi-word scholarly shuhrah directly (e.g. "أبو بكر بن أبي شيبة", "أبو العباس الأصم", "أبو سلمة بن عبد الرحمن الزهري")
+      if (candidate.includes(' ')) {
+        return candidate;
+      }
+    }
+  }
+
+  return formatTwoPartNarratorName(rawName);
+}
+

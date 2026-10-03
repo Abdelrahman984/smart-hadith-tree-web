@@ -33,8 +33,11 @@ const getPrimaryCity = (residence?: string | null, death?: string | null) => {
   return death?.trim() || null;
 };
 
+const MAX_VISIBLE_BADGES = 4;
+
 const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: ComparativeNarratorNodeData; selected?: boolean }) => {
   const isIlalHighlighted = useIlalStore((s) => s.highlightedNarratorIds.includes(id));
+  const isMadar = useIlalStore((s) => Boolean(s.report?.madars.some((m) => m.narratorId === id)));
   const primaryCity = getPrimaryCity(data.residencePlaces, data.deathPlace);
   let borderColor = '#cbd5e1'; // default slate-300
   let bgColor = '#ffffff';
@@ -72,7 +75,6 @@ const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: Com
 
   const isReliable = data.gradeEn === 'reliable' || data.gradeEn === 'mostly_reliable' || data.gradeEn === 'companion';
   const opacity = data.showWeakOnly && isReliable ? 0.3 : 1;
-  const isMadar = data.sourceBooks && data.sourceBooks.length >= 2;
 
   let finalBorderClass = '';
   if (selected) {
@@ -80,14 +82,17 @@ const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: Com
   } else if (isIlalHighlighted) {
     finalBorderClass = 'ring-4 ring-rose-400 ring-offset-2 scale-105';
   } else if (isMadar) {
-    finalBorderClass = 'ring-2 ring-amber-400';
+    finalBorderClass = 'ring-2 ring-amber-400 ring-offset-1';
   }
+
+  const visibleBooks = (data.sourceBooks || []).slice(0, MAX_VISIBLE_BADGES);
+  const hiddenBooks = (data.sourceBooks || []).slice(MAX_VISIBLE_BADGES);
 
   return (
     <div 
       dir="rtl" 
       className={`px-4 py-3 shadow-md rounded-lg border-2 min-w-[200px] max-w-[250px] text-center transition-all break-words relative ${finalBorderClass}`}
-      style={{ backgroundColor: bgColor, borderColor: (selected || isMadar) ? undefined : borderColor, opacity }}
+      style={{ backgroundColor: bgColor, borderColor: selected ? undefined : borderColor, opacity }}
     >
       {data.isAnomaly && (
         <div 
@@ -101,9 +106,9 @@ const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: Com
       {/* Top Handle - Input from Sheikh */}
       <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-transparent !border-none opacity-0 pointer-events-none" />
       
-      {data.sourceBooks && data.sourceBooks.length > 0 && (
-        <div className="absolute -top-3 left-2 flex items-center gap-0.5 bg-white rounded-full px-1.5 py-0.5 shadow-xs border border-slate-200 z-10 max-w-[220px] flex-wrap">
-          {data.sourceBooks.map((book, idx) => {
+      {visibleBooks.length > 0 && (
+        <div className="absolute -top-3 left-2 flex items-center gap-0.5 bg-white rounded-full px-1.5 py-0.5 shadow-xs border border-slate-200 z-10 whitespace-nowrap">
+          {visibleBooks.map((book, idx) => {
             const meta = getBookMeta(book);
             return (
               <span 
@@ -116,6 +121,14 @@ const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: Com
               </span>
             );
           })}
+          {hiddenBooks.length > 0 && (
+            <span
+              className="min-w-[20px] h-[18px] px-1 flex items-center justify-center text-[9px] text-slate-700 bg-slate-100 border border-slate-300 rounded-full font-bold shrink-0"
+              title={hiddenBooks.map((b) => getBookMeta(b).name).join('، ')}
+            >
+              +{hiddenBooks.length}
+            </span>
+          )}
         </div>
       )}
 

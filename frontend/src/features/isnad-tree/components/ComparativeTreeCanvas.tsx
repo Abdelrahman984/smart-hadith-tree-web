@@ -12,7 +12,7 @@ import {
   MarkerType,
 } from "@xyflow/react";
 import { getLayoutedElements } from "../utils/elkLayout";
-import { formatTwoPartNarratorName } from "../utils/formatNarratorName";
+import { formatTwoPartNarratorName, formatScholarlyNarratorName } from "../utils/formatNarratorName";
 import ComparativeNarratorNode from "./ComparativeNarratorNode";
 import ReferenceNode from "./ReferenceNode";
 import { getFamousReferenceOwnerName } from "../utils/formatFamousReferenceName";
@@ -84,7 +84,7 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
               generationTier: compilerNode.generationTier,
               gradeSummary: tooltip?.gradeSummary,
               gradeEn: compilerNode.gradeEn,
-              sourceBooks: Array.from(new Set([...(compilerNode.sourceBooks || []), ...(n.sourceBooks || [])])),
+              sourceBooks: Array.from(new Set(compilerNode.sourceBooks || [])),
             },
           });
         } else {
@@ -93,7 +93,7 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
             type: "comparativeNarrator",
             position: { x: 0, y: 0 },
             data: {
-              narratorName: formatTwoPartNarratorName(n.narratorName || n.knownAs),
+              narratorName: formatScholarlyNarratorName(n.narratorName, n.knownAs),
               fullName: n.narratorName,
               generationTier: n.generationTier,
               transmissionTerm: n.transmissionTerm,
@@ -113,11 +113,13 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
           });
         }
       } else {
-        // Merge source books if seen again
+        // Merge source books if seen again (only for non-reference narrator cards)
         const existingNode = uniqueNarrators.get(n.narratorId)!;
-        const newBooks = n.sourceBooks || [];
-        const mergedBooks = Array.from(new Set([...((existingNode.data.sourceBooks as string[]) || []), ...newBooks]));
-        existingNode.data.sourceBooks = mergedBooks;
+        if (existingNode.type !== "reference") {
+          const newBooks = n.sourceBooks || [];
+          const mergedBooks = Array.from(new Set([...((existingNode.data.sourceBooks as string[]) || []), ...newBooks]));
+          existingNode.data.sourceBooks = mergedBooks;
+        }
       }
     });
 
