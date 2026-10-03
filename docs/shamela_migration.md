@@ -52,11 +52,11 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 | File | Produced by | Contents |
 |---|---|---|
 | `dump/<id>_pages.tsv`, `dump/<id>_titles.tsv` | `ShamelaLuceneDumper` | Raw book text |
-| `tahdhib.json` | `parse_tahdhib.py` | 8,444 Tahdhib al-Kamal entries + 121 cross-references |
+| `tahdhib.json` | `parse_tahdhib.py` | 8,449 Tahdhib al-Kamal entries + 121 cross-references |
 | `taqrib.json` | `parse_taqrib.py` | 8,828 Taqrib entries + 1,419 "X هو Y" redirects |
 | `align.json` | `align_taqrib.py` | Tahdhib ↔ Taqrib alignment (92.8% of Tahdhib) |
-| `extra_shaykh_books.json` | `parse_shaykh_books.py` | 9,455 narrators from the compilers' shaykh books (746 name forms from Ithaf + 8 kunyas from ري الظمآن) + compiler entries |
-| `current_chains.json`, `current_chains_tabarani.json`, `current_chains_bayhaqi.json`, `current_chains_hibban.json`, `current_chains_daraqutni.json` | `export_chains.ps1` | The **current system's** chains, for comparison |
+| `extra_shaykh_books.json` | `parse_shaykh_books.py` | 9,560 narrators from the compilers' shaykh books (746 name forms from Ithaf + 8 kunyas from ري الظمآن) + compiler entries |
+| `current_chains.json`, `current_chains_tabarani.json`, `current_chains_bayhaqi.json`, `current_chains_hibban.json`, `current_chains_daraqutni.json`, `current_chains_khuzaymah_awanah.json` | `export_chains.ps1` | The **current system's** chains, for comparison |
 
 `link_tahdhib.py` automatically loads `taqrib.json` and every `extra_*.json` that sits next to the `tahdhib.json` it is given.
 
@@ -75,17 +75,19 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 | 123666 | إتحاف المرتقي بتراجم شيوخ البيهقي | al-Bayhaqi's shaykhs, plus every form of each name as it appears in his books |
 | 1498 | ري الظمآن بتراجم شيوخ ابن حبان | Ibn Hibban's 489 shaykhs, plus a table of the kunyas he uses for them |
 | 7852 | الدليل المغني لشيوخ الإمام أبي الحسن الدارقطني | al-Daraqutni's 543 shaykhs, with the author's verdicts |
+| 151171 | المسالك القويمة بتراجم رجال ابن خزيمة | Three parts: Ibn Khuzaymah's 370 shaykhs, his 204 students, and 198 of his narrators who are not in Tahdhib |
+| 241 | فوائد المستخرجات من خلال مسند أبي عوانة | Checked only: a study of the Mustakhraj's benefits, no biographies. Abu Awanah has no dedicated rijal book in Shamela. |
 | 736, 10906, 96165, 36357 | تاريخ بغداد، السير، الثقات ممن لم يقع في الستة، لسان الميزان | Gap measurement only (not parsed yet) |
 
 ## 5. Scripts (`scripts/shamela4-extractor/rijal_pilot/`)
 
 | Script | Role |
 |---|---|
-| `parse_tahdhib.py` | Splits Tahdhib into entries: book symbols, shuyukh/talamidh, attributed quotes, cross-references. Copes with typo'd or missing entry numbers (longest increasing subsequence + recovery). |
+| `parse_tahdhib.py` | Splits Tahdhib into entries: book symbols, shuyukh/talamidh, attributed quotes, cross-references. Copes with typo'd, repeated or missing entry numbers (longest increasing subsequence + recovery; a repeated "٣٤٩١" had dropped Abu Musa al-Ash'ari, Ibn Mas'ud and three other Companions). |
 | `parse_taqrib.py` | Ibn Hajr's verdict (full phrase), tabaqa, death, symbols, redirects. |
 | `align_taqrib.py` | Unique-name anchors, then an in-order fill between anchors. |
 | `build_registry.py` | Merges Tahdhib + Taqrib and maps verdicts to ranks T1–T12. Output is not consumed yet. |
-| `parse_shaykh_books.py` | **Generic parser for compilers' shaykh / rijal books**. Configured by `BOOKS` (layouts: `bracket`, `paren`, `star`, `isnad`, `dash`) and `COMPILERS`. Merges duplicates across books and adds one compiler entry per compiler, whose shuyukh are that compiler's shaykh-book narrators. |
+| `parse_shaykh_books.py` | **Generic parser for compilers' shaykh / rijal books**. Configured by `BOOKS` (layouts: `bracket`, `paren`, `star`, `isnad`, `dash`, `runs`) and `COMPILERS`. Merges duplicates across books and adds one compiler entry per compiler, whose shuyukh are that compiler's shaykh-book narrators. |
 | `link_tahdhib.py` | Name → entry matching (the core). Reports list-linking statistics when run directly. |
 | `chain_resolver.py` | **Joint isnad resolution** (Viterbi over candidate sets, scored by mutual teacher/student listing). Exec'd by `compare_current.py`. |
 | `gap_test.py` | Isnad segmentation and clean-up, plus a per-depth coverage report. Its helpers are reused by the other scripts. |
@@ -96,9 +98,12 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 
 ### Name matching rules in `link_tahdhib.py` (learned the hard way)
 
-- **Tokens:** harakat removed, `أإآ→ا`, `ى→ي`, `ة→ه`, `أبي→أبو`, the article dropped, and **`عبد X` kept as one token**.
+- **Tokens:** harakat removed, `أإآ→ا`, `ى→ي`, `ة→ه`, `أبي→أبو`, the article dropped, and **`عبد X` and `عبيد الله` kept as one token**. As two words, "عبيد الله" cut al-Zuhri's nasab short, so "ابن شهاب" went to عاصم بن كليب بن شهاب.
 - **Anchoring:** a name must start with the entry's own ism, or with its own kunya followed by the ism. Otherwise relatives match ("أخو محمد بن سيرين").
+  - Kunya-only entries ("أبو زيد. عن: أبي هريرة") must match on their own kunya. Before this, any word in their header counted, which gave "أبي هريرة" 13 candidates.
+  - "المعروف بأبي الزناد" counts as a kunya (عبد الله بن ذكوان).
 - **Nasab order:** the chain must agree in order, so "محمد بن علي" does not match "محمد بن عمر بن علي". Only words linked by `بن` count as nasab; a trailing nisba is not a grandfather.
+  - The aligned Taqrib entry's nasab is accepted as a second nasab (1,277 entries). This corrects typos in Shamela's Tahdhib text, e.g. "عبيد الله بن عتبة" printed for عبيد الله بن عبد الله بن عتبة.
 - **Kunya forms:**
   - "أبو بكر بن إسحاق": kunya, then father or ancestor.
   - "أبو زكريا العنبري": kunya, then nisba.
@@ -106,7 +111,8 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 - **Shuhra:**
   - Taqrib redirects are aliases, used only when the plain match finds nobody.
   - "ابن X" is checked first: X must be a father or ancestor.
-  - A bare laqab or nisba ("الأعمش", "الزهري") is matched only when it starts with `ال`.
+  - A bare laqab or nisba ("الأعمش", "الزهري") is matched when it starts with `ال`.
+  - A laqab without `ال` ("بندار") is matched only when it is nobody's ism, and only when it is the last word of the entry's kunya phrase ("أبو بكر البصري بندار") or follows "الملقب". Matching any header word picked up verbs ("خرج", "بعث").
 - **Book symbols:** "(خ م)" must be covered by the candidate's own symbols.
 - **Aliases from shaykh books:**
   - Exact: a form of 3+ words ("أبو القاسم الفقيه") matches only that narrator, before any other rule.
@@ -130,15 +136,17 @@ Coverage means the share of narrator names in the first 8 links of each chain th
 
 | Book (sample) | Ours: first greedy | Ours: now | Current system | Agreement |
 |---|---|---|---|---|
-| al-Bukhari (500) | 54% | **73%** | 88% | 76% |
-| al-Mustadrak (1,000) | 59% | **72%** | 97% | 49% † |
-| al-Mu'jam al-Kabir (500) | 70%* | **80%** | 83% | 75% |
-| al-Mu'jam al-Awsat (500) | 65%* | **76%** | 90% | 80% |
-| al-Mu'jam al-Saghir (500) | 65%* | **79%** | 86% | 78% |
-| al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **71%** | — † | — † |
-| Shu'ab al-Iman (500) | 60%* | **64%** | — † | — † |
-| Sahih Ibn Hibban (500) | 74%* | **79%** | 87% | 82% |
-| Sunan al-Daraqutni (500) | 68%* | **73%** | 90% | 74% |
+| al-Bukhari (500) | 54% | **76%** | 88% | 77% |
+| al-Mustadrak (1,000) | 59% | **72%** | 93% | 49% † |
+| al-Mu'jam al-Kabir (500) | 70%* | **80%** | 83% | 76% |
+| al-Mu'jam al-Awsat (500) | 65%* | **77%** | 90% | 81% |
+| al-Mu'jam al-Saghir (500) | 65%* | **79%** | 86% | 79% |
+| al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **72%** | — † | — † |
+| Shu'ab al-Iman (500) | 60%* | **66%** | — † | — † |
+| Sahih Ibn Hibban (500) | 74%* | **81%** | 87% | 84% |
+| Sunan al-Daraqutni (500) | 68%* | **74%** | 90% | 74% |
+| Sahih Ibn Khuzaymah (500) | 68%* | **72%** | 82% | 73% |
+| Mustakhraj Abi Awanah (500) | 67%* | **68%** | 71% | 65% |
 
 \* Joint resolver already applied, before that compiler's shaykh books were added.
 † Not comparable: many records have shifted boundaries (§6.1), so the two systems read different isnads from the same record. A manual review of ~50 resolved al-Bayhaqi narrators found 1 error ("أبي إسحاق" from Zuhayr, which should be al-Sabi'i).
@@ -155,6 +163,18 @@ Adding al-Daraqutni's book (الدليل المغني) raised Sunan al-Daraqutni
 - «شريك عن أبي حمزة» (a saying of al-Nakha'i) → Anas. The chain is consistent but wrong; Abu Hamza there is Maymun al-A'war.
 
 Its misses are mostly Baghdadi narrators (سعدان بن نصر، سعيد بن بحر القراطيسي) who belong to تاريخ بغداد.
+
+The Ibn Khuzaymah step (`المسالك القويمة`) added his shaykh and student lists, but his shaykhs are mostly in Tahdhib already. The larger gain came from general fixes found while reviewing his gaps, which raised every book: Bukhari from 73% to 76%, Ibn Hibban from 79% to 81% (agreement 84%). The fixes:
+- Five Companions recovered in the Tahdhib parse.
+- Kunya-only entries anchored on their own kunya.
+- "المعروف بأبي X" read as a kunya.
+- Laqabs without "ال".
+- "عبيد الله" as one name.
+- Taqrib's nasab used as a second nasab.
+
+Corrected along the way: «أبو الزناد» (was أبو القاسم بن أبي الزناد), «الأعرج» (was ثابت بن عياض الأحنف), «أبي موسى الأشعري», «ابن مسعود», «بندار». A review of 12 Ibn Khuzaymah chains (~75 names) found 1 error, «ابن شهاب» → عاصم بن كليب, which is now fixed.
+
+Abu Awanah's remaining misses are mostly his own shaykhs (أبو أمية الطرسوسي، الصغاني، ابن الجنيد، محمد بن حيويه), with no dedicated book in Shamela. They are left to تاريخ بغداد / السير.
 
 A manual review of 12 Ibn Hibban chains (~70 names) found 1 likely error: "أبي جعفر" from يحيى بن أبي كثير → al-Baqir, probably al-Ansari al-Mu'adhdhin.
 
@@ -181,7 +201,7 @@ The other books are clean, or have no numbered markers. Abd al-Razzaq, Ibn Khuza
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** the first unchecked item of Phase 2 (Ibn Khuzaymah and Abu Awanah). The record-boundary fix (§6.1) stays in Phase 4 unless the user asks for it earlier.
+**Next task:** the first unchecked item of Phase 2 (تعجيل المنفعة for Ahmad and Malik). The record-boundary fix (§6.1) stays in Phase 4 unless the user asks for it earlier.
 
 ### Overview
 
@@ -229,8 +249,8 @@ Compilers' shaykh books (via `parse_shaykh_books.py`):
 - [x] al-Bayhaqi: إتحاف المرتقي (123666), السلسبيل النقي (123667), with exact name forms and al-Hakim merged as his shaykh (`1741406`)
 - [x] Ibn Hibban: ري الظمآن بتراجم شيوخ ابن حبان (1498), with his kunya table as loose aliases; bare-kunya aliases made loose; full-name fame fallback in the resolver (`c5dbe46`)
 - [x] al-Daraqutni: الدليل المغني لشيوخ الدارقطني (7852), same `bracket` layout (`2c51097`)
-- [ ] **Ibn Khuzaymah and Abu Awanah:** search `master.db` for a dedicated book
-- [ ] Ahmad and Malik: تعجيل المنفعة (1893)
+- [x] Ibn Khuzaymah: المسالك القويمة (151171), `runs` layout. Abu Awanah: no dedicated book (241 checked). General matching fixes found on the way, and five Companions recovered in the Tahdhib parse (`38c03f9`)
+- [ ] **Ahmad and Malik:** تعجيل المنفعة (1893)
 - [ ] Early compilers (Abd al-Razzaq, al-Tayalisi, al-Shafi'i, al-Humaydi, Sa'id b. Mansur, Ishaq, al-Bazzar, Abu Ya'la): measure first, since they are mostly covered by Tahdhib
 - [ ] Measure every remaining book of the 31 against the current system at least once
 
@@ -302,6 +322,8 @@ python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.j
 python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/sunan_kubra_bayhaqi current_chains_bayhaqi.json "أحمد بن الحسين بن علي بن موسى" 500 0
 python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/sahih_ibn_hibban current_chains_hibban.json "محمد بن حبان بن أحمد" 500 0
 python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/sunan_daraqutni current_chains_daraqutni.json "علي بن عمر بن أحمد بن مهدي" 500 0
+python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/sahih_ibn_khuzaymah current_chains_khuzaymah_awanah.json "محمد بن إسحاق بن خزيمة" 500 0
+python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/mustakhraj_abi_awanah current_chains_khuzaymah_awanah.json "يعقوب بن إسحاق بن إبراهيم بن يزيد أبو عوانة" 500 0
 cd ../.. && python scripts/shamela4-extractor/rijal_pilot/check_record_boundaries.py data/itqan/sunni
 ```
 
