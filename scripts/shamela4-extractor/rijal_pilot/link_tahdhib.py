@@ -177,15 +177,26 @@ if os.path.exists(_taqrib):
 
 
 # Exact name forms recorded by shaykh books ("وورد: أبو القاسم الفقيه"): tokens -> entries.
+# Bare kunyas ("أبو خليفة" = الفضل بن الحباب in ري الظمآن; "وورد: أبو إسحاق" for al-Bayhaqi's
+# shaykh يحيى بن إبراهيم) are shared by many narrators ("أبو إسحاق" from Shu'ba is al-Sabi'i),
+# so they are loose: they only add a candidate and the chain context decides.
 exact_aliases: dict[tuple, set[int]] = defaultdict(set)
+loose_aliases: dict[tuple, set[int]] = defaultdict(set)
 for _j, _e in enumerate(entries):
-    for _a in _e.get('aliases', []):
-        if len(tokens(_a)) >= 2:
-            exact_aliases[tuple(tokens(_a))].add(_j)
+    for _a in _e.get('aliases', []) + _e.get('kunya_aliases', []):
+        _t = tuple(tokens(_a))
+        if len(_t) >= 3 or (len(_t) == 2 and _t[0] != 'ابو' and _a in _e.get('aliases', [])):
+            exact_aliases[_t].add(_j)
+        elif _t:
+            loose_aliases[_t].add(_j)
 
 
 @lru_cache(maxsize=None)
 def candidates(name: str) -> frozenset[int]:
+    return _candidates(name) | frozenset(loose_aliases.get(tuple(tokens(name)), ()))
+
+
+def _candidates(name: str) -> frozenset[int]:
     toks = tokens(name)
     if not toks or toks[0] == 'نبي':
         return frozenset()

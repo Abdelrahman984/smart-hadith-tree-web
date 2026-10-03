@@ -9,6 +9,9 @@ Each book in BOOKS has a layout:
                                                       (تحفة الغريب)
 - 'isnad'    "n - name:" + the compiler's isnad where the narrator occurs; the names right
              before/after him there give a student/shaykh   (رجال الحاكم في المستدرك)
+- 'dash'     "n - name." (or "* n - name.") + "روي عن:" / "روى عنه:" lists; "[تمييز]" entries
+             (namesakes who are not the compiler's shaykhs) inside the body are cut off
+                                                      (ري الظمآن، شيوخ ابن حبان)
 
 A book with a 'compiler' key lists that compiler's own shaykhs: a synthetic entry for the
 compiler gets all of them as shuyukh, so isnads can be walked from the compiler down.
@@ -28,6 +31,7 @@ COMPILERS = {
     'hakim': 'محمد بن عبد الله بن محمد بن حمدويه الحاكم، أبو عبد الله النيسابوري، ابن البيع',
     'tabarani': 'سليمان بن أحمد بن أيوب بن مطير اللخمي الطبراني، أبو القاسم',
     'bayhaqi': 'أحمد بن الحسين بن علي بن موسى الخسروجردي البيهقي، أبو بكر',
+    'ibnhibban': 'محمد بن حبان بن أحمد بن حبان بن معاذ التميمي البستي، أبو حاتم',
 }
 # How other compilers name a compiler in their isnads (al-Bayhaqi: "أبو عبد الله الحافظ" = al-Hakim).
 # These become exact aliases, so keep them specific.
@@ -39,6 +43,7 @@ BOOKS = [   # full-head books first: short-head books merge into them
     {'id': 29745, 'source': 'irshad', 'layout': 'bracket', 'compiler': 'tabarani'},
     {'id': 123667, 'source': 'salsabil', 'layout': 'bracket', 'compiler': 'bayhaqi'},
     {'id': 123666, 'source': 'ithaf', 'layout': 'paren', 'compiler': 'bayhaqi'},
+    {'id': 1498, 'source': 'rayy', 'layout': 'dash', 'compiler': 'ibnhibban'},
     {'id': 29742, 'source': 'rijal_hakim', 'layout': 'isnad', 'isnad_marker': 'الحاكم'},
     {'id': 1208, 'source': 'tuhfa', 'layout': 'star'},
 ]
@@ -47,7 +52,7 @@ AR_DIGITS = str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789')
 HARAKAT = re.compile(r'[ً-ْٰـ]')
 STOP = {'بن', 'ابن', 'بنت', 'ابو', 'ام'}
 VERB = r'(?:حدثنا|حدثني|حدثناه|أخبرنا|أخبرني|أخبرناه|أنبأنا|أنبأ|أنبأني|ثنا|نا|أنا|عن|قالا|قالوا)'
-SHUYUKH_RE = re.compile(r'(?:^|\n)\s*(?:سمع|روى عن|حدث عن|يروي عن|روت عن|تروي عن)\s*(?:من)?\s*:\s*([^\n]+)')
+SHUYUKH_RE = re.compile(r'(?:^|\n)\s*(?:سمع|روى عن|روي عن|حدث عن|يروي عن|روت عن|تروي عن)\s*(?:من)?\s*:\s*([^\n]+)')
 TALAMIDH_RE = re.compile(r'(?:^|\n)\s*(?:وعنه|روى عنه|روى عنها|حدث عنه|روت عنه|يروي عنه|سمع منه'
                          r'|و?روى عنه أيضا)\s*:\s*([^\n]+)')
 # إتحاف المرتقي lists every form in which al-Bayhaqi names the shaykh:
@@ -110,6 +115,7 @@ entries: list[dict] = []
 by_key: dict[tuple, dict] = {}
 full_by_two: dict[tuple, list] = {}
 compiler_shuyukh: dict[str, list[str]] = {c: [] for c in COMPILERS}
+kunya_aliases: list[tuple[str, str, str]] = []          # (source, alias, target name)
 stats = Counter()
 
 
@@ -161,10 +167,26 @@ for book in BOOKS:
                  if re.search(r'(?:^|\s)(?:بن|أبو)\s', m.group(2))]
     elif layout == 'star':
         heads = list(re.finditer(r'(?m)^\s*\*\s*()([^\n]{3,160})', text))
+    elif layout == 'dash':
+        # Only the running sequence 1, 2, 3 ... counts: the introduction, the notes ("١ - أنه توفي
+        # ...") and the appendix of non-shaykhs restart the numbering.
+        text = text[text.find('(حرف الألف)'):]
+        heads, last = [], 0
+        for m in re.finditer(r'(?m)^\s*\*?\s*([٠-٩]+)\s*-\s*([^\n]{3,200})', text):
+            if int(m.group(1).translate(AR_DIGITS)) == last + 1:
+                heads.append(m)
+                last += 1
+        # "[*] أبو خليفة = الفضل بن الحباب الجمحي.": the kunyas under which the compiler names a
+        # shaykh, attached below as loose aliases ('kunya_aliases') of the entry the right side names.
+        for alias, target in re.findall(r'(?m)^\s*\[\*\]\s*(أبو [^=\n،]{2,40}?)\s*=\s*([^\n]+)', text):
+            target = re.sub(r'(?:،\s*)?تقدم.*$', '', target).replace('السراج:', '').strip(' .')
+            kunya_aliases.append((book['source'], alias.strip(), target))
     else:
         heads = list(re.finditer(r'(?m)^\s*([٠-٩]+)\s*-\s*([^\n:]{3,120}):?\s*$', text))
     for k, m in enumerate(heads):
         body = text[m.end():heads[k + 1].start() if k + 1 < len(heads) else len(text)]
+        if layout == 'dash':                              # namesakes, kunya table, appendix
+            body = re.split(r'\[تمييز\]|\[\*\]|\n\s*\*?\s*[٠-٩]+\s*-\s', body)[0]
         header = ASIDE.sub(' ', m.group(2))
         header = re.sub(r'\s*\([٠-٩]+\)\s*$', '', header).strip(' .')   # "زحر بن ربيعة (٧٢٧٦)"
         if re.search(r'وهو\s*:', header):                     # "القاضي أبو العلاء وهو: صاعد بن محمد ..."
@@ -203,6 +225,18 @@ for book in BOOKS:
             aliases = ALIAS_FIRST_RE.findall(body) + ALIAS_RE.findall(body)
             e['aliases'] = [a.strip(' .') for a in aliases if 2 <= len(a.split()) <= 12]
             add(e, short_head=(layout == 'star'))
+
+for source, alias, target in kunya_aliases:
+    # The target is one of the same book's entries: match on 3 name tokens, else on 2 when unique.
+    in_book = [e for e in entries if source in e['source'].split('+')]
+    hits = [e for e in in_book if norm_tokens(e['header']) == norm_tokens(target)]
+    if not hits:
+        hits = [e for e in in_book if norm_tokens(e['header'], 2) == norm_tokens(target, 2)]
+    if len(hits) == 1:
+        hits[0]['kunya_aliases'] = hits[0].get('kunya_aliases', []) + [alias]
+        stats[f'{source}: kunya alias attached'] += 1
+    else:
+        stats[f'{source}: kunya alias without a single target'] += 1
 
 for c, names in compiler_shuyukh.items():
     shuyukh = [{'name': n, 'symbols': '', 'note': 'shaykh book'} for n in names]
