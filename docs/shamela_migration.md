@@ -55,8 +55,8 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 | `tahdhib.json` | `parse_tahdhib.py` | 8,444 Tahdhib al-Kamal entries + 121 cross-references |
 | `taqrib.json` | `parse_taqrib.py` | 8,828 Taqrib entries + 1,419 "X هو Y" redirects |
 | `align.json` | `align_taqrib.py` | Tahdhib ↔ Taqrib alignment (92.8% of Tahdhib) |
-| `extra_shaykh_books.json` | `parse_shaykh_books.py` | 9,013 narrators from the compilers' shaykh books (746 name forms from Ithaf + 8 kunyas from ري الظمآن) + compiler entries |
-| `current_chains.json`, `current_chains_tabarani.json`, `current_chains_bayhaqi.json`, `current_chains_hibban.json` | `export_chains.ps1` | The **current system's** chains, for comparison |
+| `extra_shaykh_books.json` | `parse_shaykh_books.py` | 9,455 narrators from the compilers' shaykh books (746 name forms from Ithaf + 8 kunyas from ري الظمآن) + compiler entries |
+| `current_chains.json`, `current_chains_tabarani.json`, `current_chains_bayhaqi.json`, `current_chains_hibban.json`, `current_chains_daraqutni.json` | `export_chains.ps1` | The **current system's** chains, for comparison |
 
 `link_tahdhib.py` automatically loads `taqrib.json` and every `extra_*.json` that sits next to the `tahdhib.json` it is given.
 
@@ -74,6 +74,7 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 | 123667 | السلسبيل النقي في تراجم شيوخ البيهقي | al-Bayhaqi's shaykhs |
 | 123666 | إتحاف المرتقي بتراجم شيوخ البيهقي | al-Bayhaqi's shaykhs, plus every form of each name as it appears in his books |
 | 1498 | ري الظمآن بتراجم شيوخ ابن حبان | Ibn Hibban's 489 shaykhs, plus a table of the kunyas he uses for them |
+| 7852 | الدليل المغني لشيوخ الإمام أبي الحسن الدارقطني | al-Daraqutni's 543 shaykhs, with the author's verdicts |
 | 736, 10906, 96165, 36357 | تاريخ بغداد، السير، الثقات ممن لم يقع في الستة، لسان الميزان | Gap measurement only (not parsed yet) |
 
 ## 5. Scripts (`scripts/shamela4-extractor/rijal_pilot/`)
@@ -131,12 +132,13 @@ Coverage means the share of narrator names in the first 8 links of each chain th
 |---|---|---|---|---|
 | al-Bukhari (500) | 54% | **73%** | 88% | 76% |
 | al-Mustadrak (1,000) | 59% | **72%** | 97% | 49% † |
-| al-Mu'jam al-Kabir (500) | 70%* | **79%** | 83% | 75% |
+| al-Mu'jam al-Kabir (500) | 70%* | **80%** | 83% | 75% |
 | al-Mu'jam al-Awsat (500) | 65%* | **76%** | 90% | 80% |
 | al-Mu'jam al-Saghir (500) | 65%* | **79%** | 86% | 78% |
-| al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **69%** | — † | — † |
+| al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **71%** | — † | — † |
 | Shu'ab al-Iman (500) | 60%* | **64%** | — † | — † |
 | Sahih Ibn Hibban (500) | 74%* | **79%** | 87% | 82% |
+| Sunan al-Daraqutni (500) | 68%* | **73%** | 90% | 74% |
 
 \* Joint resolver already applied, before that compiler's shaykh books were added.
 † Not comparable: many records have shifted boundaries (§6.1), so the two systems read different isnads from the same record. A manual review of ~50 resolved al-Bayhaqi narrators found 1 error ("أبي إسحاق" from Zuhayr, which should be al-Sabi'i).
@@ -147,6 +149,12 @@ The table is measured after Ibn Hibban's book (`ري الظمآن`) was added. T
 - Raised Ibn Hibban from 74% to 79%.
 - Raised agreement in every comparable book. Bukhari has 1,417 agreeing names against 1,405, because bare kunyas are now loose aliases.
 - Cost about 0.5–1 point in al-Mustadrak and al-Sunan al-Kubra. These are real namesakes from the same generation (Ibn Hibban's «محمد بن عبد السلام» against al-Hakim's), which the resolver now leaves undecided rather than guessing.
+
+Adding al-Daraqutni's book (الدليل المغني) raised Sunan al-Daraqutni from 68% to 73%, and al-Sunan al-Kubra of al-Bayhaqi from 69% to 71%, with no losses elsewhere. A review of 12 al-Daraqutni chains (~50 names) found 2 errors:
+- «عكرمة» after an unresolved «أيوب» → عكرمة بن خالد, instead of the mawla of Ibn Abbas.
+- «شريك عن أبي حمزة» (a saying of al-Nakha'i) → Anas. The chain is consistent but wrong; Abu Hamza there is Maymun al-A'war.
+
+Its misses are mostly Baghdadi narrators (سعدان بن نصر، سعيد بن بحر القراطيسي) who belong to تاريخ بغداد.
 
 A manual review of 12 Ibn Hibban chains (~70 names) found 1 likely error: "أبي جعفر" from يحيى بن أبي كثير → al-Baqir, probably al-Ansari al-Mu'adhdhin.
 
@@ -173,7 +181,7 @@ The other books are clean, or have no numbered markers. Abd al-Razzaq, Ibn Khuza
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** the first unchecked item of Phase 2 (al-Daraqutni). The record-boundary fix (§6.1) stays in Phase 4 unless the user asks for it earlier.
+**Next task:** the first unchecked item of Phase 2 (Ibn Khuzaymah and Abu Awanah). The record-boundary fix (§6.1) stays in Phase 4 unless the user asks for it earlier.
 
 ### Overview
 
@@ -220,8 +228,8 @@ Compilers' shaykh books (via `parse_shaykh_books.py`):
 - [x] al-Tabarani: إرشاد القاصي والداني (29745), تحفة الغريب (1208) (`5cd9709`)
 - [x] al-Bayhaqi: إتحاف المرتقي (123666), السلسبيل النقي (123667), with exact name forms and al-Hakim merged as his shaykh (`1741406`)
 - [x] Ibn Hibban: ري الظمآن بتراجم شيوخ ابن حبان (1498), with his kunya table as loose aliases; bare-kunya aliases made loose; full-name fame fallback in the resolver (`c5dbe46`)
-- [ ] **al-Daraqutni:** الدليل المغني لشيوخ الدارقطني (7852)
-- [ ] Ibn Khuzaymah and Abu Awanah: search `master.db` for a dedicated book
+- [x] al-Daraqutni: الدليل المغني لشيوخ الدارقطني (7852), same `bracket` layout (`2c51097`)
+- [ ] **Ibn Khuzaymah and Abu Awanah:** search `master.db` for a dedicated book
 - [ ] Ahmad and Malik: تعجيل المنفعة (1893)
 - [ ] Early compilers (Abd al-Razzaq, al-Tayalisi, al-Shafi'i, al-Humaydi, Sa'id b. Mansur, Ishaq, al-Bazzar, Abu Ya'la): measure first, since they are mostly covered by Tahdhib
 - [ ] Measure every remaining book of the 31 against the current system at least once
@@ -293,6 +301,7 @@ python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.j
 python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/mujam_kabir_tabarani current_chains_tabarani.json "سليمان بن أحمد بن أيوب" 500 0
 python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/sunan_kubra_bayhaqi current_chains_bayhaqi.json "أحمد بن الحسين بن علي بن موسى" 500 0
 python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/sahih_ibn_hibban current_chains_hibban.json "محمد بن حبان بن أحمد" 500 0
+python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/sunan_daraqutni current_chains_daraqutni.json "علي بن عمر بن أحمد بن مهدي" 500 0
 cd ../.. && python scripts/shamela4-extractor/rijal_pilot/check_record_boundaries.py data/itqan/sunni
 ```
 
