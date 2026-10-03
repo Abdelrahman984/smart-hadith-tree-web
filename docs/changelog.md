@@ -126,7 +126,7 @@ Expanded the repository from 4 collections to the complete 18 Sunni Hadith colle
 - **Unit Tests (`src/SmartHadithTree.Tests/Etl/`)**: Added unit tests in `ContextualDisambiguatorTests.cs` and `ShamelaSqliteParserTests.cs` (all passing).
 
 ## 3. Database Backup (`backups/`)
-- Created and verified (`RESTORE VERIFYONLY`) a full SQL Server backup at `backups/SmartHadithTree_31Books_Full.bak` (`1,390.14 MB`).
+- Created and verified (`RESTORE VERIFYONLY`) a full SQL Server backup at `backups/SmartHadithTree_31Books_Full.bak` (`1,390.14 MB`), since renamed to `SmartHadithTree_v1_2026-10-02.bak` (see `backups/README.md`).
 - Added `backups/` and `*.bak` to `.gitignore`.
 
 ## 4. Frontend Home Page & Book Theme Registry (`frontend/`)

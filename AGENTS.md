@@ -44,8 +44,8 @@ Follow these guidelines strictly when contributing to this repository.
 - **Unified 31-Book Corpus (`data/itqan/sunni/`)**:
   - **Primary 12 Collections (from Itqan)**: `bukhari`, `muslim`, `abudawud`, `tirmidhi`, `nasai`, `ibnmajah`, `ahmed`, `malik`, `darimi`, `aladab_almufrad`, `shamail_muhammadiyah`, `musannaf_ibnabi_shaybah`.
   - **Expanded 19 Collections (extracted 100% complete from Shamela 4 into Itqan JSON format)**: `musannaf_abdurrazzaq`, `musnad_tayalisi`, `musnad_shafii`, `musnad_humaydi`, `sunan_said_ibn_mansur`, `musnad_ishaq`, `musnad_bazzar`, `sunan_kubra_nasai`, `musnad_abi_yala`, `sahih_ibn_khuzaymah`, `mustakhraj_abi_awanah`, `sahih_ibn_hibban`, `mujam_kabir_tabarani`, `mujam_awsat_tabarani`, `mujam_saghir_tabarani`, `sunan_daraqutni`, `mustadrak_hakim`, `sunan_kubra_bayhaqi`, `shuab_iman_bayhaqi`.
-  - **Database Scale**: **31 canonical Sunni collections**, **233,224 Hadiths**, **1,078,668 Isnad Transmissions**, and **115,735 Narrators**.
-  - **Database Backup**: A verified full backup of the 31-book database is stored at `backups/SmartHadithTree_31Books_Full.bak`.
+  - **Database Scale**: **31 canonical Sunni collections**, **237,558 Hadiths**, **1,110,677 Isnad Transmissions**, and **115,735 Narrators** (v2 backup, 2026-10-03).
+  - **Database Backups**: Versioned, verified full backups live in `backups/` (`SmartHadithTree_v1_2026-10-02.bak`, `SmartHadithTree_v2_2026-10-03.bak`). See `backups/README.md` for what each version contains; v2 is the baseline before the Shamela 4 migration.
 - **Shamela 4 Architecture Note**:
   - Shamela 4 stores structural metadata (`page` and `title` tables) in SQLite (`database/book/<id%1000>/<id>.db`), while actual Arabic text (`body`, `foot`) is stored in **Apache Lucene 10.4.0** indices (`database/store/page` and `database/store/title`).
   - To extract additional books from a local Shamela 4 installation into `data/itqan/sunni/<slug>/`, use `scripts/shamela4-extractor/ShamelaLuceneDumper.java` (run via Shamela 4's bundled OpenJDK 21 JRE and `ws.shamela.LuceneBulk`) followed by `scripts/shamela4-extractor/build_itqan_books.py`.

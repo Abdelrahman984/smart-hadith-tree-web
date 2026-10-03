@@ -32,9 +32,9 @@ A MENA-targeted SaaS platform and scholarly research tool designed to digitize, 
 
 ### 1. Database Setup & Data Ingestion
 #### Option A: Instant Restore from Full Backup (Recommended if `.bak` is present)
-If `backups/SmartHadithTree_31Books_Full.bak` is present locally, restore the complete 31-book database in seconds:
+If `backups/SmartHadithTree_v2_2026-10-03.bak` is present locally, restore the complete 31-book database in seconds (all versions are described in [`backups/README.md`](backups/README.md)):
 ```powershell
-sqlcmd -S . -Q "RESTORE DATABASE [SmartHadithTree] FROM DISK = N'd:\Programming\Full-Stack\Smart-Hadith-Tree\backups\SmartHadithTree_31Books_Full.bak' WITH REPLACE, STATS = 25;"
+sqlcmd -S . -Q "RESTORE DATABASE [SmartHadithTree] FROM DISK = N'd:\Programming\Full-Stack\Smart-Hadith-Tree\backups\SmartHadithTree_v2_2026-10-03.bak' WITH REPLACE, STATS = 25;"
 ```
 
 #### Option B: Run Migrations & ETL Pipeline from `data/itqan`

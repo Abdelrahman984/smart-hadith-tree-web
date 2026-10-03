@@ -99,10 +99,10 @@ python scripts/shamela4-extractor/build_itqan_books.py "data\shamela_dump" "D:\I
 
 ## 4. Database Backup & Instant Restore
 
-A verified full SQL Server backup of the complete 31-book database (`233,224` Hadiths, `1,078,668` Transmissions, `115,735` Narrators) is stored at:
-- `backups/SmartHadithTree_31Books_Full.bak` (~1.36 GB)
+The latest verified full SQL Server backup of the 31-book database (`237,558` Hadiths, `1,110,677` Transmissions, `115,735` Narrators) is stored at:
+- `backups/SmartHadithTree_v2_2026-10-03.bak` (~466 MB, compressed). Older versions and their contents are listed in [`backups/README.md`](../backups/README.md).
 
 To restore instantaneously on a local SQL Server instance:
 ```powershell
-sqlcmd -S . -Q "RESTORE DATABASE [SmartHadithTree] FROM DISK = N'd:\Programming\Full-Stack\Smart-Hadith-Tree\backups\SmartHadithTree_31Books_Full.bak' WITH REPLACE, STATS = 25;"
+sqlcmd -S . -Q "RESTORE DATABASE [SmartHadithTree] FROM DISK = N'd:\Programming\Full-Stack\Smart-Hadith-Tree\backups\SmartHadithTree_v2_2026-10-03.bak' WITH REPLACE, STATS = 25;"
 ```

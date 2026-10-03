@@ -39,5 +39,6 @@ data/*.json
 data/
 
 ## Database Backups
-backups/
+backups/*
+!backups/README.md
 *.bak
