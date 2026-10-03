@@ -137,33 +137,109 @@ Coverage means the share of narrator names in the first 8 links of each chain th
 
 **Summary:** the current system covers more; ours resolves less, but what it resolves is usually right. These are small manual samples, not a full precision measurement.
 
-## 7. Plan and status
+## 7. The plan we are following: phases and tasks
+
+Update the checkboxes whenever a task is finished, and record the commit next to it.
+**Next task:** the first unchecked item of Phase 2 (al-Bayhaqi).
+
+### Overview
 
 | Phase | Status |
 |---|---|
-| 0. Preparation, versioned backups (`backups/README.md`) | ✅ Done |
-| 1. Pilot: parse Tahdhib + Taqrib, link names, isnad test | ✅ Done |
-| 2. Full narrator registry from Shamela | 🔶 **In progress**: six-books narrators, al-Hakim, al-Tabarani done |
-| 3. Ilal data: Ibn Hajr's طبقات المدلسين (1186), الكواكب النيرات (309), المختلطين للعلائي (25846) | ⬜ Not started |
-| 4. All hadith texts from Shamela (12 primary books + footnotes / editor grades) | ⬜ Not started |
-| 5. Code: Domain (`ItqanId`/`ItqanGrade` → source refs / `Grade`; `ScholarEvaluation` critic + book), ETL parser, `ContextualDisambiguator` on the new IDs, `NarratorGradeScale`, tests | ⬜ Not started (largest phase) |
-| 6. Build a separate DB (`SmartHadithTree_Shamela`) and compare with v2; switch only if it is as good or better | ⬜ Not started |
-| 7. Remove Itqan (`data/itqan/rijal`, parser), update docs and `AGENTS.md` | ⬜ Not started |
+| 0. Preparation and backups | ✅ Done |
+| 1. Pilot (Tahdhib + Taqrib, name linking, isnad test) | ✅ Done |
+| 2. Full narrator registry from Shamela | 🔶 In progress |
+| 3. Ilal data (mudallisin, mukhtalitun) | ⬜ Not started |
+| 4. All hadith texts from Shamela | ⬜ Not started |
+| 5. Code changes (Domain, ETL, disambiguation, tests) | ⬜ Not started (largest phase) |
+| 6. Build a separate database and compare with v2 | ⬜ Not started |
+| 7. Remove Itqan and update docs | ⬜ Not started |
 
-### Phase 2: next steps in order
+### Phase 0 — Preparation ✅
 
-1. **al-Bayhaqi:** إتحاف المرتقي بتراجم شيوخ البيهقي (123666) and السلسبيل النقي في تراجم شيوخ البيهقي (123667). Add them to `BOOKS` / `COMPILERS` in `parse_shaykh_books.py`, then measure `sunan_kubra_bayhaqi` and `shuab_iman_bayhaqi` before and after with `compare_current.py`.
-2. **Ibn Hibban:** ري الظمآن (1498).
-3. **al-Daraqutni:** الدليل المغني (7852).
-4. **The other compilers:**
-   - Ibn Khuzaymah and Abu Awanah: no dedicated book found yet. Check `master.db`.
-   - Abd al-Razzaq, al-Tayalisi, al-Shafi'i, al-Humaydi, Sa'id b. Mansur, Ishaq, al-Bazzar, Abu Ya'la: mostly early, so largely covered by Tahdhib. Measure first.
-   - تعجيل المنفعة (1893) for Ahmad and Malik.
-5. **General books for the remaining gap:** تاريخ بغداد (736), السير (10906), لسان الميزان (36357), الثقات ممن لم يقع في الستة (96165). These need parsers (layouts differ).
-6. **Remaining resolver gaps:**
-   - Common single names ("عطاء", "هشام", "عبدان", "سفيان") when context is weak.
-   - "عن أبيه" after an unresolved narrator.
-   - Port the contextual overrides of `ContextualDisambiguator` (e.g. Sufyan / Hammad by student) to the new IDs.
+- [x] Rename the old backup to v1, take a compressed and checksummed v2 backup, document both in `backups/README.md` (`f08a0bc`)
+- [x] Track `backups/README.md` in git while keeping `.bak` files ignored (`f08a0bc`)
+
+### Phase 1 — Pilot ✅
+
+- [x] Check whether Itqan's Mizan `entry_id`s match Shamela's numbering: 60% exact, ~90% recoverable with a nearby name match
+- [x] `ShamelaLuceneDumper` accepts book IDs as an argument (`03fdae4`)
+- [x] Parse Tahdhib al-Kamal: entries, symbols, shuyukh/talamidh, attributed quotes, cross-references (`03fdae4`)
+- [x] Link list names to entries and verify precision by manual samples (`03fdae4`)
+- [x] Isnad test on 500 Bukhari hadiths (`03fdae4`)
+- [x] Parse Taqrib, align it with Tahdhib, map verdicts to Ibn Hajr's 12 ranks (`46b4035`)
+- [x] Write the handoff document and point `AGENTS.md` to it (`c8e95fa`)
+
+### Phase 2 — Full narrator registry 🔶
+
+Measurement tools:
+- [x] Gap measurement per isnad depth, and which books cover the gap (`1f51a2b`)
+- [x] Side-by-side comparison with the current system, with an agreement rate (`286c48d`, `3ea458f`)
+
+Resolution:
+- [x] Shuhra index: Taqrib aliases, bare laqab/nisba, "ابن X", fame tie-break (`845e5f2`)
+- [x] Stricter matching: compound "عبد X", nasab order, kunya forms, edition typos (`1a2ec3d`, `3ea458f`, `5cd9709`)
+- [x] Joint isnad resolution, `chain_resolver.py` (`3ea458f`)
+- [x] Isnad clean-up: previous hadith's verdict, honorifics, place suffixes, "X هو Y", "وهب" not treated as a conjunction (`1a2ec3d`, `3ea458f`)
+
+Compilers' shaykh books (via `parse_shaykh_books.py`):
+- [x] al-Hakim: الروض الباسم (14463), رجال الحاكم في المستدرك (29742) (`1a2ec3d`, `5cd9709`)
+- [x] al-Tabarani: إرشاد القاصي والداني (29745), تحفة الغريب (1208) (`5cd9709`)
+- [ ] **al-Bayhaqi:** إتحاف المرتقي (123666), السلسبيل النقي (123667). Measure `sunan_kubra_bayhaqi` and `shuab_iman_bayhaqi` before and after with `compare_current.py`
+- [ ] Ibn Hibban: ري الظمآن بتراجم شيوخ ابن حبان (1498)
+- [ ] al-Daraqutni: الدليل المغني لشيوخ الدارقطني (7852)
+- [ ] Ibn Khuzaymah and Abu Awanah: search `master.db` for a dedicated book
+- [ ] Ahmad and Malik: تعجيل المنفعة (1893)
+- [ ] Early compilers (Abd al-Razzaq, al-Tayalisi, al-Shafi'i, al-Humaydi, Sa'id b. Mansur, Ishaq, al-Bazzar, Abu Ya'la): measure first, since they are mostly covered by Tahdhib
+- [ ] Measure every remaining book of the 31 against the current system at least once
+
+General rijal books for what remains (each needs its own parser):
+- [ ] تاريخ بغداد (736)
+- [ ] سير أعلام النبلاء (10906)
+- [ ] لسان الميزان (36357)
+- [ ] الثقات ممن لم يقع في الكتب الستة (96165)
+
+Remaining resolver gaps:
+- [ ] Common single names ("عطاء", "هشام", "عبدان", "سفيان") when context is weak
+- [ ] "عن أبيه" after an unresolved narrator
+- [ ] Port the contextual overrides of `ContextualDisambiguator` (e.g. Sufyan / Hammad by student) to the new IDs
+- [ ] Measure precision on a larger, systematic sample (not only small manual reviews)
+
+Housekeeping:
+- [ ] Delete `parse_hakim_books.py`, which is superseded (needs the user's approval)
+- [ ] Turn the pilot scripts into one reproducible pipeline that writes the final registry (IDs, names, verdicts, ranks, lists, quotes, sources)
+
+### Phase 3 — Ilal data ⬜
+
+- [ ] طبقات المدلسين لابن حجر (1186), replacing the 16 hand-written mudallisin
+- [ ] الكواكب النيرات (309) and المختلطين للعلائي (25846), replacing the 7 hand-written mukhtalitun, with heard-before / heard-after students
+- [ ] Link both to registry IDs
+
+### Phase 4 — Hadith texts ⬜
+
+- [ ] Choose a Shamela edition for each of the 12 primary books. All are downloaded except الشمائل المحمدية, which the user must download in Shamela.
+- [ ] Extract them with footnotes (`foot`) for takhrij and editors' grades
+- [ ] Separate the compiler's own remarks from the matn, and keep volume and page references
+- [ ] Move all 31 books to `data/shamela/` in one format
+
+### Phase 5 — Code ⬜
+
+- [ ] Domain: `ItqanId` / `ItqanGrade` → a source reference and `Grade`; `ScholarEvaluation` with critic and book; EF migration
+- [ ] ETL: a new parser in place of `ItqanDatasetParser`, and a name index built from the registry instead of `by_name.json`
+- [ ] Chain building: the joint resolver ported into `ChainReprocessingService` / `ContextualDisambiguator`
+- [ ] `NarratorGradeScale` from Ibn Hajr's ranks; `IlalSeedService` from the Phase 3 data
+- [ ] Update the unit tests (`ContextualDisambiguatorTests`, `IlalAnalysisServiceDbTests`, ...)
+
+### Phase 6 — Build and compare ⬜
+
+- [ ] Build `SmartHadithTree_Shamela` separately, without touching `SmartHadithTree`
+- [ ] Compare with v2: narrators identified per book, agreement, Ilal findings on known hadiths, manual review of famous isnads
+- [ ] Switch only if the new database is as good or better (user decision); take a v3 backup first
+
+### Phase 7 — Clean-up ⬜
+
+- [ ] Remove `data/itqan/rijal`, the Itqan parser and the Itqan-only code
+- [ ] Update `AGENTS.md`, `docs/data_ingestion.md` and `README.md`; merge `feature/shamela-rijal`
 
 ## 8. How to re-run everything
 
