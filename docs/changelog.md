@@ -132,3 +132,17 @@ Expanded the repository from 4 collections to the complete 18 Sunni Hadith colle
 ## 4. Frontend Home Page & Book Theme Registry (`frontend/`)
 - **`frontend/src/lib/bookTheme.ts`**: Registered all 31 canonical collections with their traditional Hadith scholarly abbreviations (`خ`, `م`, `عب`, `ش`, `طي`, `شاف`, `حميد`, `سع`, `راه`, `بز`, `كب`, `يع`, `خز`, `عو`, `حب`, `طب`, `طس`, `طص`, `قط`, `كم`, `هق`, `شعب`, etc.) and distinct color badges.
 - **`frontend/src/app/page.tsx`**: Upgraded the Home page with a direct search bar, quick search examples, live corpus statistics (`31` books, `233,224` hadiths, `1,078,668` transmissions, `115,735` narrators), 6 core feature cards, and a categorized 31-book library showcase.
+
+
+---
+
+# Changelog: Migration from Itqan to Shamela 4 (Phases 0-7)
+
+**Date:** October 5, 2026
+**Summary:** The hadith texts, the narrator registry, the isnad chains and the Ilal data now all come from a local Shamela 4 installation. The app runs on `SmartHadithTree_Shamela` (274,597 hadiths, 1,125,644 transmissions, 23,502 narrators, 116,670 critics' quotes). Details, measurements and pitfalls: `docs/shamela_migration.md`; the comparison with the old database: `docs/shamela_phase6_comparison.md`.
+
+- **Registry and resolver (Python, `scripts/shamela4-extractor/rijal_pilot/`)**: narrators from Tahdhib al-Kamal, Taqrib and the compilers' shaykh books; names matched and isnads resolved jointly; 97.0% precision on a 500-name review.
+- **Texts**: 31 books rebuilt from Shamela with the edition's own numbering, records cut at in-text hadith numbers (this fixes the shifted records of the old data), isnad / matn parts, footnotes.
+- **Ilal**: mudallisin from Ibn Hajar's tiers (158) and mukhtalitun with the books' severity and hearings (131); `IkhtilatRule` weighs severity; grades come from Ibn Hajar's ranks.
+- **Phase 6**: on 4,650 paired hadiths the Ilal engine finds tadlis in 793 (275 before) and ikhtilat in 341 (0 before); 74% position agreement on 220,603 paired chains, with the Shamela side right in 9 of 20 sampled disagreements.
+- **Phase 7**: removed `ItqanDatasetParser`, `ContextualDisambiguator`, `ShamelaSqliteParser`, `IlalSeedService`, `ChainReprocessingService`, the old seeds, their tests and `data/itqan/rijal`. The Api and Etl connection strings point at `SmartHadithTree_Shamela`. Backups: v3 (the old database, before the switch) and v4 (the Shamela database).

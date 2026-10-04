@@ -21,7 +21,7 @@ A MENA-targeted SaaS platform and scholarly research tool designed to digitize, 
 - **Backend**: C# 13, .NET 9, ASP.NET Core Controllers & Services.
 - **Database**: SQL Server, Entity Framework Core 9 (with Bulk Extensions, Recursive CTEs for graph traversal, & Normalized Search).
 - **AI**: Microsoft Semantic Kernel (Gemini integration for Rijal RAG summaries and Ilal explanations).
-- **Data Sources**: [R3GENESI5/Itqan](https://github.com/R3GENESI5/Itqan) + Local Shamela 4 Lucene/SQLite extraction pipeline (`scripts/shamela4-extractor/`).
+- **Data Source**: a local Shamela 4 installation, read through the Lucene/SQLite extraction pipeline (`scripts/shamela4-extractor/`); see [`docs/data_ingestion.md`](docs/data_ingestion.md).
 
 ## Getting Started
 
@@ -32,24 +32,25 @@ A MENA-targeted SaaS platform and scholarly research tool designed to digitize, 
 
 ### 1. Database Setup & Data Ingestion
 #### Option A: Instant Restore from Full Backup (Recommended if `.bak` is present)
-If `backups/SmartHadithTree_v2_2026-10-03.bak` is present locally, restore the complete 31-book database in seconds (all versions are described in [`backups/README.md`](backups/README.md)):
+If `backups/SmartHadithTree_Shamela_v4_2026-10-05.bak` is present locally, restore the complete 31-book database in seconds (all versions are described in [`backups/README.md`](backups/README.md)):
 ```powershell
-sqlcmd -S . -Q "RESTORE DATABASE [SmartHadithTree] FROM DISK = N'd:\Programming\Full-Stack\Smart-Hadith-Tree\backups\SmartHadithTree_v2_2026-10-03.bak' WITH REPLACE, STATS = 25;"
+sqlcmd -S . -Q "RESTORE DATABASE [SmartHadithTree_Shamela] FROM DISK = N'd:\Programming\Full-Stack\Smart-Hadith-Tree\backups\SmartHadithTree_Shamela_v4_2026-10-05.bak' WITH REPLACE, STATS = 25;"
 ```
 
-#### Option B: Run Migrations & ETL Pipeline from `data/itqan`
-1. Ensure SQL Server is running and update the connection string in `src/SmartHadithTree.Api/appsettings.json` and `src/SmartHadithTree.Etl/appsettings.json` if needed.
+#### Option B: Run Migrations & Load from `data/shamela_rijal`
+Needs the data files built from a local Shamela 4 installation (see [`docs/data_ingestion.md`](docs/data_ingestion.md)).
+1. Ensure SQL Server is running and update the connection string in `src/SmartHadithTree.Api/appsettings.json` and `src/SmartHadithTree.Etl/appsettings.json` if needed (the default database is `SmartHadithTree_Shamela`).
 2. Run the database migrations:
    ```powershell
    dotnet ef database update --project src/SmartHadithTree.Infrastructure --startup-project src/SmartHadithTree.Api
    ```
-3. Ingest the unified 31-book corpus in `data/itqan`:
+3. Load narrators, the 31-book corpus, isnad chains, quotes and relations:
    ```powershell
-   dotnet run --project src/SmartHadithTree.Etl -- data/itqan
+   dotnet run --project src/SmartHadithTree.Etl -- data/shamela_rijal
    ```
-4. Seed the Ilal engine teacher/student relations, Mudallisin, and Mukhtalitun:
+4. Load the Ilal data (Mudallisin, Mukhtalitun and their hearings):
    ```powershell
-   dotnet run --project src/SmartHadithTree.Etl -- seed-ilal data/itqan
+   dotnet run --project src/SmartHadithTree.Etl -- seed-ilal-shamela data/shamela_rijal
    ```
 
 ### 2. Running the Backend

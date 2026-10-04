@@ -17,7 +17,7 @@ namespace SmartHadithTree.Etl.Services;
 /// <item>mukhtalitun (الكواكب النيرات, المختلطين للعلائي) with the ikhtilat's severity, "nobody heard after it",
 /// the students heard before / after / both / disputed with the critic's words, and the rules for groups of students.</item>
 /// </list>
-/// Replaces the hand-written <c>Seeds/*.json</c> of <see cref="IlalSeedService"/>. Safe to re-run: the flags, the hearings
+/// Replaces the old hand-written Itqan seeds. Safe to re-run: the flags, the hearings
 /// and the group rules are reset first, so use it on a database built from Shamela, not on one seeded from Itqan.
 /// </summary>
 public class ShamelaIlalService(HadithTreeDbContext context, ILogger<ShamelaIlalService> logger)

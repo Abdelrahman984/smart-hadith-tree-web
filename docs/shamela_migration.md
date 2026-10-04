@@ -355,7 +355,7 @@ Other findings:
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** Phase 7 (remove Itqan, update docs, merge). Phase 6 is done and the app was switched to `SmartHadithTree_Shamela` (see `docs/shamela_phase6_comparison.md`); the chain gaps left by undecided names (§3 of that report) and the missing grades of narrators outside Taqrib are known regressions. Phase 5 is complete with option B: the resolver stays in Python and C# loads its output; the C# port is Phase 5b, later (user decision, 2026-10-04). Phase 4b is deferred (user decision); Phase 4 is complete; Phase 3 is complete; the bare «سفيان» / «حماد» / «عطاء» ties (§6.4) are deferred until after Phase 7 (user decision). Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction, hand-reading and first-pass reviews, writing only to the scratchpad, `data/shamela_rijal/review/` or `rijal_pilot/review_drafts/`, and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
+**Next task:** merge `feature/shamela-rijal` into `master` when the user asks; then, optionally, the chain gaps and Phase 5b. Phase 6 is done and the app was switched to `SmartHadithTree_Shamela` (see `docs/shamela_phase6_comparison.md`); the chain gaps left by undecided names (§3 of that report) and the missing grades of narrators outside Taqrib are known regressions. Phase 5 is complete with option B: the resolver stays in Python and C# loads its output; the C# port is Phase 5b, later (user decision, 2026-10-04). Phase 4b is deferred (user decision); Phase 4 is complete; Phase 3 is complete; the bare «سفيان» / «حماد» / «عطاء» ties (§6.4) are deferred until after Phase 7 (user decision). Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction, hand-reading and first-pass reviews, writing only to the scratchpad, `data/shamela_rijal/review/` or `rijal_pilot/review_drafts/`, and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
 
 **Working rules** (from Phase 3; follow them in every later phase):
 1. **Every sub-agent review gets a second check.** The main session checks every item not judged "right", plus a random sample of the "right" ones. In Phase 3 a reviewer once "corrected" a right reading (Ibn Jurayj's father taken for Ibn Jurayj).
@@ -376,7 +376,7 @@ Update the checkboxes whenever a task is finished, and record the commit next to
 | 5. Code changes (Domain, loaders, Ilal, tests); resolver stays in Python (option B) | ✅ Done |
 | 5b. Port the resolver to C# (option A) | ⏸ Later (after Phase 6, if switching) |
 | 6. Build a separate database and compare with v2 | ✅ Done; **switched on 2026-10-05** (user decision) |
-| 7. Remove Itqan and update docs | ⬜ Not started |
+| 7. Remove Itqan and update docs | ✅ Done (merge into `master` waiting for the user) |
 
 ### Phase 0 — Preparation ✅
 
@@ -577,8 +577,9 @@ Not needed for Phase 6. Do it **only if Phase 6 says to switch** and the user wa
 
 ### Phase 7 — Clean-up ⬜
 
-- [ ] Remove `data/itqan/rijal`, the Itqan parser and the Itqan-only code
-- [ ] Update `AGENTS.md`, `docs/data_ingestion.md` and `README.md`; merge `feature/shamela-rijal`
+- [x] Remove `data/itqan/rijal`, the Itqan parser and the Itqan-only code: `ItqanDatasetParser`, `ContextualDisambiguator`, `ShamelaSqliteParser`, `IlalSeedService`, `ChainReprocessingService`, `Seeds/`, `download_itqan_data.ps1`, their tests (134 tests pass). **Kept on purpose:** `data/itqan/sunni/` (sample input of the Python benchmarks), `build_itqan_books.py`, the `ItqanId` / `ItqanGrade` columns (the grade fallback reads them; dropping them needs a migration on the live database), the legacy-grade test in `IlalAnalysisServiceDbTests`
+- [x] Update `AGENTS.md`, `docs/data_ingestion.md`, `README.md`, `docs/changelog.md` and `backups/README.md` (v4 backup of the Shamela database taken)
+- [ ] Merge `feature/shamela-rijal` into `master` (user decision)
 
 ## 8. How to re-run everything
 

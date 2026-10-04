@@ -8,6 +8,7 @@ Each file is a numbered version so later data migrations (e.g. the move from Itq
 | v1 | `SmartHadithTree_v1_2026-10-02.bak` | 2026-10-02 21:24 | 1,390 MB | No / No | `74353394703e7c896ec48c140df766b199cc1598667a6afe7eb8767bebb62945` |
 | v2 | `SmartHadithTree_v2_2026-10-03.bak` | 2026-10-03 17:34 | 466 MB | Yes / Yes | `ba808ddd30021a56e162593f29a0363a5e9131d6f5f1c8b82d99b334463f61c2` |
 | v3 | `SmartHadithTree_v3_2026-10-05.bak` | 2026-10-05 | 466 MB | Yes / Yes | `cb5fcf8de255a72b73d710b464ac3d41fa0ee5008b80d3b8809659801e3507a8` |
+| v4 | `SmartHadithTree_Shamela_v4_2026-10-05.bak` | 2026-10-05 | 462 MB | Yes / Yes | `e5ba630986a76a1d4e73a846ac77ba738e53898fe417b1694adf3d8cbe494295` |
 
 Both files pass `RESTORE VERIFYONLY` (checked 2026-10-03).
 The counts below were taken by restoring each backup and querying it directly.
@@ -90,3 +91,9 @@ sqlcmd -S . -Q "BACKUP DATABASE [SmartHadithTree] TO DISK = N'D:\Programming\Ful
 ## v3: the v2 data, taken just before the switch to Shamela
 
 Copy-only backup of the live `SmartHadithTree` on 2026-10-05, right before the app was pointed at `SmartHadithTree_Shamela` (`docs/shamela_phase6_comparison.md`). The data is the same as v2 (237,558 hadiths, 1,110,677 transmissions, 115,735 narrators); `RESTORE VERIFYONLY ... WITH CHECKSUM` passed. **To roll back:** restore this file as `SmartHadithTree` and set `ConnectionStrings:DefaultConnection` back to `Database=SmartHadithTree` in `src/SmartHadithTree.Api/appsettings.json` and `src/SmartHadithTree.Etl/appsettings.json`.
+
+---
+
+## v4: the Shamela-built database (the current one)
+
+Copy-only backup of `SmartHadithTree_Shamela` after Phase 7: 23,502 narrators, 274,597 hadiths, 1,125,644 transmissions, 116,670 quotes, 114,301 relations, 158 mudallisin, 131 mukhtalitun. Restore it as `SmartHadithTree_Shamela` (the connection strings of the Api and the Etl name that database).
