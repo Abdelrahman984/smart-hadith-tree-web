@@ -95,7 +95,9 @@ def clean_segment(s: str) -> str:
     return s
 
 
-def chain_segments(arabic: str) -> list[str]:
+def chain_segments_verbs(arabic: str) -> list[tuple[str, list[str]]]:
+    """Each name segment with the transmission verbs that follow it, up to the next kept segment:
+    "الأعمش، عن إبراهيم" gives ("الأعمش", ["عن"]), the formula al-A'mash used for his shaykh."""
     # Invisible direction marks around punctuation ("قال‏:‏" in al-Adab al-Mufrad) hide the verbs.
     t = re.sub('[‌-‏‪-‮﻿]', '', HARAKAT_RE.sub('', arabic))
     t = PREVIOUS_TAIL.sub('', t)
@@ -103,12 +105,26 @@ def chain_segments(arabic: str) -> list[str]:
     if marks:
         t = t[marks[-1].end():]
     t = re.split(r'رسول الله|النبي|ﷺ|صلى الله عليه وسلم', t)[0]
-    segs = [clean_segment(s) for s in re.split(VERBS, t)]
-    segs = [s for s in segs if 1 < len(s) < 70 and not s.startswith(NOT_A_NARRATOR_START)]
-    # Muslim's speaker tags: "محمد بن المثنى وابن بشار، قال ابن المثنى: حدثنا محمد بن جعفر" — "ابن X" right
-    # after a narrator whose father is X repeats him; it is not a new link.
-    return [s for k, s in enumerate(segs)
-            if not (k and (m := re.fullmatch(r'ابن (\S+)', s)) and re.match(rf'(?:عبد )?\S+ بن {m.group(1)}(?:\s|$)', segs[k - 1]))]
+    parts = re.split(f'({VERBS})', t)                   # segment, verb, segment, verb, ...
+    pairs: list[tuple[str, list[str]]] = []
+    prev = None                                          # the previous segment shaped like one
+    for k in range(0, len(parts), 2):
+        s = clean_segment(parts[k])
+        verb = re.sub(r'^[\s،]*و?', '', parts[k + 1]) if k + 1 < len(parts) else None
+        if 1 < len(s) < 70 and not s.startswith(NOT_A_NARRATOR_START):
+            # Muslim's speaker tags: "محمد بن المثنى وابن بشار، قال ابن المثنى: حدثنا محمد بن جعفر" — "ابن X"
+            # right after a narrator whose father is X repeats him; it is not a new link.
+            if not (prev is not None and (m := re.fullmatch(r'ابن (\S+)', s))
+                    and re.match(rf'(?:عبد )?\S+ بن {m.group(1)}(?:\s|$)', prev)):
+                pairs.append((s, []))
+            prev = s
+        if verb and pairs:
+            pairs[-1][1].append(verb)
+    return pairs
+
+
+def chain_segments(arabic: str) -> list[str]:
+    return [s for s, _ in chain_segments_verbs(arabic)]
 
 
 # A segment that is not shaped like a name (verdicts, matn, numbers) is reported apart from real misses.

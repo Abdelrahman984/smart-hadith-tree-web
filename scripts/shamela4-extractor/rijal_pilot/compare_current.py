@@ -39,8 +39,18 @@ _open = Counter(s for t in sample for s in [x for x in chain_segments(t) if is_n
 openers = {s for s, n in _open.items() if n >= 0.2 * len(sample)}
 
 
+verbs_of: dict[str, list[list[str]]] = {}   # text -> the verbs after each name of our_chain(text), for SAVE
+ties_of: dict[str, dict[int, list[int]]] = {}  # text -> position -> tied candidates of an undecided name
+
+
 def our_chain(text: str) -> list[tuple[str, int | None, str]]:
-    segs = [s for s in chain_segments(text) if is_name(s)]
+    pairs: list[tuple[str, list[str]]] = []
+    for s, verbs in chain_segments_verbs(text):
+        if is_name(s):
+            pairs.append((s, list(verbs)))
+        elif pairs:                         # a segment that is not a name: its verbs go on from the last name
+            pairs[-1][1].extend(verbs)
+    segs = [s for s, _ in pairs]
     # The book's transmitter and the compiler himself open some chains: "حدثني يحيى، عن مالك،
     # عن نافع" (al-Muwatta), "حدثنا الحميدي، ثنا سفيان" (Musnad al-Humaydi). The chain starts
     # after the compiler's own name: a name whose candidates include the compiler and that is
@@ -50,11 +60,14 @@ def our_chain(text: str) -> list[tuple[str, int | None, str]]:
         for i, s in enumerate(segs[:2]):
             c = candidates(s)
             if compiler in c and (max(c, key=lambda j: fame[j]) == compiler or s in openers):
-                segs = segs[i + 1:]
+                segs, pairs = segs[i + 1:], pairs[i + 1:]
                 break
     segs = segs[:8]
+    verbs_of[text] = [v for _, v in pairs[:8]]
     if JOINT:
-        return resolve(segs, compiler)
+        out = resolve(segs, compiler)
+        ties_of[text] = dict(last_ties)
+        return out
     out, prev = [], compiler
     for depth, seg in enumerate(segs):
         c = lookup(seg, prev)
@@ -165,10 +178,23 @@ print(f'our resolved narrators found in the current chain: {agree} agree, {disag
 # SAVE=<file>: every sampled isnad with each name's resolution (ours) and the current chain, so a
 # run can be reviewed later or diffed against another run.
 if os.environ.get('SAVE'):
+    # Registry ids as pipeline.py writes them (tk<num> for Tahdhib, <source>:<num> for the other books).
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from pipeline import unique_ids
+    _n_tahdhib = sum(1 for e in json.load(open(TAHDHIB, encoding='utf-8')) if e.get('kind') == 'entry')
+    reg_id = unique_ids([f'tk{e["num"]}' + ('s' if e['num_suspect'] else '') if i < _n_tahdhib
+                         else f'{(e.get("source") or "extra").split("+")[0]}:{e["num"]}' for i, e in enumerate(entries)])
+
+    def _ties(text, pos):
+        return [reg_id[x] for x in ties_of.get(text, {}).get(pos, [])] or None
+
     json.dump([{'isnad': re.sub(r'\s+', ' ', HARAKAT.sub('', text))[:400],
                 'ours': [{'name': seg, 'narrator': entries[j]['header'][:100] if j is not None else None,
                           'source': entries[j].get('source', 'tahdhib') if j is not None else None, 'how': how,
-                          'vs_current': vs_current.get((r, pos))}
+                          'vs_current': vs_current.get((r, pos)),
+                          'id': reg_id[j] if j is not None else None,
+                          'verbs': verbs_of.get(text, [])[pos] if pos < len(verbs_of.get(text, [])) else [],
+                          'ties': _ties(text, pos)}
                          for pos, (seg, j, how) in enumerate(ours)],
                 'current': [l['sheikh'][:100] for l in links]} for r, (text, ours, links) in enumerate(rows)],
               open(os.environ['SAVE'], 'w', encoding='utf-8'), ensure_ascii=False, indent=1)

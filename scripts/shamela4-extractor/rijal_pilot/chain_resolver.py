@@ -18,6 +18,11 @@ import math
 import re
 
 MAX_CANDIDATES = 80
+# After each resolve(): position -> the candidates tied for an undecided name (the best linked to
+# their neighbours, or the most cited when none is linked), so the Ilal data can check whether a
+# tie hides a mudallis or mukhtalit.
+last_ties: dict[int, list[int]] = {}
+TIES_KEPT = 10
 KUNYA_FIRST = re.compile(r'\s*(?:أبو|أبي|أبا)\s')
 FULL_KUNYA_NAME = re.compile(r'\s*(?:أبو|أبي|أبا)\s+(?:عبد\s+)?\S+\s+(?:عبد\s+)?\S+\s+بن\s+\S+')
 
@@ -147,6 +152,7 @@ def resolve(segs: list[str], start: int | None) -> list[tuple[str, int | None, s
     path.reverse()
 
     out = []
+    last_ties.clear()
     for i, (seg, j) in enumerate(zip(segs, path)):
         c = cands[i]
         if not c:
@@ -183,4 +189,6 @@ def resolve(segs: list[str], start: int | None) -> list[tuple[str, int | None, s
             out.append((seg, d, 'default'))
         else:
             out.append((seg, None, 'ambiguous'))
+            best = max(local(x) for x in c)
+            last_ties[i] = [x for x in c if local(x) == best][:TIES_KEPT]   # c is ranked by fame
     return out
