@@ -28,6 +28,16 @@ run against the production build in Chromium.
 | Home search input had only a placeholder | `aria-label` added |
 | No reduced-motion handling | `prefers-reduced-motion` rule in `globals.css` |
 
+## Glossary tooltip on touch (fixed)
+
+`GlossaryTerm` used hover and focus only, which is unreliable on touch screens. It is now a `<button>` with
+`aria-expanded`/`aria-controls`: tap, click and Enter/Space toggle it; mouse hover still previews it; Escape or a tap
+outside closes it; it is nudged to stay inside the viewport; clicks and keys do not leak to a clickable parent (the Ilal
+cards). While closed it is `display: none`, so it no longer adds horizontal overflow on narrow screens.
+Verified in Chromium with touch emulation (360px) on a temporary test page (removed): tap opens/closes, outside tap
+closes, left and right edge terms stay inside the viewport, a term inside a clickable card does not trigger the card,
+Escape closes, desktop hover shows/hides, keyboard Enter opens. **Not** verified on a real iOS/Android device.
+
 ## Not covered (needs a backend with data or a human)
 
 - Tree, comparative (`/takhreej`), books-detail and chapter pages, the narrator drawer content, the Ilal panel and the
