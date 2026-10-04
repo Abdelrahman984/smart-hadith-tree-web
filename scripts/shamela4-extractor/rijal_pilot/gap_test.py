@@ -116,7 +116,7 @@ def chain_segments_verbs(arabic: str) -> list[tuple[str, list[str]]]:
             # Muslim's speaker tags: "محمد بن المثنى وابن بشار، قال ابن المثنى: حدثنا محمد بن جعفر" — "ابن X"
             # right after a narrator whose father is X repeats him; it is not a new link.
             if not (prev is not None and (m := re.fullmatch(r'ابن (\S+)', s))
-                    and re.match(rf'(?:عبد )?\S+ بن {m.group(1)}(?:\s|$)', prev)):
+                    and re.match(rf'(?:عبد )?\S+ بن {re.escape(m.group(1))}(?:\s|$)', prev)):
                 pairs.append((s, []))
             prev = s
         if verb and pairs:
