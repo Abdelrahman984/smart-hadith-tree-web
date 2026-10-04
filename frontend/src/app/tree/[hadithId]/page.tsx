@@ -2,6 +2,7 @@ import { getIsnadTree } from "@/lib/api";
 import TreeCanvas from "@/features/isnad-tree/components/TreeCanvas";
 import NarratorDrawer from "@/features/narrator-details/components/NarratorDrawer";
 import ReturnToSearchButton from "@/features/isnad-tree/components/ReturnToSearchButton";
+import EvidenceBadge from "@/components/EvidenceBadge";
 import IlalLauncher from "@/features/ilal/components/IlalLauncher";
 
 export default async function TreePage({
@@ -40,6 +41,17 @@ export default async function TreePage({
           </div>
           <p className="text-slate-700 font-arabic text-lg leading-relaxed">
             {treeData.matnArabic}
+          </p>
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+            <span className="font-semibold">حكم الحديث:</span>
+            <EvidenceBadge status="insufficient" />
+            <span>
+              لا يحمل المشروع حكماً معتمداً لهذا الحديث؛ للتحقق راجع{" "}
+              <a href="https://dorar.net/hadith" target="_blank" rel="noopener noreferrer" className="font-semibold text-indigo-700 underline">
+                الدرر السنية
+              </a>
+              .
+            </span>
           </p>
         </div>
         

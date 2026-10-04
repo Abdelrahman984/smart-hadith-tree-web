@@ -49,3 +49,19 @@ test.describe('analyzeEvaluations', () => {
     expect(campOf(undefined)).toBe('unclassified');
   });
 });
+
+import { narratorEvidence } from '../src/features/narrator-details/utils/evaluationConsensus';
+
+test.describe('narratorEvidence', () => {
+  test('no evaluations: insufficient, never a verdict', () => {
+    expect(narratorEvidence(analyzeEvaluations([]), 0).status).toBe('insufficient');
+  });
+  test('agreeing attributed evaluations: supported', () => {
+    expect(narratorEvidence(analyzeEvaluations([ev('reliable'), ev('reliable')]), 2).status).toBe('supported');
+  });
+  test('dispute, a single verdict, or unclassified text: needs verification', () => {
+    expect(narratorEvidence(analyzeEvaluations([ev('reliable'), ev('weak')]), 2).status).toBe('verify');
+    expect(narratorEvidence(analyzeEvaluations([ev('reliable')]), 1).status).toBe('verify');
+    expect(narratorEvidence(analyzeEvaluations([ev(null)]), 1).status).toBe('verify');
+  });
+});

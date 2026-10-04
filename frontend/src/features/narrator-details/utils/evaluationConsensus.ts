@@ -1,4 +1,5 @@
 import type { ScholarEvaluationDto } from "@/types/api";
+import type { EvidenceStatus } from "@/types/evidence";
 
 /** Which side of the jarh/ta'dil divide a recorded verdict falls on. */
 export type VerdictCamp = "tadil" | "jarh" | "unclassified";
@@ -71,4 +72,27 @@ export function analyzeEvaluations(evaluations: ScholarEvaluationDto[]): Consens
     agreedCamp: status === "agree" ? (tadilCount > 0 ? "tadil" : "jarh") : null,
     groups: [buckets.tadil, buckets.jarh, buckets.unclassified].filter((g) => g.items.length > 0),
   };
+}
+
+export interface NarratorEvidence {
+  status: EvidenceStatus;
+  /** Short plain-language reason, shown beside the badge. */
+  reason: string;
+}
+
+/** Evidence status of what the tool can say about a narrator, from the recorded evaluations. */
+export function narratorEvidence(consensus: ConsensusResult, evaluationCount: number): NarratorEvidence {
+  if (evaluationCount === 0) {
+    return { status: "insufficient", reason: "لا توجد أقوال مسجلة لهذا الراوي في البيانات." };
+  }
+  switch (consensus.status) {
+    case "agree":
+      return { status: "supported", reason: "أقوال منسوبة لأصحابها ومتفقة في الاتجاه؛ اقرأ نصوصها أدناه." };
+    case "dispute":
+      return { status: "verify", reason: "الأقوال المسجلة مختلفة؛ لا يكفي أحدها وحده." };
+    case "single":
+      return { status: "verify", reason: "قول مصنَّف واحد فقط؛ لا يكفي للجزم." };
+    default:
+      return { status: "verify", reason: "أقوال غير مصنَّفة؛ اقرأ نصوصها بنفسك." };
+  }
 }

@@ -8,7 +8,8 @@ import { useEffect, useState } from 'react';
 import AiNotice from '@/components/AiNotice';
 import GlossaryTerm from '@/features/glossary/GlossaryTerm';
 import ConsensusBanner from './ConsensusBanner';
-import { analyzeEvaluations, type EvaluationGroup } from '../utils/evaluationConsensus';
+import EvidenceBadge from '@/components/EvidenceBadge';
+import { analyzeEvaluations, narratorEvidence, type EvaluationGroup } from '../utils/evaluationConsensus';
 
 const VERDICT_AR: Record<string, string> = {
   reliable: "ثقة",
@@ -124,6 +125,7 @@ export default function NarratorDrawer() {
   }, [isOpen]);
 
   const consensus = narrator ? analyzeEvaluations(narrator.evaluations) : null;
+  const evidence = narrator && consensus ? narratorEvidence(consensus, narrator.evaluations.length) : null;
 
   if (!isOpen) return null;
 
@@ -291,6 +293,14 @@ export default function NarratorDrawer() {
                   <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">
                     {narrator.biography}
                   </p>
+                </div>
+              )}
+
+              {evidence && (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-2.5">
+                  <span className="text-xs font-semibold text-slate-600">حالة الدليل لحال الراوي:</span>
+                  <EvidenceBadge status={evidence.status} />
+                  <span className="text-xs text-slate-600">{evidence.reason}</span>
                 </div>
               )}
 

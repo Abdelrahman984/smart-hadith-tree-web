@@ -6,6 +6,7 @@ import { IlalReportDto } from "@/types/api";
 import { useIlalStore } from "../store/useIlalStore";
 import { groupFindings, ILLAH_TYPE_LABELS, SEVERITY_STYLES } from "../utils/ilalLabels";
 import GlossaryTerm from "@/features/glossary/GlossaryTerm";
+import EvidenceBadge from "@/components/EvidenceBadge";
 import { ILLAH_TYPE_GLOSSARY_ID, SEVERITY_GLOSSARY_ID } from "@/features/glossary/glossary";
 import MatnDiffView from "./MatnDiffView";
 import IlalAiExplanation from "./IlalAiExplanation";
@@ -101,6 +102,7 @@ export default function IlalPanel({ report }: IlalPanelProps) {
                   {labels.map((l) => (
                     <span key={l} className="rounded bg-white/80 px-1.5 py-0.5 border border-slate-200">{l}</span>
                   ))}
+                  <EvidenceBadge status="verify" compact />
                   <span className="ms-auto" title="درجة الثقة في الاستنتاج الآلي">
                     الثقة: {Math.round(finding.confidence * 100)}%
                   </span>

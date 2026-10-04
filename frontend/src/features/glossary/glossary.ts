@@ -39,6 +39,9 @@ export const GLOSSARY: GlossaryEntry[] = [
   { id: "qadihah", term: "علة قادحة", definition: "تصنيف في هذه الأداة لعلة يُرجَّح أنها تؤثر في صحة الحديث؛ وهي تنبيه آلي وليست حكماً نهائياً.", english: "Qadihah", englishGloss: "a defect likely to affect authenticity (tool classification)" },
   { id: "ghayr-qadihah", term: "غير قادحة", definition: "تصنيف في هذه الأداة لعلة يُرجَّح أنها لا تؤثر في صحة الحديث بمفردها.", english: "Ghayr Qadihah", englishGloss: "a defect unlikely to affect authenticity by itself (tool classification)" },
   { id: "tanbih", term: "تنبيه", definition: "إشارة تستدعي التحقق ولا تُعد علة مثبتة.", english: "Tanbih", englishGloss: "a flag that needs checking, not an established defect" },
+  { id: "evidence-supported", term: "مؤيَّد بنص مصدر", definition: "المعلومة منسوبة إلى أقوال مسجَّلة لعلماء في مصادر ورد ذكرها في بيانات الأداة، ويمكنك قراءة النص الأصلي بنفسك.", english: "Supported by a source text", englishGloss: "attributed to recorded scholarly statements you can read" },
+  { id: "evidence-verify", term: "يتطلب تحققاً", definition: "استنتاج آلي، أو خلاف بين الأقوال، أو قول واحد فقط؛ لا يكفي وحده، فراجع المصادر الأصلية أو أهل الاختصاص.", english: "Needs verification", englishGloss: "a machine inference, a disagreement, or a single statement" },
+  { id: "evidence-insufficient", term: "لا يوجد مرجع كافٍ", definition: "لا تتوفر في بيانات الأداة أقوال أو حكم معتمد في هذه المسألة، فلا تُصدر الأداة حكماً وتحيلك إلى المصادر.", english: "Insufficient evidence", englishGloss: "no recorded statements or authoritative ruling in the tool's data" },
 ];
 
 const BY_ID = new Map(GLOSSARY.map((e) => [e.id, e]));
