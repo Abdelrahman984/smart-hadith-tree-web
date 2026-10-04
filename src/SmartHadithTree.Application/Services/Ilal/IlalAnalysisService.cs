@@ -54,12 +54,23 @@ public class IlalAnalysisService(IHadithTreeDbContext context) : IIlalAnalysisSe
         return new IlalReportDto
         {
             AnalyzedHadithIds = ilalContext.Chains.Select(c => c.HadithId).ToList(),
-            Turuq = ilalContext.Chains.Select(c => new IlalTariqDto
+            Turuq = ilalContext.Chains.Select(c =>
             {
-                HadithId = c.HadithId,
-                BookName = c.BookName,
-                HadithNumber = c.HadithNumber,
-                IsMarfu = MatnText.IsMarfu(c.MatnArabic)
+                // The compiler (index 0) is not part of the strength of the isnad, only the narrators above him.
+                var weakest = c.Path.Skip(1)
+                    .Select((id, i) => (Id: id, Tier: ilalContext.TierOf(id), Index: i))
+                    .OrderByDescending(x => x.Tier).ThenBy(x => x.Index)
+                    .Cast<(Guid Id, int Tier, int Index)?>()
+                    .FirstOrDefault();
+                return new IlalTariqDto
+                {
+                    HadithId = c.HadithId,
+                    BookName = c.BookName,
+                    HadithNumber = c.HadithNumber,
+                    IsMarfu = MatnText.IsMarfu(c.MatnArabic),
+                    WeakestTier = weakest?.Tier,
+                    WeakestNarratorId = weakest?.Id
+                };
             }).ToList(),
             Madars = madars,
             Findings = findings,

@@ -36,6 +36,15 @@ public class IlalTariqDto
 
     /// <summary>True when the text is attributed to the Prophet ﷺ (مرفوع).</summary>
     public bool IsMarfu { get; set; }
+
+    /// <summary>
+    /// Tier (1 = Companion … 12 = fabricator) of the weakest narrator in this tariq, excluding the compiler.
+    /// Null when the chain could not be resolved at all.
+    /// </summary>
+    public int? WeakestTier { get; set; }
+
+    /// <summary>The weakest narrator of this tariq (the first one met going up, on a tie).</summary>
+    public Guid? WeakestNarratorId { get; set; }
 }
 
 /// <summary>A narrator at which two or more turuq diverge.</summary>

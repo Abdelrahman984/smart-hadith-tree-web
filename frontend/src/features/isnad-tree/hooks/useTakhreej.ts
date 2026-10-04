@@ -3,7 +3,7 @@ import { getComparativeTree } from '@/lib/api';
 
 export function useTakhreej(hadithIds: string[]) {
   return useQuery({
-    queryKey: ['takhreej', ...hadithIds.sort()],
+    queryKey: ['takhreej', ...[...hadithIds].sort()],
     queryFn: () => getComparativeTree(hadithIds),
     enabled: hadithIds.length >= 2,
   });

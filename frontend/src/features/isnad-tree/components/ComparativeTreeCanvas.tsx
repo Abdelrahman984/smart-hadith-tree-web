@@ -14,6 +14,7 @@ import {
   ReactFlowInstance,
 } from "@xyflow/react";
 import { X } from "lucide-react";
+import { useRefitOnResize } from "../hooks/useRefitOnResize";
 import { getLayoutedElements } from "../utils/elkLayout";
 import { applyGraphFocus } from "../utils/graphFocus";
 import { useMeasuredRelayout } from "../hooks/useMeasuredRelayout";
@@ -52,8 +53,10 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [focusBook, setFocusBook] = useState<string | null>(null);
   const flowRef = useRef<ReactFlowInstance | null>(null);
-  const refit = useCallback(() => flowRef.current?.fitView({ duration: 0 }), []);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const refit = useCallback(() => flowRef.current?.fitView({ duration: 0, padding: 0.1 }), []);
   const { phase, setPhase } = useMeasuredRelayout({ nodes, edges, setNodes, setEdges, onRelaid: refit });
+  useRefitOnResize(containerRef, refit, phase === "ready");
 
   const activeBooks = useMemo(
     () => Array.from(new Set((treeData.sources || []).map((s) => s.bookName))),
@@ -273,6 +276,7 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
 
   return (
     <div
+      ref={containerRef}
       className={`absolute inset-0 bg-slate-50 transition-opacity duration-150 ${phase === "ready" ? "opacity-100" : "opacity-0"}`}
       dir="ltr"
     >

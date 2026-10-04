@@ -12,6 +12,8 @@ import IlalPanel from "@/features/ilal/components/IlalPanel";
 import { useIlalStore } from "@/features/ilal/store/useIlalStore";
 import { getBookMeta } from "@/lib/bookTheme";
 
+const MAX_HEADER_SOURCES = 4;
+
 function TakhreejContent() {
   const searchParams = useSearchParams();
   const idsParam = searchParams.get("ids");
@@ -23,6 +25,7 @@ function TakhreejContent() {
   const { data, isLoading, isError } = useTakhreej(hadithIds);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [showAllSources, setShowAllSources] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<"mutun" | "ilal">("mutun");
   const { setReport, reset } = useIlalStore();
 
@@ -74,8 +77,8 @@ function TakhreejContent() {
           <h1 className="text-xl font-bold text-slate-800">شجرة التخريج المقارنة</h1>
         </div>
         
-        <div className="flex gap-2 items-center flex-wrap max-h-20 overflow-y-auto">
-          {data.sources.map((source, idx) => {
+        <div className="flex gap-2 items-center flex-wrap min-w-0">
+          {(showAllSources ? data.sources : data.sources.slice(0, MAX_HEADER_SOURCES)).map((source, idx) => {
             const meta = getBookMeta(source.bookName);
             return (
               <div
@@ -94,6 +97,17 @@ function TakhreejContent() {
               </div>
             );
           })}
+          {data.sources.length > MAX_HEADER_SOURCES && (
+            <button
+              type="button"
+              onClick={() => setShowAllSources((v) => !v)}
+              aria-expanded={showAllSources}
+              title={showAllSources ? "إخفاء" : data.sources.slice(MAX_HEADER_SOURCES).map((s) => `${s.bookName} ${s.hadithNumber}`).join("، ")}
+              className="px-2.5 py-1 rounded-full border border-slate-300 bg-slate-100 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+            >
+              {showAllSources ? "إخفاء" : `+${data.sources.length - MAX_HEADER_SOURCES}`}
+            </button>
+          )}
         </div>
       </header>
 

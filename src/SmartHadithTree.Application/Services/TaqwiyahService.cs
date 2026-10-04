@@ -9,71 +9,25 @@ namespace SmartHadithTree.Application.Services;
 
 public class TaqwiyahService : ITaqwiyahService
 {
-    // Simple Tier Mapping
-    private static int ParseTier(string? tierStr)
-    {
-        if (string.IsNullOrEmpty(tierStr)) return 7; // Default to T7 (Weak)
-        var numPart = tierStr.Replace("T", "");
-        if (int.TryParse(numPart, out int t)) return t;
-        return 7;
-    }
-
     public void CalculateTreeStrength(ComparativeTreeResponseDto tree)
     {
         CalculateStructuralStrength(tree);
         ApplyIlal(tree);
     }
 
+    /// <summary>
+    /// Grades the hadith from its routes (turuq). Each route is as strong as its weakest narrator
+    /// above the compiler; routes that share the same weakest narrator are one weakness, not two.
+    /// </summary>
     private static void CalculateStructuralStrength(ComparativeTreeResponseDto tree)
     {
-        if (tree.Nodes == null || !tree.Nodes.Any())
-            return;
+        var routes = tree.IlalReport?.Turuq.Where(t => t.WeakestTier.HasValue).ToList() ?? [];
+        var pathStrengths = routes.Select(r => r.WeakestTier!.Value).ToList();
 
-        // Find root nodes (compilers)
-        var compilers = tree.Nodes.Where(n => n.StepOrder == 1).ToList();
-        
-        var pathStrengths = new List<int>();
-
-        // For each compiler, traverse up to the Sahabi (usually highest StepOrder)
-        foreach (var compiler in compilers)
-        {
-            var lowestTierInPath = 1; // start strong
-            var currentNode = compiler;
-            
-            while (currentNode != null)
-            {
-                // We assume there's an 'AiTier' or 'GradeEn' mapped to tier somewhere
-                // Let's use a simple mapping from GradeEn to Tier for now if Tier is not explicit
-                // Or we can assume we parse the AI tier if it's cached.
-                // For demonstration, we map GradeEn to tier:
-                var nodeTier = NarratorGradeScale.ToTier(currentNode.GradeEn);
-                
-                if (nodeTier > lowestTierInPath)
-                    lowestTierInPath = nodeTier;
-
-                if (currentNode.ParentNodeId.HasValue)
-                {
-                    currentNode = tree.Nodes.FirstOrDefault(n => n.Id == currentNode.ParentNodeId.Value);
-                }
-                else
-                {
-                    currentNode = null;
-                }
-            }
-            
-            pathStrengths.Add(lowestTierInPath);
-        }
-
-        // Taqwiyah Rules:
-        // We have multiple path strengths. Each path is as strong as its weakest link (highest tier number).
-        // Let's say:
-        // If any path is <= T4, it's at least Hasan.
-        // If we have two or more T7 (Weak) paths, they might upgrade to T4 (Hasan li-ghayrihi).
-        // If all paths are T12 (Fabricated), it stays T12.
-
-        if (!pathStrengths.Any())
+        if (pathStrengths.Count == 0)
         {
             tree.CalculatedGrade = "مجهول";
+            tree.TaqwiyahDetails = "تعذّر تحديد رجال الأسانيد.";
             return;
         }
 
@@ -92,7 +46,12 @@ public class TaqwiyahService : ITaqwiyahService
         else if (bestPath >= 6 && bestPath <= 8)
         {
             // Check for Taqwiyah
-            var weakPathsCount = pathStrengths.Count(p => p >= 6 && p <= 8);
+            // Independent weak routes only: routes failing at the same narrator do not reinforce each other.
+            var weakPathsCount = routes
+                .Where(r => r.WeakestTier is >= 6 and <= 8)
+                .Select(r => r.WeakestNarratorId)
+                .Distinct()
+                .Count();
             if (weakPathsCount >= 2)
             {
                 tree.CalculatedGrade = "حسن لغيره";
