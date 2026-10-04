@@ -384,7 +384,7 @@ Remaining resolver gaps:
 
 Housekeeping:
 - [x] Delete the superseded `parse_hakim_books.py` and `isnad_test.py` (user approved)
-- [x] One reproducible pipeline that writes the final registry (`pipeline.py`; first draft by a sub-agent; strict list links and Companion ranks added in review) (`COMMIT`)
+- [x] One reproducible pipeline that writes the final registry (`pipeline.py`; first draft by a sub-agent; strict list links and Companion ranks added in review) (`171eef4`)
 
 ### Phase 3 — Ilal data ⬜
 
