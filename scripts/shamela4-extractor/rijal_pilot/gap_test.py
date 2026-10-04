@@ -40,7 +40,10 @@ HARAKAT_RE = re.compile(r'[ً-ْٰـ]')
 # Clean-up of a narrator segment: honorifics before the name, "ببغداد"/"بمكة" and "إملاء"
 # after it, footnote markers, and "X ويحيى بن ..., قالا" (two shaykhs: keep the first).
 HONORIFIC = re.compile(r'^(?:الشيخ|الإمام|الأستاذ|القاضي|الحافظ|الفقيه|الأديب)\s+')
-TRAILER = re.compile(r'(?:\s+(?:ب(?:بغداد|مكة|مرو|الكوفة|البصرة|نيسابور|الري|همذان|بخارى|\S+)|إملاء|قراءة عليه'
+# "ب" + a place ("ببغداد", "بنيسابور") or "به"; never a name after a nasab word: "بن بكر", "بن بكير",
+# "بن بشار", "أبي بردة" lost their last word (over 7,000 times in Bukhari and al-Bayhaqi alone).
+TRAILER = re.compile(r'(?:(?<!بن)(?<!بنت)(?<!أبي)(?<!أبو)(?<!أبا)(?<!أبى)(?<!أم)\s+'
+                     r'(?:ب(?:بغداد|مكة|مرو|الكوفة|البصرة|نيسابور|الري|همذان|بخارى|\S+)|إملاء|قراءة عليه'
                      r'|من أصل كتابه|في آخرين|وغيره|قالا|قالوا))+\s*$')
 # Hadith records sometimes start with the previous hadith's verdict and number:
 # "هذا حديث صحيح ... ولم يخرجاه. ٣٧٦٣ - حدثنا ..." -> keep what follows the last "N -".
@@ -54,24 +57,31 @@ NOT_A_NARRATOR_START = ('قال', 'يقول', 'ورواه', 'رواه', 'وقد'
 AFTER_NAME = re.compile(r'\s*(?:رض[يى] الله (?:عنه|عنها|عنهما|عنهم)|عليه السلام|﵁|﵂|﵄|﵃|﵀)')
 # A comma inside a segment ends the name unless the nasab goes on ("عبد الملك، بن أبي بكر"):
 # "عائشة، زوج النبي", "ابن جريج، أخبرهم", "أبي، ح" (tahwil).
-NAME_GOES_ON = re.compile(r'\s*(?:بن|ابن|بنت|أبو|أبي|أبا|وهو|يعني|هو)\s')
+# "وهو / يعني" go on to identify him ("هشام، يعني ابن حسان", "سفيان، يعني الثوري"), not to describe
+# him ("المغيرة بن أبي بردة، وهو من بني عبد الدار").
+NAME_GOES_ON = re.compile(r'\s*(?:(?:بن|ابن|بنت|أبو|أبي|أبا)\s'
+                          r'|(?:وهو|يعني|هو)\s+(?!(?:من|في|أخو|أحد|مولى|صاحب|ثقة|الذي|كان)\s))')
 
 
 def clean_segment(s: str) -> str:
-    s = re.sub(r'\(¬?[٠-٩]+\)', ' ', s).strip()
+    s = re.sub(r'\s+', ' ', re.sub(r'\(¬?[٠-٩]+\)', ' ', s)).strip()
     s = s.replace(' , ', '، ').replace(',', '،')
+    s = re.sub(r'\s+-\s*|\s*-\s+', ' ', s)              # "إسماعيل، - وهو ابن علية -"
     s = AFTER_NAME.split(s)[0]
     if '،' in s:
         head, tail = s.split('،', 1)
         if head.strip() and not NAME_GOES_ON.match(tail + ' '):
             s = head
     s = re.sub(r'\s+ح\s*$', '', s.strip(' ،:.'))       # "أبي ح": tahwil mark
+    # "إسماعيل، وهو ابن علية", "سعيد هو ابن أبي سعيد": the "ابن" part completes the name.
+    if m := re.match(r'(\S+(?:\s\S+)?)،?\s+(?:وهو|يعني|هو)\s+(ابن\s.+)', s):
+        s = f"{m.group(1).rstrip('،')} {m.group(2)}"
     # "سعيد هو المقبري", "أبي معاذ هو عطاء بن أبي ميمونة": the part after "هو" identifies the narrator.
-    if re.search(r'\sهو\s', s):
-        s = re.split(r'\sهو\s', s, maxsplit=1)[1]
+    elif re.search(r'\s(?:هو|يعني)\s', s):              # also "سفيان، يعني الثوري"
+        s = re.split(r'\s(?:هو|يعني)\s', s, maxsplit=1)[1]
     # "علي بن حمشاذ ويحيى بن محمد" -> the first shaykh. The text is stripped first so that a
     # name that itself starts with و ("وهب بن جرير") is not taken for a conjunction.
-    s = re.split(r'\s+و(?=\S+ بن )', s)[0]
+    s = re.split(r'\s+و(?=\S+ بن |أب[يوى]\s)', s)[0]   # also "سعيد وأبى سلمة"
     s = HONORIFIC.sub('', s.strip())
     s = TRAILER.sub('', s.strip(' ،,:.'))                 # "مسدد قالا:" -> "مسدد"
     s = re.sub(r'\s+', ' ', s).strip(' ،,:.')
