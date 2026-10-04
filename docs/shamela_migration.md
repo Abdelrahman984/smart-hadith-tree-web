@@ -355,7 +355,7 @@ Other findings:
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** the user's decision on switching (Phase 6 is measured, see `docs/shamela_phase6_comparison.md`). Phase 5 is complete with option B: the resolver stays in Python and C# loads its output; the C# port is Phase 5b, later (user decision, 2026-10-04). Phase 4b is deferred (user decision); Phase 4 is complete; Phase 3 is complete; the bare «سفيان» / «حماد» / «عطاء» ties (§6.4) are deferred until after Phase 7 (user decision). Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction, hand-reading and first-pass reviews, writing only to the scratchpad, `data/shamela_rijal/review/` or `rijal_pilot/review_drafts/`, and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
+**Next task:** Phase 7 (remove Itqan, update docs, merge). Phase 6 is done and the app was switched to `SmartHadithTree_Shamela` (see `docs/shamela_phase6_comparison.md`); the chain gaps left by undecided names (§3 of that report) and the missing grades of narrators outside Taqrib are known regressions. Phase 5 is complete with option B: the resolver stays in Python and C# loads its output; the C# port is Phase 5b, later (user decision, 2026-10-04). Phase 4b is deferred (user decision); Phase 4 is complete; Phase 3 is complete; the bare «سفيان» / «حماد» / «عطاء» ties (§6.4) are deferred until after Phase 7 (user decision). Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction, hand-reading and first-pass reviews, writing only to the scratchpad, `data/shamela_rijal/review/` or `rijal_pilot/review_drafts/`, and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
 
 **Working rules** (from Phase 3; follow them in every later phase):
 1. **Every sub-agent review gets a second check.** The main session checks every item not judged "right", plus a random sample of the "right" ones. In Phase 3 a reviewer once "corrected" a right reading (Ibn Jurayj's father taken for Ibn Jurayj).
@@ -375,7 +375,7 @@ Update the checkboxes whenever a task is finished, and record the commit next to
 | 4b. Resolver fixes from Shamela's links | ⏸ Deferred (user decision) |
 | 5. Code changes (Domain, loaders, Ilal, tests); resolver stays in Python (option B) | ✅ Done |
 | 5b. Port the resolver to C# (option A) | ⏸ Later (after Phase 6, if switching) |
-| 6. Build a separate database and compare with v2 | 🟡 Measured; waiting for the user's switch decision |
+| 6. Build a separate database and compare with v2 | ✅ Done; **switched on 2026-10-05** (user decision) |
 | 7. Remove Itqan and update docs | ⬜ Not started |
 
 ### Phase 0 — Preparation ✅
@@ -573,7 +573,7 @@ Not needed for Phase 6. Do it **only if Phase 6 says to switch** and the user wa
 - [x] Build `SmartHadithTree_Shamela` separately, without touching `SmartHadithTree` (counts as in 5.6; report: `docs/shamela_phase6_comparison.md`)
 - [x] Compare with v2: chains 74% position agreement on 220,603 paired hadiths (Shamela right in 9 of 20 sampled disagreements, v2 in 5), Ilal 793 vs 275 tadlis and 341 vs 0 ikhtilat on 4,650 paired hadiths, grading coverage 93% vs 99% of links, no text lost, API runs on both
 - [ ] Not done: manual review of ~30 famous isnads, the frontend in a browser, the AI summary. Known regression: undecided names leave gaps in chains (§3 of the report)
-- [ ] Switch only if the new database is as good or better (user decision); take a v3 backup first
+- [x] Switch only if the new database is as good or better (user decision); take a v3 backup first: **v3 backup taken (`backups/SmartHadithTree_v3_2026-10-05.bak`) and the Api and Etl `appsettings.json` now point at `SmartHadithTree_Shamela`** (rollback steps in `backups/README.md`). The old `SmartHadithTree` database is left in place. Branch `feature/shamela-rijal` is not merged into `master`
 
 ### Phase 7 — Clean-up ⬜
 
