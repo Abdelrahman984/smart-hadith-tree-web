@@ -579,7 +579,8 @@ Not needed for Phase 6. Do it **only if Phase 6 says to switch** and the user wa
 
 - [x] Remove `data/itqan/rijal`, the Itqan parser and the Itqan-only code: `ItqanDatasetParser`, `ContextualDisambiguator`, `ShamelaSqliteParser`, `IlalSeedService`, `ChainReprocessingService`, `Seeds/`, `download_itqan_data.ps1`, their tests (134 tests pass). **Kept on purpose:** `data/itqan/sunni/` (sample input of the Python benchmarks), `build_itqan_books.py`, the `ItqanId` / `ItqanGrade` columns (the grade fallback reads them; dropping them needs a migration on the live database), the legacy-grade test in `IlalAnalysisServiceDbTests`
 - [x] Update `AGENTS.md`, `docs/data_ingestion.md`, `README.md`, `docs/changelog.md` and `backups/README.md` (v4 backup of the Shamela database taken)
-- [ ] Merge `feature/shamela-rijal` into `master` (user decision)
+- [ ] **The user runs the app on the branch against `SmartHadithTree_Shamela` and verifies it** before the merge (Api: `dotnet run --project src/SmartHadithTree.Api`; frontend: `npm run dev` in `frontend/`). Check: search, the tree and the comparative tree, the narrator pages (is Ibn Shihab al-Zuhri easy to find?), the Ilal panel (tadlis, ikhtilat), and the known chain gaps from undecided names (§3 of `docs/shamela_phase6_comparison.md`). Not yet tested by anyone: the frontend in a browser and the AI summary (needs the Gemini key)
+- [ ] Merge `feature/shamela-rijal` into `master` (user decision, only after the step above)
 
 ## 8. How to re-run everything
 
