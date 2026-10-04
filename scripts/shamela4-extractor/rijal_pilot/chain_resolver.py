@@ -72,7 +72,7 @@ def prior(j: int) -> float:
     return 0.01 * math.log1p(fame[j])        # tie-breaker only; never outweighs one edge
 
 
-def father_of(p: int) -> set[int]:
+def father_of(p: int, unlisted: bool = True) -> set[int]:
     """Entries that can be p's father ("عن أبيه"): p's shaykh whose ism is p's father's name."""
     father = nasab[p][1:2]
     if father == ['ابو']:
@@ -80,16 +80,40 @@ def father_of(p: int) -> set[int]:
         # not a kunya-only entry whose ism is "ابو".
         k = nasab[p][2:3]
         return {j for j in shuyukh_of[p] if k and k[0] in kunyas[j]}
-    return {j for j in shuyukh_of[p] if ism[j] == father} if father else set()
+    if not father:
+        return set()
+    listed = {j for j in shuyukh_of[p] if ism[j] == father}
+    # The father's own nasab continues the son's ("سهل بن معاذ بن أنس" -> معاذ بن أنس الجهني): it breaks a tie
+    # between listed shaykhs (عامر بن سعد among several «سعد بن …»), and when none is listed (the son's
+    # list says only "أبيه", or he has none: عمرو بن شعيب) the one entry that continues it is taken.
+    # Father and grandfather must both agree. The Taqrib nasab wins over a typo'd Tahdhib one («عبيد الله بن
+    # عتبة» for عبيد الله بن عبد الله بن عتبة gave عتبة بن مسعود), and a kunya-headed son («أبو بردة بن أبي موسى»)
+    # has no nasab to continue.
+    tail = (alt_nasab[p] or nasab[p])[1:] if nasab[p][:1] != ['ابو'] else []
+
+    def continues(f: int) -> bool:
+        n = min(len(tail), len(nasab[f]))
+        return n >= 2 and nasab[f][:n] == tail[:n]
+
+    if len(listed) > 1:
+        return {j for j in listed if continues(j)} or listed
+    if not listed and unlisted and len(tail) >= 2:
+        found = {j for j in ism_index.get(father[0], ()) if j != p and continues(j)}
+        return found if len(found) == 1 else set()
+    return listed
 
 
 def resolve(segs: list[str], start: int | None) -> list[tuple[str, int | None, str]]:
     # Candidate sets; "أبيه" depends on the previous position's candidates.
     cands: list[list[int]] = []
+    fathers: list[dict | None] = []                  # for "أبيه": son -> his possible fathers
     for i, seg in enumerate(segs):
+        fathers.append(None)
         if seg.strip() in ('أبيه', 'ابيه'):
             prev_c = cands[-1] if cands else ([start] if start is not None else [])
-            c = set().union(*(father_of(p) for p in prev_c)) if prev_c else set()
+            # An unlisted father only when the son is certain (see father_of).
+            fathers[i] = {p: father_of(p, len(prev_c) == 1) for p in prev_c}
+            c = set().union(*fathers[i].values()) if prev_c else set()
         else:
             c = set(lookup(seg, None))
         c.discard(start)
@@ -98,12 +122,16 @@ def resolve(segs: list[str], start: int | None) -> list[tuple[str, int | None, s
 
     # Viterbi over states = candidates + None ("unknown here"; breaks the chain's edges).
     layers = [[(start, 0.0, -1)]]                   # (entry, score, back-pointer)
-    for c in cands:
+    for i, c in enumerate(cands):
         layer = []
         prev_layer = layers[-1]
         for j in c + [None]:
             best, back = -1e9, -1
             for k, (p, sc, _) in enumerate(prev_layer):
+                # "أبيه" is the father of the son chosen before it, not of another candidate for that name
+                # (it had paired «أبو بردة» with the father of «بريد بن عبد الله بن أبي بردة»).
+                if fathers[i] is not None and j is not None and j not in fathers[i].get(p, ()):
+                    continue
                 s = sc + edge(p, j)
                 if s > best:
                     best, back = s, k
@@ -130,7 +158,11 @@ def resolve(segs: list[str], start: int | None) -> list[tuple[str, int | None, s
         def local(x: int) -> int:
             return edge(left, x) + edge(x, right)
 
-        if len(c) == 1:
+        if fathers[i] is not None:
+            # "أبيه" follows the son chosen on the path: a single father in the union of all the son's
+            # candidates may belong to another of them.
+            out.append((seg, j, 'father') if j is not None else (seg, None, 'ambiguous'))
+        elif len(c) == 1:
             out.append((seg, c[0], 'unique'))
         elif j is not None and local(j) > 0 and all(local(x) < local(j) for x in c if x != j):
             out.append((seg, j, 'chain'))

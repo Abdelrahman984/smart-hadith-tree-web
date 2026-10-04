@@ -100,6 +100,10 @@ for k in range(1, len(accepted)):                 # infer a number for unnumbere
         accepted[k] = (accepted[k - 1][0] + 1, accepted[k][1])
 suspect = {id(m) for _, m in accepted} - in_lis
 
+_BOOK_SYMBOLS = sorted(['ع', 'خ', 'م', 'د', 'ت', 'س', 'ق', 'بخ', 'خت', 'خد', 'دت', 'دس', 'دسي', 'دعس', 'دفق', 'دق', 'ر',
+                        'رد', 'رم', 'ز', 'سي', 'سن', 'ص', 'صد', 'عخ', 'عس', 'ف', 'فق', 'قد', 'قدس', 'كد', 'كن', 'ل',
+                        'مد', 'مدت', 'مق', 'تم', 'تمييز', '٤'], key=len, reverse=True)
+LEADING_SYMBOLS = re.compile(r'\s*((?:[\[(]?(?:' + '|'.join(_BOOK_SYMBOLS) + r')[\])]?(?=[\s.:\])])[\s.:]*)+)(?=\S)')
 entries = []
 for i, (n, m) in enumerate(accepted):
     end = accepted[i + 1][1].start() if i + 1 < len(accepted) else len(text)
@@ -107,6 +111,10 @@ for i, (n, m) in enumerate(accepted):
     body = text[m.end():end]
     if symbols and not SYMBOL_OK.match(symbols):  # the colon belonged to the text
         body, symbols = symbols + ': ' + body, ''
+    if not symbols and (lead := LEADING_SYMBOLS.match(body)):
+        # Symbols with no colon: "٢٧٥٦ - ر ٤ شعيب بن محمد ..." (Amr b. Shu'ayb's father: his nasab was read
+        # from «ر», so «عن أبيه» after عمرو بن شعيب never found him).
+        symbols, body = re.sub(r'[\[\]().:]', ' ', lead.group(1)).strip(), body[lead.end():]
     entries.append({'num': n, 'num_suspect': id(m) in suspect, 'symbols': symbols, 'raw': body})
 
 # 3. Parse each entry.
