@@ -368,7 +368,8 @@ Update the checkboxes whenever a task is finished, and record the commit next to
 | 1. Pilot (Tahdhib + Taqrib, name linking, isnad test) | ✅ Done |
 | 2. Full narrator registry from Shamela | ✅ Done (ties deferred) |
 | 3. Ilal data (mudallisin, mukhtalitun) | ✅ Done (bare-name ties deferred) |
-| 4. All hadith texts from Shamela | ⬜ Not started |
+| 4. All hadith texts from Shamela | 🔄 In progress |
+| 4b. Resolver fixes from Shamela's links | ⬜ Not started |
 | 5. Code changes (Domain, ETL, disambiguation, tests) | ⬜ Not started (largest phase) |
 | 6. Build a separate database and compare with v2 | ⬜ Not started |
 | 7. Remove Itqan and update docs | ⬜ Not started |
@@ -519,6 +520,17 @@ A record:
   - **Bare-name ties** (deferred in Phase 3): Shamela's narrator is always among our tied candidates, and it links the tied «سفيان» to al-Thawri 117 / Ibn Uyayna 8, «حماد» to Ibn Salama 44 / Ibn Zayd 15 (Abu Dawud: Ibn Salama 42 of 49), «عبد الله» to Ibn Mas'ud 72 / Ibn Umar 21 (al-Tayalisi: Ibn Mas'ud 41 of 41), «هشام» al-Dastuwa'i 15 / Ibn Urwa 13; picking the most-cited «سفيان» would agree only 8 times in 125.
 - [ ] Separate the compiler's own remarks from the matn, and keep volume and page references
 - [ ] Move all 31 books to `data/shamela/` in one format
+
+### Phase 4b — Resolver fixes from Shamela's links ⬜
+
+User decisions (2026-10-04): after Phase 4, fix the largest error classes found by the link measurement (Phase 4), each measured with `links/eval_links.py` on held-out records (rule 2: tune on part of the records, confirm on the rest) and with `bench.py --books all`; and, in the 7 linked books, settle the bare-name ties («سفيان», «حماد», «عبد الله», «هشام» …) with Shamela's own link when it is one of our tied candidates (other books stay undecided).
+
+- [ ] Shaykh-book duplicates of Tahdhib narrators chosen over the Tahdhib entry (204; «طاوس» → `tuhfa:2179`)
+- [ ] «أم X» read as a kunya, never matched to a man named X (34)
+- [ ] Full names resolved to another person (190; «عبد العزيز بن أبي سلمة» = al-Majishun)
+- [ ] Bare ism / kunya / nisba resolved to another bearer (467; review the largest names first)
+- [ ] «أبيه» (91), «ابن X» / «يعني ابن X» cut (45)
+- [ ] Bare-name ties in the linked books from Shamela's links
 
 ### Phase 5 — Code ⬜
 
