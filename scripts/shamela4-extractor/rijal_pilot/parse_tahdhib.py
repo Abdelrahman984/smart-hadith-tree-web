@@ -119,8 +119,9 @@ for i, (n, m) in enumerate(accepted):
 
 # 3. Parse each entry.
 # Women's entries say "روت عن:" / "روى عنها:" (Aisha, Umm Salama, Amra bint Abd al-Rahman).
-SHUYUKH = re.compile(r'(?:روى|روت)\s+عن\s*:')
+SHUYUKH = re.compile(r'(?:روى|روت)\s+عن\s*(?::|ك(?=\s))')     # "روى عن ك سالم": عمرو بن شعيب's typo'd colon
 TALAMIDH = re.compile(r'روى\s+عنها?\s*:')
+SHUYUKH_BARE = re.compile(r'(?<=\n)\s*(?:روى|روت)\s+عن\s+(?=\S)')
 # A quote starts at a line/page start: "وقال X، عن Y: ..." or "وقال عن Y أيضا: ...".
 QUOTE = re.compile(
     r'(?:^|[\n\x01])\s*(?:و)?قال\s+(?:(عن\s+[^:،\n\x01]{2,60}?)|([^:،\n\x01]{2,60}?)\s*(?:،\s*عن\s+([^:،\n\x01]{2,60}?))?)\s*:\s*')
@@ -185,6 +186,10 @@ for e in entries:
     raw = e['raw']
     flat = raw.replace('\x01', ' ')   # lists and the header ignore page breaks
     s, t = SHUYUKH.search(flat), TALAMIDH.search(flat)
+    if s is None:
+        # No colon: "\nروى عن إسماعيل بن أبي خالد، وأبي ..." (أحمد بن بشير, أبي بن كعب): only at a line start
+        # and before the students, so a quote ("روى عن ابن عباس أنه قال") is not taken for the list.
+        s = SHUYUKH_BARE.search(flat, 0, t.start() if t else len(flat))
     header_end = min(x.start() for x in (s, t) if x) if (s or t) else (flat.find('\n') % (len(flat) + 1))
     header = flat[:header_end].strip().lstrip('-').strip()     # "- عبد الله بن مسعود ..."
     shuyukh = split_list(section(flat, s, t)) if s else []

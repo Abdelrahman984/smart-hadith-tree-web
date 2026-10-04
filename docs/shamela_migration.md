@@ -146,37 +146,37 @@ Coverage means the share of narrator names in the first 8 links of each chain th
 
 | Book (sample) | Ours: first greedy | Ours: now | Current system | Agreement | Ours past the current chain |
 |---|---|---|---|---|---|
-| al-Bukhari (500) | 54% | **86%** | 81% | 84% | 229 |
-| al-Mustadrak (1,000) | 59% | **81%** | 92% | 61% † | 970 |
-| al-Mu'jam al-Kabir (500) | 70%* | **87%** | 81% | 89% | 391 |
-| al-Mu'jam al-Awsat (500) | 65%* | **83%** | 87% | 89% | 122 |
-| al-Mu'jam al-Saghir (500) | 65%* | **86%** | 84% | 86% | 122 |
-| al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **82%** | ✱ † | 45% † | 550 |
-| Shu'ab al-Iman (500) | 60%* | **73%** | 95% † | 80% † | 271 |
-| Sahih Ibn Hibban (500) | 74%* | **89%** | 85% | 90% | 189 |
-| Musnad Ahmad (500) | 75%* | **86%** | 85% | 87% | 129 |
-| al-Muwatta (500) | 53%* | **70%** ‡ | 78% ‡ | 87% | 139 |
-| Sunan al-Daraqutni (500) | 68%* | **84%** | 87% | 83% | 238 |
-| Sahih Ibn Khuzaymah (500) | 68%* | **85%** | 80% | 86% | 322 |
-| Mustakhraj Abi Awanah (500) | 67%* | **82%** | 68% | 85% | 532 |
-| Musannaf Abd al-Razzaq (500) | — | **77%** | 76% | 91% | 120 |
-| Musnad al-Tayalisi (500) | — | **85%** | ✱ | 80% | 22 |
-| Musnad al-Shafi'i (500) | — | **85%** | 80% | 92% | 149 |
-| Musnad al-Humaydi (500) | 44% | **83%** | 88% | 91% | 79 |
-| Sunan Sa'id b. Mansur (500) | — | **78%** | ✱ | 82% | 43 |
+| al-Bukhari (500) | 54% | **86%** | 81% | 84% | 230 |
+| al-Mustadrak (1,000) | 59% | **81%** | 92% | 61% † | 981 |
+| al-Mu'jam al-Kabir (500) | 70%* | **87%** | 81% | 89% | 393 |
+| al-Mu'jam al-Awsat (500) | 65%* | **84%** | 87% | 89% | 124 |
+| al-Mu'jam al-Saghir (500) | 65%* | **87%** | 84% | 86% | 126 |
+| al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **82%** | ✱ † | 45% † | 552 |
+| Shu'ab al-Iman (500) | 60%* | **73%** | 95% † | 80% † | 278 |
+| Sahih Ibn Hibban (500) | 74%* | **89%** | 85% | 90% | 193 |
+| Musnad Ahmad (500) | 75%* | **86%** | 85% | 87% | 132 |
+| al-Muwatta (500) | 53%* | **70%** ‡ | 78% ‡ | 87% | 141 |
+| Sunan al-Daraqutni (500) | 68%* | **85%** | 87% | 83% | 244 |
+| Sahih Ibn Khuzaymah (500) | 68%* | **85%** | 80% | 87% | 328 |
+| Mustakhraj Abi Awanah (500) | 67%* | **82%** | 68% | 85% | 536 |
+| Musannaf Abd al-Razzaq (500) | — | **77%** | 76% | 91% | 121 |
+| Musnad al-Tayalisi (500) | — | **86%** | ✱ | 80% | 22 |
+| Musnad al-Shafi'i (500) | — | **85%** | 80% | 92% | 155 |
+| Musnad al-Humaydi (500) | 44% | **84%** | 88% | 91% | 84 |
+| Sunan Sa'id b. Mansur (500) | — | **78%** | ✱ | 82% | 44 |
 | Musnad Ishaq (500) | — | **83%** | 82% | 88% | 216 |
-| Musnad al-Bazzar (500) | — | **86%** | 94% | 81% | 75 |
-| Musnad Abi Ya'la (500) | — | **84%** | 87% | 88% | 126 |
-| Sahih Muslim (500) | — | **87%** | 69% | 87% § | 504 |
-| Sunan Abi Dawud (500) | — | **84%** | 80% | 89% | 225 |
-| Jami' al-Tirmidhi (500) | — | **90%** | 90% | 91% | 128 |
-| Sunan al-Nasa'i (500) | — | **88%** | 82% | 88% | 219 |
-| Sunan Ibn Majah (500) | — | **88%** | 83% | 92% | 236 |
-| Sunan al-Darimi (500) | — | **85%** | 86% | 89% | 122 |
-| al-Adab al-Mufrad (500) | 58% | **82%** | 82% | 85% | 100 |
+| Musnad al-Bazzar (500) | — | **86%** | 94% | 81% | 76 |
+| Musnad Abi Ya'la (500) | — | **84%** | 87% | 88% | 134 |
+| Sahih Muslim (500) | — | **87%** | 69% | 87% § | 506 |
+| Sunan Abi Dawud (500) | — | **85%** | 80% | 89% | 232 |
+| Jami' al-Tirmidhi (500) | — | **90%** | 90% | 91% | 129 |
+| Sunan al-Nasa'i (500) | — | **88%** | 82% | 88% | 220 |
+| Sunan Ibn Majah (500) | — | **88%** | 83% | 92% | 238 |
+| Sunan al-Darimi (500) | — | **86%** | 86% | 89% | 125 |
+| al-Adab al-Mufrad (500) | 58% | **83%** | 82% | 85% | 102 |
 | al-Shama'il (396) | 72% | **87%** | 86% | 94% | 97 |
 | Musannaf Ibn Abi Shayba (500) | — | **77%** | 89% | 81% | 60 |
-| al-Sunan al-Kubra, al-Nasa'i (500) | — | **88%** | 87% | 87% | 139 |
+| al-Sunan al-Kubra, al-Nasa'i (500) | — | **88%** | 87% | 87% | 141 |
 
 \* Joint resolver already applied, before that compiler's shaykh books were added.
 ✱ Over 100%: the current system counts more links than our name segments (it also links the book's transmitters), so its share is not comparable.
@@ -377,7 +377,7 @@ Remaining resolver gaps:
 - [ ] Real ties left undecided: «أبو إسحاق» (al-Sabi'i / al-Shaybani), «أبو معاوية» (al-Darir / Hushaym), «عبد الله» bare
 - [x] The compiler's own shaykh list as context for the first link: already in the resolver; al-Hakim was not found as the compiler, fixed (Mustadrak 78% → 79%) (`56105f6`)
 - [x] «عن أبيه» (diagnosed by a sub-agent: 410 unresolved with a known son): the father may be the one registry entry whose nasab continues the son's (father + grandfather), even when unlisted, but only when the son is certain; it also breaks ties between listed shaykhs; «أبيه» must be the father of the son chosen on the path (it had paired «أبو بردة» with another candidate's father). Tahdhib heads with symbols and no colon («ر ٤ شعيب بن محمد», ~280 incl. «تمييز») fixed, so عمرو بن شعيب's father is found. 145 «أبيه» gained, 29 changed (mostly corrections: al-Baqir → علي بن الحسين), 2 lost. A rule rejecting a listed father whose own father differs from the grandfather was tried and dropped (it lost «سلمة بن عمرو بن الأكوع», «بريدة») (`0e4d8b1`)
-- [ ] Remaining «عن أبيه»: عمرو بن شعيب has 0 shaykhs parsed; a later full bench + table update
+- [x] Teacher lists missing from the Tahdhib parse: «روى عن ك سالم» (عمرو بن شعيب's typo'd colon; his «عن أبيه» now resolves, 65 names) and «روى عن X» with no colon at a line start (27 narrators: أحمد بن بشير، يعلى بن الحارث، العرزمي، أبي بن كعب), used only when no «روى عن:» exists and before the students. Full bench after the «عن أبيه» step: 455 narrators gained, 168 lost (39 had agreed; mostly header changes from the symbol fix); table updated (`COMMIT`)
 - [x] Port `ContextualDisambiguator`: rules listed and Itqan ids mapped (sub-agent), 28 unconditional rules our evidence confirms used as a fallback; the agreement metric uses the id mapping (`59df440`)
 - [x] Map every Itqan id used in the current chains to the registry (sub-agent; `review/map_itqan.py` → `review/itqan_id_map_all.json`, git-ignored): 16,337 ids, 9,027 exact / 2,732 probable / 4,578 none; 70 of the 77 hand-checked ids reproduced. "Probable" can be wrong (Abu Hurayra → another «عبد الرحمن بن صخر»), and so can an "exact" reached by eliminating namesakes (1 of 12 in a spot check); exact with a single nasab candidate held up. Used in the metric it changed nothing (those narrators already agree by name), so the metric keeps the 77 hand-checked ids; the full map is for Phase 6's comparison of the two databases
 - [x] **Closed as a known residual:** later namesakes chosen by chain (17 names on the 31-book bench: «أبو هريرة» → الكلابي, «أبو الوليد الفقيه» → ابن عرق). Deciding them needs death dates; revisit when Taqrib's dates are used for grading
