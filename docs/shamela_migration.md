@@ -365,9 +365,9 @@ Compilers' shaykh books (via `parse_shaykh_books.py`):
 
 General rijal books for what remains (each needs its own parser):
 - [x] تاريخ بغداد (736): `khatib` layout, stricter Tahdhib skip, cross-book duplicate merge; al-Daraqutni 74% → 76% (`bcf95f2`)
-- [ ] سير أعلام النبلاء (10906): not planned for the resolver — Lisan showed that extra biography books add namesakes about as often as narrators; reconsider only if grading needs it
+- [x] سير أعلام النبلاء (10906): **closed, not parsed** — Lisan showed that extra biography books add namesakes about as often as narrators (182 gained / 221 lost). Reconsider only if grading needs its verdicts
 - [x] لسان الميزان (36357): parsed (`parse_lisan.py` → `lisan.json`, 9,170 entries, 1,646 cross-references; first draft by a sub-agent) but **not merged** into the resolver. Even with namesakes of Tahdhib narrators skipped (same ism + father) and Tahdhib laqabs used as isms («بندار بن محمد») skipped, its 3,544 added narrators gained 182 names and lost 221 across the 31 books: criticised men rarely meant in these isnads, tying with «قتيبة», «علي بن المديني», «الحسن بن سفيان». Kept for narrator grading (Phase 3/5); the `lisan` layout in `parse_shaykh_books.py` is ready but commented out (`61d1618`)
-- [ ] الثقات ممن لم يقع في الكتب الستة (96165): same as السير
+- [x] الثقات ممن لم يقع في الكتب الستة (96165): **closed, not parsed**, same reason as السير
 
 Remaining resolver gaps:
 - [x] Names by grandfather or by "ابن X" («عبد الله بن أحمد بن حنبل», «عثمان بن أبي شيبة», «علي بن المديني», «إسحاق بن راهويه», «إسماعيل ابن علية») (`afaef5c`)
@@ -379,11 +379,10 @@ Remaining resolver gaps:
 - [ ] "عن أبيه" after an unresolved narrator
 - [x] Port `ContextualDisambiguator`: rules listed and Itqan ids mapped (sub-agent), 28 unconditional rules our evidence confirms used as a fallback; the agreement metric uses the id mapping (`59df440`)
 - [x] Map every Itqan id used in the current chains to the registry (sub-agent; `review/map_itqan.py` → `review/itqan_id_map_all.json`, git-ignored): 16,337 ids, 9,027 exact / 2,732 probable / 4,578 none; 70 of the 77 hand-checked ids reproduced. "Probable" can be wrong (Abu Hurayra → another «عبد الرحمن بن صخر»), and so can an "exact" reached by eliminating namesakes (1 of 12 in a spot check); exact with a single nasab candidate held up. Used in the metric it changed nothing (those narrators already agree by name), so the metric keeps the 77 hand-checked ids; the full map is for Phase 6's comparison of the two databases
-- [ ] Known residual: later namesakes chosen by chain (a handful: «أبو هريرة» → الكلابي, «أبو الوليد الفقيه» → ابن عرق); needs generation data
+- [x] **Closed as a known residual:** later namesakes chosen by chain (17 names on the 31-book bench: «أبو هريرة» → الكلابي, «أبو الوليد الفقيه» → ابن عرق). Deciding them needs death dates; revisit when Taqrib's dates are used for grading
 - [x] Measure precision on a systematic sample: 150 names, 94% (`369fd56`)
 - [x] Segmentation fixes from the review: the «ب» trailer bug, «- وهو ابن Y -», «يعني X», «X وأبي Y» (`a5a6751`)
 - [x] Kunyas glued in the edition («أبوالتياح», «أبويحيى», ~170 headers) were not read, so «أبي التياح» found only a bare stub from تعجيل المنفعة instead of يزيد بن حميد: split in `norm` / `soft_norm` (not «أبوه», «أبواب», «أبوين»). +1 point in 6 books; «أبي البختري» is now سعيد بن فيروز, not a later namesake (`4453885`)
-- [ ] Still from the review: later namesakes winning by chain («أبى هريرة» → الكلابي, «أبو الوليد الفقيه» → ابن عرق)
 - [x] Re-measure on 500 names with the sub-agent first pass: **97.0%** (95% CI 95.5–98.5) (`afcfbee`)
 - [x] Fix the 500-name review's error classes: Latin-digit footnote marks «(1)», «هذا» not a name, «بعض» unnamed, «يعنون / يعنيان», Muslim's speaker tags («… بن المثنى، قال ابن المثنى» repeats him), the Taqrib alias joins «ابن X» candidates («ابن علية» was his son Hammad), the grandfather rule ignores the narrator's own kunya («مالك بن يحيى» ≠ مالك بن دينار أبو يحيى; an ancestor's «بن أبي شيبة» stays), and Tahdhib heads with a bracketed number («(٢٢٥١) ع: سعيد بن أبي الحسن», 4 entries; 63 later entries renumbered by one, so their `tk` ids changed). 151 names gained, 84 changed — mostly the targeted errors; +1 point in 3 books (`b9b2ad0`)
 
