@@ -1,16 +1,16 @@
 """Phase 3: link the Ilal data (mudallisin, mukhtalitun) to registry ids.
 
 Usage: python link_ilal.py <data_dir> [<out.json>]
-  <data_dir> holds tahdhib.json, taqrib.json, align.json, extra_*.json (the registry inputs),
-  mudallisin.json (parse_mudallisin.py) and mukhtalitun.json (the merged ikhtilat extraction).
+  <data_dir> holds tahdhib.json, taqrib.json, align.json, extra_*.json (the registry inputs) and
+  mudallisin.json (parse_mudallisin.py). The mukhtalitun come from ilal_data/mukhtalitun.json next to
+  this script: al-Kawakib al-Nayyirat (309) and al-'Ala'i's al-Mukhtalitin (25846), read entry by entry
+  (by a sub-agent, every quote checked as a verbatim substring of its entry) and merged per narrator.
   Writes <out.json> (default <data_dir>/ilal.json) and prints the linking statistics.
 
 A narrator's name is matched like a list name (link_tahdhib's `candidates`, with the entry's book
-symbols). When several narrators fit, the one whose own words (Taqrib's verdict, Tahdhib's quotes)
-mention tadlis / ikhtilat is taken, then the one whose header has every word of the name, then a
-clearly more cited one (`fame_pick`); otherwise it stays unlinked, with its candidates, for review.
-A student heard before / after the ikhtilat must be listed with the mukhtalit (as his student, or the
-mukhtalit as his shaykh), except when the name has a single candidate in the whole registry.
+symbols); see link_narrator for how a tie is broken. A student heard before / after the ikhtilat must
+be listed with the mukhtalit (as his student, or the mukhtalit as his shaykh), except when the name has
+a single candidate in the whole registry, or the critics name a famous student the lists miss.
 """
 import json
 import os
@@ -25,7 +25,8 @@ from pipeline import load_linker, registry_ids  # noqa: E402
 DATA = os.path.abspath(sys.argv[1])
 OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(DATA, 'ilal.json')
 
-ns = load_linker(SCRIPTS, DATA, os.path.join(DATA, '..', 'itqan', 'sunni', 'bukhari'))
+# Any book folder serves the linker's loader; only the registry is used here.
+ns = load_linker(SCRIPTS, DATA, os.path.normpath(os.path.join(SCRIPTS, '..', '..', '..', 'data', 'itqan', 'sunni', 'bukhari')))
 entries, candidates, symbol_filter, fame_pick = ns['entries'], ns['candidates'], ns['symbol_filter'], ns['fame_pick']
 shuyukh_of, talamidh_of, soft_norm, tokens = ns['shuyukh_of'], ns['talamidh_of'], ns['soft_norm'], ns['tokens']
 nasab_chain = ns['nasab_chain']
@@ -91,7 +92,9 @@ def link_narrator(names: list[str], symbols: list[str] | str, marker: re.Pattern
                 pool.setdefault(j, form)
     if not pool:
         return {'id': None, 'how': 'missing'}
-    score = {j: max(cover(n, j) for n in names) for j in pool}
+    # A one-word short name («الغطريفي», «عارم») finds candidates but does not score them: its cover is trivially 1.
+    scored = [n for n in names if len(name_words(n)) > 1] or names
+    score = {j: max(cover(n, j) for n in scored) for j in pool}
     best = max(score.values())
     top = {j for j in pool if score[j] == best}
     how = 'cover'
@@ -174,20 +177,33 @@ if os.path.exists(mud_path):
                                   'also_mukhtalit': e.get('also_mukhtalit', False), **link})
     stats['mudallisin'] = Counter(m['how'] for m in out['mudallisin'])
 
-mukh_path = os.path.join(DATA, 'mukhtalitun.json')
+def students_in(name: str) -> list[list[str]]:
+    """The students a name stands for, each as forms to try in order: «غندر (محمد بن جعفر)» is one
+    student (the name in brackets, then «غندر»); «الحمادان (حماد بن زيد وحماد بن سلمة)» is two."""
+    inner = re.search(r'\(([^)]+)\)', name)
+    if not inner:
+        return [[name.strip()]]
+    parts = [p.strip() for p in re.split(r'\s+و(?=\S+ بن |أب[يو] )', inner.group(1)) if p.strip()]
+    if len(parts) > 1:
+        return [[p] for p in parts]
+    return [[parts[0], re.sub(r'\s*\([^)]*\)', '', name).strip()]]
+
+
+mukh_path = os.path.join(SCRIPTS, 'ilal_data', 'mukhtalitun.json')
 if os.path.exists(mukh_path):
-    for e in json.load(open(mukh_path, encoding='utf-8'))['entries']:
+    for e in json.load(open(mukh_path, encoding='utf-8'))['narrators']:
         link = overridden('mukhtalitun', e['name'],
                           link_narrator([e['name']] + e.get('short_names', []), e.get('symbols', ''), IKHTILAT))
-        rec = {k: e.get(k) for k in ('name', 'books', 'ikhtilat', 'year', 'severity', 'no_one_after', 'group_rules')}
+        rec = {k: e.get(k) for k in ('name', 'books', 'ikhtilat', 'years', 'severity', 'no_one_after', 'group_rules')}
         rec.update(link)
         rec['hearings'] = []
         if link.get('index') is not None:
-            for timing in ('before', 'after', 'both'):
-                for s in e.get(f'heard_{timing}', []):
-                    rec['hearings'].append({'timing': timing, 'name': s['name'], 'source': s.get('source'),
-                                            'critic': s.get('critic'), 'quote': s.get('quote'),
-                                            **link_student(s['name'], link['index'])})
+            for s in e['students']:
+                for forms in students_in(s['name']):
+                    found = next((r for r in (link_student(n, link['index']) for n in forms) if r['id']), None)
+                    found = overridden('students', f"{e['name']}|{forms[0]}", found or link_student(forms[0], link['index']))
+                    rec['hearings'].append({'timing': s['timing'], 'name': forms[0], 'books': s['books'],
+                                            'sources': s['sources'], 'claims': s['claims'], **found})
         out['mukhtalitun'].append(rec)
     stats['mukhtalitun'] = Counter(m['how'] for m in out['mukhtalitun'])
     stats['hearings'] = Counter(h['how'] for m in out['mukhtalitun'] for h in m['hearings'])

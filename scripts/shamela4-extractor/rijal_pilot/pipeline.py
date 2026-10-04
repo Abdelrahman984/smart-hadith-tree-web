@@ -6,7 +6,9 @@ Steps (1-5 are subprocesses, 6 links in-process, then the registry is written):
   1 parse_tahdhib  2 parse_taqrib  3 align_taqrib  4 parse_lisan  5 parse_shaykh_books
   6 link (link_tahdhib + gap_test + chain_resolver, loaded as compare_current.py does)
     and write registry.json / registry_stats.json.
---from N starts at step N (1-6) and reuses the earlier outputs in out_dir.
+  7 ilal: parse_mudallisin (طبقات المدلسين, 1186) and link_ilal (mudallisin and the curated
+    ilal_data/mukhtalitun.json to registry ids, with ilal_overrides.json) → ilal.json.
+--from N starts at step N (1-7) and reuses the earlier outputs in out_dir.
 Set PYTHONIOENCODING=utf-8. First draft by a Sonnet sub-agent, reviewed.
 
 List links in registry.json are strict: a list name links to a narrator only when it has one candidate
@@ -146,7 +148,7 @@ def main():
     ap.add_argument('dump_dir')
     ap.add_argument('out_dir')
     ap.add_argument('--scripts', default=os.path.dirname(os.path.abspath(__file__)))
-    ap.add_argument('--from', dest='start', type=int, default=1, choices=range(1, 7))
+    ap.add_argument('--from', dest='start', type=int, default=1, choices=range(1, 8))
     a = ap.parse_args()
     scripts, dump, out = (os.path.abspath(p) for p in (a.scripts, a.dump_dir, a.out_dir))
     os.makedirs(out, exist_ok=True)
@@ -159,9 +161,7 @@ def main():
         ('parse_lisan', [py('parse_lisan.py'), dump, 'lisan.json']),
         ('parse_shaykh_books', [py('parse_shaykh_books.py'), dump, 'tahdhib.json', 'extra_shaykh_books.json']),
     ]
-    for k, (name, args) in enumerate(steps, 1):
-        if k < a.start:
-            continue
+    def run(k: int, name: str, args: list[str]):
         t = time.time()
         r = subprocess.run([sys.executable] + args, cwd=out, env=env, capture_output=True, text=True,
                            encoding='utf-8', errors='replace')
@@ -169,14 +169,22 @@ def main():
             print(f'step {k} {name}: FAILED ({r.returncode})\n{r.stdout[-2000:]}\n{r.stderr[-3000:]}')
             sys.exit(1)
         print(f'step {k} {name}: {time.time() - t:.1f}s', flush=True)
-    t = time.time()
-    # gap_test.py wants a book folder and a sample; any book works, only the registry is used here.
-    book = os.path.normpath(os.path.join(scripts, '..', '..', '..', 'data', 'itqan', 'sunni', 'bukhari'))
-    ns = load_linker(scripts, out, book)
-    print(f'step 6 link: {time.time() - t:.1f}s', flush=True)
-    t = time.time()
-    stats = build_registry(ns, out)
-    print(f'registry: {time.time() - t:.1f}s  {json.dumps(stats, ensure_ascii=False)}')
+        return r.stdout
+
+    for k, (name, args) in enumerate(steps, 1):
+        if k >= a.start:
+            run(k, name, args)
+    if a.start <= 6:
+        t = time.time()
+        # gap_test.py wants a book folder and a sample; any book works, only the registry is used here.
+        book = os.path.normpath(os.path.join(scripts, '..', '..', '..', 'data', 'itqan', 'sunni', 'bukhari'))
+        ns = load_linker(scripts, out, book)
+        print(f'step 6 link: {time.time() - t:.1f}s', flush=True)
+        t = time.time()
+        stats = build_registry(ns, out)
+        print(f'registry: {time.time() - t:.1f}s  {json.dumps(stats, ensure_ascii=False)}')
+    run(7, 'parse_mudallisin', [py('parse_mudallisin.py'), dump, 'mudallisin.json'])
+    print(run(7, 'link_ilal', [py('link_ilal.py'), out]).strip().splitlines()[-4:])
 
 
 if __name__ == '__main__':
