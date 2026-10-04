@@ -38,6 +38,13 @@ Verified in Chromium with touch emulation (360px) on a temporary test page (remo
 closes, left and right edge terms stay inside the viewport, a term inside a clickable card does not trigger the card,
 Escape closes, desktop hover shows/hides, keyboard Enter opens. **Not** verified on a real iOS/Android device.
 
+## Deferred by the project owner
+
+**Text alternative for the isnad graph** ("عرض كقائمة": ordered chain from the Companion to the compiler, with the
+transmission term and warnings as text, plus a "copy isnad" button). Not built yet; revisit after the higher-priority
+items (live demo, video, measurement). Design sketch: one list item per link using the existing `transmissionTerm`,
+`isAnomaly`/`anomalyReason` and Ilal findings, so no new data is needed.
+
 ## Not covered (needs a backend with data or a human)
 
 - Tree, comparative (`/takhreej`), books-detail and chapter pages, the narrator drawer content, the Ilal panel and the
