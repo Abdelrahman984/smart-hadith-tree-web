@@ -256,6 +256,12 @@ Fixing them added ~5,600 list items. Complete lists also make real namesakes tie
 - Tahdhib gives no shaykh list for al-Tirmidhi, al-Nasa'i and Ibn Majah («قد سميناهم في مواضعهم»); their link comes from each shaykh's student list, which works.
 - «أبو بكر محمد بن أحمد» in the Mustadrak is a real ambiguity: several of al-Hakim's shaykhs carry it (Ibn Balawayh among them), so it stays undecided. Putting the compiler's shaykhs ahead of the 80-candidate cut changed nothing there, and for a bare «محمد» it made things worse, so it was not kept.
 
+**Precision review (150 names, run `final`).** A fixed sample (`data/shamela_rijal/review/precision_sample.py final 150 2026`: 15 resolved names from each of 10 books) was judged against the isnad, the registry lists and knowledge of the narrators, ignoring the current system. A Sonnet sub-agent did the first pass; every "wrong" / "unsure" and 40 random "right" verdicts were then checked by hand, and all were confirmed. Result: **141 right, 8 wrong, 1 unsure: precision 94%** (95% CI 90–98%).
+- By method: `unique` 65/66, `chain` 73/78, `chain_fame` 3/6 (small, but in line with its lower agreement).
+- **Where we disagree with the current system (19 names), ours was right every time.** The agreement column above understates our accuracy.
+- Names past the end of the current chain are the weak spot: 16 right, 6 wrong. The errors: a kunya stub entry («أبو التياح» instead of يزيد بن حميد); segmentation («إسماعيل - وهو ابن علية -» read as Ibn Ayyash, so «عبد العزيز» went wrong too; «سعيد وأبى سلمة» as one name); later namesakes chosen by the chain («أبى هريرة» → محمد بن أيوب الكلابي, «أبو الوليد الفقيه» → ابن عرق); «محمد» after Hisham → Abu al-Zubayr (Ibn Sirin); Daraqutni's «إسحاق بن إبراهيم» → Ibn Rahawayh (al-Dabari); «أبيه» after a wrong «طلحة».
+- Verdicts are in `review/precision_firstpass.json`.
+
 A manual review of 12 Ibn Hibban chains (~70 names) found 1 likely error: "أبي جعفر" from يحيى بن أبي كثير → al-Baqir, probably al-Ansari al-Mu'adhdhin.
 
 ### 6.1 Data finding: shifted hadith records (affects the live app today)
@@ -291,7 +297,7 @@ In the live database, **1,296 of Muslim's 7,368 hadiths (18%)** have a first cha
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** the precision review (a 150-name sample is ready, see Phase 2), then the first unchecked item of Phase 2's resolver gaps. The record-boundary fix (§6.1) stays in Phase 4 unless the user asks for it earlier.
+**Next task:** fix what the precision review found (Phase 2, resolver gaps). The record-boundary fix (§6.1) stays in Phase 4 unless the user asks for it earlier.
 
 ### Overview
 
@@ -353,13 +359,15 @@ General rijal books for what remains (each needs its own parser):
 Remaining resolver gaps:
 - [x] Names by grandfather or by "ابن X" («عبد الله بن أحمد بن حنبل», «عثمان بن أبي شيبة», «علي بن المديني», «إسحاق بن راهويه», «إسماعيل ابن علية») (`afaef5c`)
 - [x] Isnad clean-up: «رضى الله عنه» with ى, accusative «أبا هريرة» / «جابرا», «قالا» after a name, «أبي، ح»; agreement no longer counts names past the end of the current chain (`afaef5c`)
-- [ ] Al-Baghawi as «ابن منيع» (and other shaykhs known by a maternal grandfather)
+- [x] Al-Baghawi as «ابن منيع»: tried and not kept. A maternal-grandfather candidate («ابن بنت أحمد بن منيع» → «ابن منيع») fixed 3 al-Daraqutni names but broke 2 real ties («ابن نمير» → سوادة بن علي, «ابن حرب» → الحسن بن عثمان); 73 headers say «ابن بنت X» and most are not called «ابن X». Worth a dedicated alias only if the precision review finds more
 - [x] Companions and common names when context is weak: Tahdhib lists repaired (women, line breaks, separators, «N:» heads), fame tie-break for equally linked candidates, «ابن عمر» / «أبو سلمة بن عبد الرحمن» / «أبي بن كعب» / «ذكوان أبو صالح» matching (`b15bcd2`)
 - [ ] Real ties left undecided: «أبو إسحاق» (al-Sabi'i / al-Shaybani), «أبو معاوية» (al-Darir / Hushaym), «عبد الله» bare
 - [x] The compiler's own shaykh list as context for the first link: already in the resolver; al-Hakim was not found as the compiler, fixed (Mustadrak 78% → 79%) (`56105f6`)
 - [ ] "عن أبيه" after an unresolved narrator
 - [ ] Port the contextual overrides of `ContextualDisambiguator` (e.g. Sufyan / Hammad by student) to the new IDs
-- [ ] Measure precision on a larger, systematic sample (not only small manual reviews)
+- [x] Measure precision on a systematic sample: 150 names, 94% (`COMMIT`)
+- [ ] Fix what the review found: kunya stub entries, «X - وهو ابن Y -» and «X وY» in segmentation, later namesakes winning by chain in early positions
+- [ ] Re-measure on 500 names with the sub-agent first pass, reviewing only flagged cases and a random 10%
 
 Housekeeping:
 - [x] Delete the superseded `parse_hakim_books.py` and `isnad_test.py` (user approved)
