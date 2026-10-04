@@ -27,6 +27,7 @@ from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build_registry import rank  # noqa: E402  Ibn Hajar's twelve ranks
+from compiler_items import carries_symbol, compiler_entries, compilers_named  # noqa: E402
 
 
 COMPANION = re.compile(r'صحابي|صحابية|له صحبة|لها صحبة|أم المؤمنين')
@@ -67,6 +68,26 @@ def load_linker(scripts, out_dir, book_dir):
     exec(compile(src.split('MAX_DEPTH = 8')[0], 'gap_test.py', 'exec'), ns)
     exec(compile(open(os.path.join(scripts, 'chain_resolver.py'), encoding='utf-8').read(), 'chain_resolver.py', 'exec'), ns)
     return ns
+
+
+def link_compilers(entries, n_tahdhib, ids, reg):
+    """Add the compilers named by a bare word in a student list («النسائي», «ابن ماجه», «الجماعة») to that
+    narrator's strict `talamidh` (compiler_items.py; «أبو داود» also needs the shaykh's symbol «د», because
+    al-Tayalisi has the same name). Returns the number of links added, by compiler."""
+    compilers = compiler_entries(entries, n_tahdhib)
+    added = Counter()
+    for i in range(n_tahdhib):
+        for it in entries[i]['talamidh']:
+            for key in compilers_named(it['name']):
+                c = compilers.get(key)
+                if c is None or c == i or ids[c] in reg[i]['talamidh']:
+                    continue
+                if key == 'abudawud' and not carries_symbol(entries[i]['symbols'], key):
+                    continue
+                reg[i]['talamidh'].append(ids[c])
+                added[key] += 1
+        reg[i]['talamidh'].sort()
+    return dict(added)
 
 
 def build_registry(ns, out_dir):
@@ -125,6 +146,7 @@ def build_registry(ns, out_dir):
             'talamidh': sorted(ids[j] for j in strict(i, e['talamidh'], shuyukh_of)),
             'shuyukh_raw': e['shuyukh'], 'talamidh_raw': e['talamidh'], 'quotes': e['quotes'],
         })
+    compiler_links = link_compilers(entries, n_tahdhib, ids, reg)
     json.dump(reg, open(os.path.join(out_dir, 'registry.json'), 'w', encoding='utf-8'), ensure_ascii=False)
     n = len(reg)
     avg = lambda f: round(sum(len(r[f]) for r in reg) / n, 3)
@@ -138,6 +160,7 @@ def build_registry(ns, out_dir):
         'with_talamidh_resolved': sum(1 for r in reg if r['talamidh']),
         'avg_shuyukh_resolved': avg('shuyukh'), 'avg_talamidh_resolved': avg('talamidh'),
         'avg_shuyukh_raw': avg('shuyukh_raw'), 'avg_talamidh_raw': avg('talamidh_raw'),
+        'compiler_links': compiler_links,
     }
     json.dump(stats, open(os.path.join(out_dir, 'registry_stats.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     return stats
