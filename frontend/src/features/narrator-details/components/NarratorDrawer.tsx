@@ -6,6 +6,7 @@ import { useNarratorDrawerStore } from '../store/useNarratorDrawerStore';
 import { X, Sparkles, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import AiNotice from '@/components/AiNotice';
+import GlossaryTerm from '@/features/glossary/GlossaryTerm';
 
 const VERDICT_AR: Record<string, string> = {
   reliable: "ثقة",
@@ -161,12 +162,12 @@ export default function NarratorDrawer() {
                   )}
                   {narrator.isMudallis && (
                     <span className="px-2 py-1 bg-orange-100 text-orange-800 border border-orange-300 rounded text-xs font-bold">
-                      موصوف بالتدليس
+                      موصوف بـ<GlossaryTerm id="tadlis">التدليس</GlossaryTerm>
                     </span>
                   )}
                   {narrator.hasMukhtalit && (
                     <span className="px-2 py-1 bg-yellow-100 text-yellow-800 border border-yellow-300 rounded text-xs font-bold">
-                      اختلط بأخرة
+                      <GlossaryTerm id="ikhtilat">اختلط</GlossaryTerm> بأخرة
                     </span>
                   )}
                 </div>

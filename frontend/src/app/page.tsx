@@ -131,6 +131,12 @@ export default function Home() {
               <Search className="w-4 h-4" />
               <span>البحث والتخريج</span>
             </Link>
+            <Link
+              href="/glossary"
+              className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+            >
+              قاموس المصطلحات
+            </Link>
           </nav>
         </div>
       </header>
