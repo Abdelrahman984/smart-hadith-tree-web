@@ -372,7 +372,7 @@ Remaining resolver gaps:
 - [x] The compiler's own shaykh list as context for the first link: already in the resolver; al-Hakim was not found as the compiler, fixed (Mustadrak 78% → 79%) (`56105f6`)
 - [ ] "عن أبيه" after an unresolved narrator
 - [x] Port `ContextualDisambiguator`: rules listed and Itqan ids mapped (sub-agent), 28 unconditional rules our evidence confirms used as a fallback; the agreement metric uses the id mapping (`59df440`)
-- [ ] Map every Itqan id used in the current chains to the registry (sub-agent task): exact agreement for the whole bench, and needed for Phase 6
+- [x] Map every Itqan id used in the current chains to the registry (sub-agent; `review/map_itqan.py` → `review/itqan_id_map_all.json`, git-ignored): 16,337 ids, 9,027 exact / 2,732 probable / 4,578 none; 70 of the 77 hand-checked ids reproduced. "Probable" can be wrong (Abu Hurayra → another «عبد الرحمن بن صخر»), and so can an "exact" reached by eliminating namesakes (1 of 12 in a spot check); exact with a single nasab candidate held up. Used in the metric it changed nothing (those narrators already agree by name), so the metric keeps the 77 hand-checked ids; the full map is for Phase 6's comparison of the two databases
 - [ ] Known residual: later namesakes chosen by chain (a handful: «أبو هريرة» → الكلابي, «أبو الوليد الفقيه» → ابن عرق); needs generation data
 - [x] Measure precision on a systematic sample: 150 names, 94% (`369fd56`)
 - [x] Segmentation fixes from the review: the «ب» trailer bug, «- وهو ابن Y -», «يعني X», «X وأبي Y» (`a5a6751`)
