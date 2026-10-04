@@ -105,6 +105,7 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`, plus `<id>_foot.tsv` 
 | `gap_test.py` | Isnad segmentation and clean-up, plus a per-depth coverage report. Its helpers are reused by the other scripts. |
 | `gap_books.py` | Which rijal books would cover the missing narrators. |
 | `../build_shamela_books.py` | **Phase 4 builder**: `data/shamela/dump/` → `data/shamela/<slug>/` in the Phase 4 format, records cut at the edition's in-text hadith numbers. `python scripts/shamela4-extractor/build_shamela_books.py [out] [slug ...]`. |
+| `map_records.py` | Pairs Phase 4 records with the current hadiths (by text, and by number where reliable) for `bench.py --texts shamela`. |
 | `check_record_boundaries.py` | Classifies every record in `data/itqan/sunni` as clean, prefix tail, or **shifted** (the isnad belongs to the next hadith). See §6.1. |
 | `compare_current.py` | **Main benchmark**: our resolution versus the current DB chains on the same hadiths, plus the agreement rate. |
 | `bench.py` | **Runs `compare_current.py` on 4 or all 31 books** (in parallel), keeps each run in `data/shamela_rijal/results/<tag>/` (each name with its registry `id`, the `verbs` between it and the next name, and the tied candidates `ties` when undecided), and prints one line per book with the change since the previous run, the names gained and lost, and a sample of new disagreements to review. |
@@ -480,7 +481,9 @@ A record:
   "arabic": "حدثناه أبو عبد الله …",    // full cleaned text, harakat kept, footnote marks and page marks removed
   "parts": [{"type": "isnad", "start": 0, "end": 210}, {"type": "matn", "start": 210, "end": 400},
             {"type": "remark", "start": 401, "end": 470}],   // spans of "arabic" (task 4.5)
-  "footnotes": [{"at": 209, "text": "إسناده صحيح …"}]          // the editor's note, anchored at its mark's offset
+  "footnotes": [{"at": 209, "text": "إسناده صحيح …"}],         // the editor's note, anchored at its mark's offset
+  "narrators": [{"start": 9, "end": 31, "man": 3889}],         // only in Shamela's linked editions: span of "arabic" + S1.db narrator id
+  "groups": [{"start": 210, "end": 400, "key": 2464}]          // only in linked editions: a <hadeeth-M> matn span; M = hadeeth.db key_id
 }
 ```
 
@@ -506,6 +509,7 @@ A record:
   | Ibn Abi Shayba | 333 | ت الشثري | most complete (40,754 numbers), unvoweled |
 
 - **Finding: Shamela links narrators.** Seven editions (the six above with links, and al-Tayalisi 1456, already one of the 19) wrap each isnad narrator as `<a href="inr://man-N">` (~200,000 names: Bukhari 37,109, Muslim 48,270, Abu Dawud 31,629, al-Nasa'i 35,128, al-Tirmidhi 24,493, al-Tayalisi 15,226, al-Muwatta 7,189) and each matn as `<hadeeth-M>`. N is an id in Shamela's narrator encyclopedia, `database\service\S1.db` table `b` (18,989 narrators: short and full name, death year, the critics' quotes with their books, and kunya, nasab, residence, travels, Taqrib tabaqa, Ibn Hajar's and al-Dhahabi's verdicts). Its text is a simple byte substitution, decodable from the linked names. `service\hadeeth.db` groups the same hadith across 9 books (`key_id` → book, page). **User decision:** keep the ids in the records and use them to measure our resolver now; whether to merge the encyclopedia into the registry is decided after the measurement.
+- [x] Measure the new texts on the bench: `map_records.py` pairs each new record with the current hadith by word trigrams of its opening (one record per current hadith; where 80%+ of text matches also agree on the edition's number — 15 of the 19 books — the number is required, since a shared matn and isnad end once paired two different hadiths); `bench.py --texts shamela` reads `data/shamela/<book>` through `maps/<book>.json`, and `compare_current.py` takes `CURRENT_MAP`. Unchanged on the Itqan texts (31 books, 0 gained / 0 lost against `final3`). On the new texts (run `p4s19`, a different 500-hadith sample): coverage within ±2 points in every book; agreement al-Mustadrak 61% → **80%**, al-Sunan al-Kubra 45% → **66%**, al-Bazzar 81% → 87%, others ±2; names past the current chain al-Mustadrak 984 → 423, al-Sunan al-Kubra 555 → 140. Shu'ab 79% → 70%: its "disagreements" are hadiths whose current chain lacks the isnad's upper part (al-Bayhaqi's shaykhs), not wrong pairs (checked), so it stays †. A hand check of 10 text-only pairs (al-Mustadrak, al-Bayhaqi) found 1 wrong pair.
 - [ ] Extract them with footnotes (`foot`) for takhrij and editors' grades (`ShamelaLuceneDumper` already writes `<id>_foot.tsv` since `75ae047`)
 - [ ] Separate the compiler's own remarks from the matn, and keep volume and page references
 - [ ] Move all 31 books to `data/shamela/` in one format

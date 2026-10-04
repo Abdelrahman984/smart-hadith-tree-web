@@ -9,9 +9,12 @@ data/shamela_rijal/results/<tag>/<book>.json (SAVE= format) and prints:
 
 Usage (from data/shamela_rijal):
   python ../../scripts/shamela4-extractor/rijal_pilot/bench.py <tag> [--books quick|all|b1,b2]
-                                                             [--base <tag>] [--review N]
+                                                             [--base <tag>] [--review N] [--texts shamela]
 --books quick (default) = Bukhari, the Kabir, the Mustadrak, al-Daraqutni; --base defaults to the
-most recent earlier run of the same books; --review defaults to 12.
+most recent earlier run of the same books; --review defaults to 12. --texts shamela reads the Phase 4
+texts (../shamela/<book>) instead of ../itqan/sunni/<book>, paired with the current chains through
+maps/<book>.json (map_records.py, made when missing); its sample is other hadiths, so compare its
+runs with each other, not with Itqan-text runs.
 """
 import argparse
 import json
@@ -25,7 +28,9 @@ from concurrent.futures import ThreadPoolExecutor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 COMPARE = os.path.join(HERE, 'compare_current.py')
+MAP_RECORDS = os.path.join(HERE, 'map_records.py')
 RESULTS = 'results'
+TEXTS = 'itqan'
 
 # book -> (compiler's Tahdhib header prefix, current-system chains file, sample size)
 BOOKS = {
@@ -69,7 +74,14 @@ def run_book(tag: str, book: str) -> dict:
     compiler, current, n = BOOKS[book]
     out = os.path.join(RESULTS, tag, f'{book}.json')
     env = dict(os.environ, SAVE=out, PYTHONIOENCODING='utf-8')
-    p = subprocess.run([sys.executable, COMPARE, 'tahdhib.json', f'../itqan/sunni/{book}', current, compiler,
+    book_dir = f'../itqan/sunni/{book}'
+    if TEXTS == 'shamela':
+        book_dir, mp = f'../shamela/{book}', os.path.join('maps', f'{book}.json')
+        if not os.path.exists(mp):
+            os.makedirs('maps', exist_ok=True)
+            subprocess.run([sys.executable, MAP_RECORDS, book_dir, current, mp], capture_output=True, env=env)
+        env['CURRENT_MAP'] = mp
+    p = subprocess.run([sys.executable, COMPARE, 'tahdhib.json', book_dir, current, compiler,
                         str(n), '0'], capture_output=True, text=True, encoding='utf-8', env=env)
     t = p.stdout
     ours = re.search(r'ours\s+: resolved \d+ \((\d+)%\)', t)
@@ -115,7 +127,10 @@ def main() -> None:
     ap.add_argument('--books', default='quick')
     ap.add_argument('--base')
     ap.add_argument('--review', type=int, default=12)
+    ap.add_argument('--texts', choices=('itqan', 'shamela'), default='itqan')
     a = ap.parse_args()
+    global TEXTS
+    TEXTS = a.texts
     books = QUICK if a.books == 'quick' else list(BOOKS) if a.books == 'all' else a.books.split(',')
     base = a.base or next((t for t in reversed(runs_with(books)) if t != a.tag), None)
     os.makedirs(os.path.join(RESULTS, a.tag), exist_ok=True)

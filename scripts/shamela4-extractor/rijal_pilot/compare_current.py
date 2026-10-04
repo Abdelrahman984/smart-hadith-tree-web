@@ -31,8 +31,15 @@ def key(text: str) -> str:
 
 
 current = {}
-for h in json.load(open(CURRENT, encoding='utf-8')):
+_current = json.load(open(CURRENT, encoding='utf-8'))
+for h in _current:
     current.setdefault(key(h['head']), h)
+# The Phase 4 texts (data/shamela/) have other record boundaries: map_records.py pairs them with the
+# current hadiths by text, and CURRENT_MAP replaces the 120-character key.
+if os.environ.get('CURRENT_MAP'):
+    _by_id = {h['id']: h for h in _current}
+    current = {k: _by_id[i] for k, i in json.load(open(os.environ['CURRENT_MAP'], encoding='utf-8'))['map'].items()
+               if i in _by_id}
 
 # Names in the first two positions of at least 20% of the sample's chains.
 _open = Counter(s for t in sample for s in [x for x in chain_segments(t) if is_name(x)][:2])
