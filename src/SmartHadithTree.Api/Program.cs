@@ -60,14 +60,20 @@ builder.Services.AddControllers()
             System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
     });
 
-// ── CORS (allow Next.js dev server) ────────────────────────────────
+// ── CORS ───────────────────────────────────────────────────────────
+// Allowed browser origins come from configuration (Cors:AllowedOrigins, or the environment
+// variables Cors__AllowedOrigins__0, Cors__AllowedOrigins__1, ...). Defaults to the Next.js dev server.
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+if (allowedOrigins is null || allowedOrigins.Length == 0)
+{
+    allowedOrigins = new[] { "http://localhost:3000", "https://localhost:3000" };
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins(
-                "http://localhost:3000",
-                "https://localhost:3000")
+        policy.WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -109,7 +115,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// Behind a TLS-terminating proxy (container platforms) the app only sees plain HTTP.
+if (!app.Configuration.GetValue<bool>("DisableHttpsRedirection"))
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseCors("AllowFrontend");
 app.MapControllers();
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from '@tanstack/react-query';
-import { getNarratorDetails } from '@/lib/api';
+import { API_BASE, getNarratorDetails } from '@/lib/api';
 import { useNarratorDrawerStore } from '../store/useNarratorDrawerStore';
 import { X, Sparkles, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
@@ -66,7 +66,7 @@ export default function NarratorDrawer() {
     setIsAiLoading(true);
     setAiError(null);
     try {
-      const res = await fetch(`http://localhost:5147/api/Narrators/${selectedNarratorId}/ai-summary`);
+      const res = await fetch(`${API_BASE}/Narrators/${selectedNarratorId}/ai-summary`);
       if (!res.ok) throw new Error("فشل استخراج البيانات. حاول لاحقاً أو راجع أقوال العلماء الأصلية.");
       const data = await res.json();
       setAiSummary(data);
