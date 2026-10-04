@@ -59,12 +59,15 @@ AFTER_NAME = re.compile(r'\s*(?:رض[يى] الله (?:عنه|عنها|عنهم�
 # "عائشة، زوج النبي", "ابن جريج، أخبرهم", "أبي، ح" (tahwil).
 # "وهو / يعني" go on to identify him ("هشام، يعني ابن حسان", "سفيان، يعني الثوري"), not to describe
 # him ("المغيرة بن أبي بردة، وهو من بني عبد الدار").
+# "يعني" / "يعنون" (Muslim: "إسماعيل، يعنون ابن جعفر") / "يعنيان".
+_YANI = r'(?:يعني|يعنى|يعنون|يعنيان)'
 NAME_GOES_ON = re.compile(r'\s*(?:(?:بن|ابن|بنت|أبو|أبي|أبا)\s'
-                          r'|(?:وهو|يعني|هو)\s+(?!(?:من|في|أخو|أحد|مولى|صاحب|ثقة|الذي|كان)\s))')
+                          rf'|(?:وهو|{_YANI}|هو)\s+(?!(?:من|في|أخو|أحد|مولى|صاحب|ثقة|الذي|كان)\s))')
 
 
 def clean_segment(s: str) -> str:
-    s = re.sub(r'\s+', ' ', re.sub(r'\(¬?[٠-٩]+\)', ' ', s)).strip()
+    # Footnote marks "(٣)", "(¬٣)" and, in Musnad Ahmad, "(1)" ("ابن أبي أنيس (1) ، عن أبيه").
+    s = re.sub(r'\s+', ' ', re.sub(r'\(¬?[٠-٩0-9]+\)', ' ', s)).strip()
     s = s.replace(' , ', '، ').replace(',', '،')
     s = re.sub(r'\s+-\s*|\s*-\s+', ' ', s)              # "إسماعيل، - وهو ابن علية -"
     s = AFTER_NAME.split(s)[0]
@@ -74,11 +77,11 @@ def clean_segment(s: str) -> str:
             s = head
     s = re.sub(r'\s+ح\s*$', '', s.strip(' ،:.'))       # "أبي ح": tahwil mark
     # "إسماعيل، وهو ابن علية", "سعيد هو ابن أبي سعيد": the "ابن" part completes the name.
-    if m := re.match(r'(\S+(?:\s\S+)?)،?\s+(?:وهو|يعني|هو)\s+(ابن\s.+)', s):
+    if m := re.match(rf'(\S+(?:\s\S+)?)،?\s+(?:وهو|{_YANI}|هو)\s+(ابن\s.+)', s):
         s = f"{m.group(1).rstrip('،')} {m.group(2)}"
     # "سعيد هو المقبري", "أبي معاذ هو عطاء بن أبي ميمونة": the part after "هو" identifies the narrator.
-    elif re.search(r'\s(?:هو|يعني)\s', s):              # also "سفيان، يعني الثوري"
-        s = re.split(r'\s(?:هو|يعني)\s', s, maxsplit=1)[1]
+    elif re.search(rf'\s(?:هو|{_YANI})\s', s):          # also "سفيان، يعني الثوري"
+        s = re.split(rf'\s(?:هو|{_YANI})\s', s, maxsplit=1)[1]
     # "علي بن حمشاذ ويحيى بن محمد" -> the first shaykh. The text is stripped first so that a
     # name that itself starts with و ("وهب بن جرير") is not taken for a conjunction.
     s = re.split(r'\s+و(?=\S+ بن |أب[يوى]\s)', s)[0]   # also "سعيد وأبى سلمة"
@@ -101,11 +104,15 @@ def chain_segments(arabic: str) -> list[str]:
         t = t[marks[-1].end():]
     t = re.split(r'رسول الله|النبي|ﷺ|صلى الله عليه وسلم', t)[0]
     segs = [clean_segment(s) for s in re.split(VERBS, t)]
-    return [s for s in segs if 1 < len(s) < 70 and not s.startswith(NOT_A_NARRATOR_START)]
+    segs = [s for s in segs if 1 < len(s) < 70 and not s.startswith(NOT_A_NARRATOR_START)]
+    # Muslim's speaker tags: "محمد بن المثنى وابن بشار، قال ابن المثنى: حدثنا محمد بن جعفر" — "ابن X" right
+    # after a narrator whose father is X repeats him; it is not a new link.
+    return [s for k, s in enumerate(segs)
+            if not (k and (m := re.fullmatch(r'ابن (\S+)', s)) and re.match(rf'(?:عبد )?\S+ بن {m.group(1)}(?:\s|$)', segs[k - 1]))]
 
 
 # A segment that is not shaped like a name (verdicts, matn, numbers) is reported apart from real misses.
-NOT_NAME = re.compile(r'[٠-٩0-9"«»﴿﴾؟?!]|هذا حديث|يخرجاه|صحيح|ﷺ|﷿|رضي|فقال|كان|لما|قلت|إذا|كنا|شاهده')
+NOT_NAME = re.compile(r'[٠-٩0-9"«»﴿﴾؟?!]|(?:^|\s)هذا(?:\s|$)|يخرجاه|صحيح|ﷺ|﷿|رضي|فقال|كان|لما|قلت|إذا|كنا|شاهده')
 
 
 def is_name(seg: str) -> bool:

@@ -33,6 +33,10 @@ with open(f'{DUMP}/3722_pages.tsv', encoding='utf-8') as f:
 pages.sort()
 text = '\x01'.join(b for _, b in pages)
 text = re.sub(r'<span[^>]*>|</span>', '', text)
+# A few heads put the number in brackets ("(٢٢٥١) ع: سعيد بن أبي الحسن", "(٤٦٨) عخ م د س: إسماعيل بن عمر"):
+# turn them into "N - " before footnote refs are removed, or the entry is lost.
+# Only before real book symbols (1-3 letter groups or "تمييز"), not footnotes ("(٤) الجرح والتعديل: ٩ / ٢٤٠").
+text = re.sub(r'([\n\x01])\s*\(([٠-٩]+)\)\s*(?=(?:(?:[ء-ي]{1,3}|تمييز)\s+)*(?:[ء-ي]{1,3}|تمييز)\s*:)', r'\1\2 - ', text)
 text = re.sub(r'\s*\(\s*[٠-٩]+\s*\)', '', text)  # footnote refs "(١)"
 text = strip_harakat(text)
 

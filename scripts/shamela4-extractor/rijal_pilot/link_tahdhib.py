@@ -156,7 +156,7 @@ def name_candidates(name: str) -> frozenset[int]:
     toks = tokens(name)
     # "النبي ﷺ" is not a narrator entry; "رجل" / "امرأة" / "شيخ" are unnamed narrators, not the
     # entries "رجل من آل سهل بن حنيف" or "امرأة من عبد القيس".
-    if not toks or toks[0] in ('نبي', 'رجل', 'امراه', 'شيخ', 'غلام'):
+    if not toks or toks[0] in ('نبي', 'رجل', 'امراه', 'شيخ', 'غلام', 'بعض'):   # "عن بعض أصحاب النبي"
         return frozenset()
     # The "X بن Y بن Z" part of the name, after a leading kunya if any ("أبو بكر محمد بن أحمد").
     chain = nasab_chain(re.sub(r'^\s*أب[وي]\s+(?:عبد\s+)?\S+\s+(?!بن\s)', '', name))
@@ -218,7 +218,14 @@ def by_grandfather(toks: list[str]) -> frozenset[int]:
         p = nasab[i].index(toks[1]) if toks[1] in nasab[i] else 0
         return p <= 2
 
-    return frozenset(i for i in ism_index.get(toks[0], ()) if in_order(toks[1:], own_seq[i][1:])
+    def no_kunya(i: int) -> list[str]:
+        # "مالك بن يحيى" is not مالك بن دينار، أبو يحيى: the word of his own kunya is not an ancestor
+        # (an ancestor's kunya in the nasab stays: "عثمان بن أبي شيبة").
+        seq = own_seq[i]
+        return [w for k, w in enumerate(seq)
+                if not (k and seq[k - 1] == 'ابو' and w in kunyas[i] and w not in nasab[i])]
+
+    return frozenset(i for i in ism_index.get(toks[0], ()) if in_order(toks[1:], no_kunya(i)[1:])
                      and near(i) and not re.match(r'\s*(?:أم|أبو)\s', entries[i]['header']))  # "أم عثمان"
 
 
@@ -367,7 +374,9 @@ def _candidates(name: str) -> frozenset[int]:
         sons = frozenset(j for j in found if nasab[j][1:1 + n] == toks)
         if sons and max(fame[j] for j in sons) >= max(fame[j] for j in found):
             found = sons
-        return found or frozenset(alias_index.get(tuple(toks), ()))
+        # A Taqrib alias joins the candidates: «ابن علية» is إسماعيل بن إبراهيم (علية is his mother), while
+        # the nasab match alone found only his son حماد بن إسماعيل بن علية.
+        return found | frozenset(alias_index.get(tuple(toks), ()))
     found = name_candidates(name)
     if found:
         return found

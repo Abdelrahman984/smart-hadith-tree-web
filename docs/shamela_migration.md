@@ -146,37 +146,37 @@ Coverage means the share of narrator names in the first 8 links of each chain th
 
 | Book (sample) | Ours: first greedy | Ours: now | Current system | Agreement | Ours past the current chain |
 |---|---|---|---|---|---|
-| al-Bukhari (500) | 54% | **86%** | 81% | 84% | 230 |
-| al-Mustadrak (1,000) | 59% | **81%** | 91% | 61% † | 971 |
+| al-Bukhari (500) | 54% | **86%** | 81% | 84% | 229 |
+| al-Mustadrak (1,000) | 59% | **81%** | 92% | 61% † | 970 |
 | al-Mu'jam al-Kabir (500) | 70%* | **87%** | 81% | 89% | 391 |
-| al-Mu'jam al-Awsat (500) | 65%* | **83%** | 87% | 89% | 121 |
+| al-Mu'jam al-Awsat (500) | 65%* | **83%** | 87% | 89% | 122 |
 | al-Mu'jam al-Saghir (500) | 65%* | **86%** | 84% | 86% | 122 |
-| al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **81%** | ✱ † | 45% † | 551 |
-| Shu'ab al-Iman (500) | 60%* | **73%** | 95% † | 80% † | 272 |
-| Sahih Ibn Hibban (500) | 74%* | **89%** | 85% | 90% | 190 |
-| Musnad Ahmad (500) | 75%* | **86%** | 86% | 87% | 123 |
+| al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **82%** | ✱ † | 45% † | 550 |
+| Shu'ab al-Iman (500) | 60%* | **73%** | 95% † | 80% † | 271 |
+| Sahih Ibn Hibban (500) | 74%* | **89%** | 85% | 90% | 189 |
+| Musnad Ahmad (500) | 75%* | **86%** | 85% | 87% | 129 |
 | al-Muwatta (500) | 53%* | **70%** ‡ | 78% ‡ | 87% | 139 |
-| Sunan al-Daraqutni (500) | 68%* | **84%** | 87% | 83% | 239 |
-| Sahih Ibn Khuzaymah (500) | 68%* | **84%** | 80% | 86% | 317 |
+| Sunan al-Daraqutni (500) | 68%* | **84%** | 87% | 83% | 238 |
+| Sahih Ibn Khuzaymah (500) | 68%* | **85%** | 80% | 86% | 322 |
 | Mustakhraj Abi Awanah (500) | 67%* | **82%** | 68% | 85% | 532 |
 | Musannaf Abd al-Razzaq (500) | — | **77%** | 76% | 91% | 120 |
 | Musnad al-Tayalisi (500) | — | **85%** | ✱ | 80% | 22 |
-| Musnad al-Shafi'i (500) | — | **85%** | 80% | 92% | 150 |
+| Musnad al-Shafi'i (500) | — | **85%** | 80% | 92% | 149 |
 | Musnad al-Humaydi (500) | 44% | **83%** | 88% | 91% | 79 |
 | Sunan Sa'id b. Mansur (500) | — | **78%** | ✱ | 82% | 43 |
 | Musnad Ishaq (500) | — | **83%** | 82% | 88% | 216 |
 | Musnad al-Bazzar (500) | — | **86%** | 94% | 81% | 75 |
 | Musnad Abi Ya'la (500) | — | **84%** | 87% | 88% | 126 |
-| Sahih Muslim (500) | — | **87%** | 69% | 87% § | 511 |
-| Sunan Abi Dawud (500) | — | **84%** | 79% | 89% | 226 |
+| Sahih Muslim (500) | — | **87%** | 69% | 87% § | 504 |
+| Sunan Abi Dawud (500) | — | **84%** | 80% | 89% | 225 |
 | Jami' al-Tirmidhi (500) | — | **90%** | 90% | 91% | 128 |
-| Sunan al-Nasa'i (500) | — | **88%** | 82% | 88% | 221 |
+| Sunan al-Nasa'i (500) | — | **88%** | 82% | 88% | 219 |
 | Sunan Ibn Majah (500) | — | **88%** | 83% | 92% | 236 |
 | Sunan al-Darimi (500) | — | **85%** | 86% | 89% | 122 |
 | al-Adab al-Mufrad (500) | 58% | **82%** | 82% | 85% | 100 |
 | al-Shama'il (396) | 72% | **87%** | 86% | 94% | 97 |
-| Musannaf Ibn Abi Shayba (500) | — | **76%** | 89% | 81% | 60 |
-| al-Sunan al-Kubra, al-Nasa'i (500) | — | **88%** | 87% | 87% | 140 |
+| Musannaf Ibn Abi Shayba (500) | — | **77%** | 89% | 81% | 60 |
+| al-Sunan al-Kubra, al-Nasa'i (500) | — | **88%** | 87% | 87% | 139 |
 
 \* Joint resolver already applied, before that compiler's shaykh books were added.
 ✱ Over 100%: the current system counts more links than our name segments (it also links the book's transmitters), so its share is not comparable.
@@ -385,7 +385,7 @@ Remaining resolver gaps:
 - [x] Kunyas glued in the edition («أبوالتياح», «أبويحيى», ~170 headers) were not read, so «أبي التياح» found only a bare stub from تعجيل المنفعة instead of يزيد بن حميد: split in `norm` / `soft_norm` (not «أبوه», «أبواب», «أبوين»). +1 point in 6 books; «أبي البختري» is now سعيد بن فيروز, not a later namesake (`4453885`)
 - [ ] Still from the review: later namesakes winning by chain («أبى هريرة» → الكلابي, «أبو الوليد الفقيه» → ابن عرق)
 - [x] Re-measure on 500 names with the sub-agent first pass: **97.0%** (95% CI 95.5–98.5) (`afcfbee`)
-- [ ] Fix the 500-name review's error classes: Latin-digit footnote marks, «هذا» / «بعض», «يعنون», speaker tags («قال ابن المثنى»), «ابن علية» alias, kunya words in the grandfather rule
+- [x] Fix the 500-name review's error classes: Latin-digit footnote marks «(1)», «هذا» not a name, «بعض» unnamed, «يعنون / يعنيان», Muslim's speaker tags («… بن المثنى، قال ابن المثنى» repeats him), the Taqrib alias joins «ابن X» candidates («ابن علية» was his son Hammad), the grandfather rule ignores the narrator's own kunya («مالك بن يحيى» ≠ مالك بن دينار أبو يحيى; an ancestor's «بن أبي شيبة» stays), and Tahdhib heads with a bracketed number («(٢٢٥١) ع: سعيد بن أبي الحسن», 4 entries; 63 later entries renumbered by one, so their `tk` ids changed). 151 names gained, 84 changed — mostly the targeted errors; +1 point in 3 books (`COMMIT`)
 
 Housekeeping:
 - [x] Delete the superseded `parse_hakim_books.py` and `isnad_test.py` (user approved)
