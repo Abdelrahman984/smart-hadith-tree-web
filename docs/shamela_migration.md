@@ -1,7 +1,7 @@
 # Shamela 4 Migration (Replacing Itqan) — Status & Handoff
 
 > Read this first when resuming the migration in a new session.
-> Last updated: **2026-10-03** · Branch: **`feature/shamela-rijal`** (not merged into `master`).
+> Last updated: **2026-10-04** · Branch: **`feature/shamela-rijal`** (not merged into `master`).
 
 ## 1. Goal and decisions
 
@@ -45,7 +45,7 @@ javac -encoding UTF-8 -d data\shamela_rijal\dumper scripts\shamela4-extractor\Sh
   "D:\Islamic\shamela4\database\store" data\shamela_rijal\dump 3722,8609
 ```
 
-Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies contain literal `\n`, which the parsers turn into real newlines.
+Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`, plus `<id>_foot.tsv` (the editor's footnotes, same format) when the book has any. The page bodies contain literal `\n`, which the parsers turn into real newlines.
 
 ## 4. Working data (`data/shamela_rijal/`, git-ignored)
 
@@ -57,6 +57,9 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 | `taqrib.json` | `parse_taqrib.py` | 8,828 Taqrib entries + 1,419 "X هو Y" redirects |
 | `align.json` | `align_taqrib.py` | Tahdhib ↔ Taqrib alignment (92.8% of Tahdhib) |
 | `extra_shaykh_books.json` | `parse_shaykh_books.py` | 15,052 narrators from the compilers' shaykh books, تعجيل المنفعة and تاريخ بغداد, after merging 899 cross-book duplicates (plus Ithaf's name forms, ري الظمآن's kunyas and the compiler entries) |
+| `mudallisin.json` | `parse_mudallisin.py` | Ibn Hajar's 152 mudallisin in five tiers, plus the editor's 22-entry appendix |
+| `ilal.json` | `link_ilal.py` (pipeline step 7) | Mudallisin and mukhtalitun with registry ids, before/after students with ids and their quotes, and the app's current seeds linked the same way (for comparison) |
+| `review/` | sub-agents and reviews | Review samples and verdicts (`mudallisin_review.json`, `mukhtalitun_review.json`, `named_review*.json`), the mukhtalitun extraction's intermediate files, `registry_index.tsv` (id, symbols, header, Taqrib text: a lookup aid for reviewers) |
 | `current_chains.json`, `current_chains_tabarani.json`, `current_chains_bayhaqi.json`, `current_chains_hibban.json`, `current_chains_daraqutni.json`, `current_chains_khuzaymah_awanah.json`, `current_chains_ahmad_malik.json`, `current_chains_early.json` (the 8 early compilers), `current_chains_<slug>.json` for each of the last 10 books (`muslim`, `abudawud`, ..., `sunan_kubra_nasai`) | `export_chains.ps1` | The **current system's** chains, for comparison |
 
 `link_tahdhib.py` automatically loads `taqrib.json` and every `extra_*.json` that sits next to the `tahdhib.json` it is given.
@@ -82,6 +85,10 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 | 736 | تاريخ بغداد | 7,800 biographies: ~4,900 later narrators added, ~1,100 merged into narrators already in the shaykh books (`khatib` layout) |
 | 10906, 96165 | السير، الثقات ممن لم يقع في الستة | Gap measurement only (not parsed; see §7) |
 | 36357 | لسان الميزان | Parsed (`parse_lisan.py`), not merged into the resolver (§7) |
+| 1186 | طبقات المدلسين (تعريف أهل التقديس) لابن حجر | Mudallisin and their tiers (Phase 3) |
+| 309 | الكواكب النيرات لابن الكيال | Mukhtalitun, with heard-before / after students (Phase 3) |
+| 25846 | المختلطين للعلائي | Mukhtalitun (Phase 3); 82 more narrators in its marginal additions |
+| 130, 1187 | الاغتباط، التبيين لأسماء المدلسين (سبط ابن العجمي) | Cross-checks only (Phase 3) |
 
 ## 5. Scripts (`scripts/shamela4-extractor/rijal_pilot/`)
 
@@ -99,7 +106,12 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 | `gap_books.py` | Which rijal books would cover the missing narrators. |
 | `check_record_boundaries.py` | Classifies every record in `data/itqan/sunni` as clean, prefix tail, or **shifted** (the isnad belongs to the next hadith). See §6.1. |
 | `compare_current.py` | **Main benchmark**: our resolution versus the current DB chains on the same hadiths, plus the agreement rate. |
-| `bench.py` | **Runs `compare_current.py` on 4 or all 31 books** (in parallel), keeps each run in `data/shamela_rijal/results/<tag>/`, and prints one line per book with the change since the previous run, the names gained and lost, and a sample of new disagreements to review. |
+| `bench.py` | **Runs `compare_current.py` on 4 or all 31 books** (in parallel), keeps each run in `data/shamela_rijal/results/<tag>/` (each name with its registry `id`, the `verbs` between it and the next name, and the tied candidates `ties` when undecided), and prints one line per book with the change since the previous run, the names gained and lost, and a sample of new disagreements to review. |
+| `parse_mudallisin.py` | Ibn Hajar's طبقات المدلسين: number, tier, symbols, name, kind (taswiya / shuyukh), also-mukhtalit; entries are found anywhere in a paragraph ("... يدلس (٦٩) ع حبيب"). First draft by a sub-agent. |
+| `link_ilal.py` | Links the Ilal narrators to registry ids (§6.4) and the students before / after the ikhtilat; also links the app's current seeds. Reads `ilal_data/mukhtalitun.json` and `ilal_overrides.json`. |
+| `ilal_data/mukhtalitun.json` | **Curated, git-tracked.** The mukhtalitun of 309 and 25846, read entry by entry by a sub-agent and merged per narrator, with every claim's book, critic and verbatim quote; `ikhtilat_conflicts.json` beside it lists where the books disagree. Not regenerated by a script. |
+| `ilal_overrides.json` | **Curated, git-tracked.** Links decided by hand after the reviews (mudallisin by number, mukhtalitun by name, students by «mukhtalit\|student»). |
+| `ilal_bench.py` | What the Ilal data finds on a saved bench run, mirroring `TadlisRule` / `IkhtilatRule`, against the app's seeds; ikhtilat by severity and hearing table; ties that may hide a finding. |
 | `export_chains.ps1` | Exports current chains: `-Books 'المعجم'` (substrings of `Hadiths.BookName`; use `'بيهقي'`, not `'البيهقي'`, since the DB name is «للبيهقي»), `-Out <file>`. |
 
 ### Name matching rules in `link_tahdhib.py` (learned the hard way)
@@ -146,37 +158,39 @@ Coverage means the share of narrator names in the first 8 links of each chain th
 
 | Book (sample) | Ours: first greedy | Ours: now | Current system | Agreement | Ours past the current chain |
 |---|---|---|---|---|---|
-| al-Bukhari (500) | 54% | **86%** | 81% | 84% | 230 |
-| al-Mustadrak (1,000) | 59% | **81%** | 92% | 61% † | 981 |
+| al-Bukhari (500) | 54% | **87%** | 81% | 84% | 233 |
+| al-Mustadrak (1,000) | 59% | **81%** | 92% | 61% † | 984 |
 | al-Mu'jam al-Kabir (500) | 70%* | **87%** | 81% | 89% | 393 |
 | al-Mu'jam al-Awsat (500) | 65%* | **84%** | 87% | 89% | 124 |
 | al-Mu'jam al-Saghir (500) | 65%* | **87%** | 84% | 86% | 126 |
-| al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **82%** | ✱ † | 45% † | 552 |
-| Shu'ab al-Iman (500) | 60%* | **73%** | 95% † | 80% † | 278 |
-| Sahih Ibn Hibban (500) | 74%* | **89%** | 85% | 90% | 193 |
-| Musnad Ahmad (500) | 75%* | **86%** | 85% | 87% | 132 |
-| al-Muwatta (500) | 53%* | **70%** ‡ | 78% ‡ | 87% | 141 |
+| al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **82%** | ✱ † | 45% † | 555 |
+| Shu'ab al-Iman (500) | 60%* | **74%** | 95% † | 79% † | 278 |
+| Sahih Ibn Hibban (500) | 74%* | **90%** | 85% | 90% | 194 |
+| Musnad Ahmad (500) | 75%* | **87%** | 85% | 87% | 133 |
+| al-Muwatta (500) | 53%* | **70%** ‡ | 78% ‡ | 87% | 143 |
 | Sunan al-Daraqutni (500) | 68%* | **85%** | 87% | 83% | 244 |
-| Sahih Ibn Khuzaymah (500) | 68%* | **85%** | 80% | 87% | 328 |
-| Mustakhraj Abi Awanah (500) | 67%* | **82%** | 68% | 85% | 536 |
+| Sahih Ibn Khuzaymah (500) | 68%* | **85%** | 80% | 86% | 329 |
+| Mustakhraj Abi Awanah (500) | 67%* | **83%** | 68% | 84% | 538 |
 | Musannaf Abd al-Razzaq (500) | — | **77%** | 76% | 91% | 121 |
 | Musnad al-Tayalisi (500) | — | **86%** | ✱ | 80% | 22 |
 | Musnad al-Shafi'i (500) | — | **85%** | 80% | 92% | 155 |
 | Musnad al-Humaydi (500) | 44% | **84%** | 88% | 91% | 84 |
-| Sunan Sa'id b. Mansur (500) | — | **78%** | ✱ | 82% | 44 |
-| Musnad Ishaq (500) | — | **83%** | 82% | 88% | 216 |
-| Musnad al-Bazzar (500) | — | **86%** | 94% | 81% | 76 |
-| Musnad Abi Ya'la (500) | — | **84%** | 87% | 88% | 134 |
-| Sahih Muslim (500) | — | **87%** | 69% | 87% § | 506 |
-| Sunan Abi Dawud (500) | — | **85%** | 80% | 89% | 232 |
-| Jami' al-Tirmidhi (500) | — | **90%** | 90% | 91% | 129 |
-| Sunan al-Nasa'i (500) | — | **88%** | 82% | 88% | 220 |
-| Sunan Ibn Majah (500) | — | **88%** | 83% | 92% | 238 |
-| Sunan al-Darimi (500) | — | **86%** | 86% | 89% | 125 |
+| Sunan Sa'id b. Mansur (500) | — | **80%** | ✱ | 80% | 44 |
+| Musnad Ishaq (500) | — | **83%** | 82% | 88% | 217 |
+| Musnad al-Bazzar (500) | — | **87%** | 94% | 81% | 76 |
+| Musnad Abi Ya'la (500) | — | **85%** | 87% | 88% | 134 |
+| Sahih Muslim (500) | — | **87%** | 69% | 87% § | 511 |
+| Sunan Abi Dawud (500) | — | **85%** | 80% | 89% | 233 |
+| Jami' al-Tirmidhi (500) | — | **91%** | 90% | 91% | 129 |
+| Sunan al-Nasa'i (500) | — | **88%** | 82% | 88% | 222 |
+| Sunan Ibn Majah (500) | — | **89%** | 83% | 92% | 240 |
+| Sunan al-Darimi (500) | — | **86%** | 86% | 89% | 126 |
 | al-Adab al-Mufrad (500) | 58% | **83%** | 82% | 85% | 102 |
 | al-Shama'il (396) | 72% | **87%** | 86% | 94% | 97 |
-| Musannaf Ibn Abi Shayba (500) | — | **77%** | 89% | 81% | 60 |
-| al-Sunan al-Kubra, al-Nasa'i (500) | — | **88%** | 87% | 87% | 141 |
+| Musannaf Ibn Abi Shayba (500) | — | **78%** | 89% | 81% | 60 |
+| al-Sunan al-Kubra, al-Nasa'i (500) | — | **89%** | 87% | 87% | 141 |
+
+Measured on run `final3`, after Phase 3's kunya tie-break (§6.4).
 
 \* Joint resolver already applied, before that compiler's shaykh books were added.
 ✱ Over 100%: the current system counts more links than our name segments (it also links the book's transmitters), so its share is not comparable.
@@ -307,10 +321,34 @@ In the live database, **1,296 of Muslim's 7,368 hadiths (18%)** have a first cha
 
 **Summary:** the current system covers more; ours resolves less, but what it resolves is usually right. These are small manual samples, not a full precision measurement.
 
+### 6.4 Ilal data (Phase 3)
+
+**Mudallisin** (طبقات المدلسين, 1186). 152 narrators in five tiers, 33 / 33 / 50 / 12 / 24 as the book itself counts them (not the 33 / 37 / 50 / 12 / 20 often quoted), plus the editor's 22-entry appendix (no tier). **158 of 174 are linked**; the other 16 are later scholars or obscure men not in the registry (Abu Nu'aym al-Asbahani, Ibn Masdi), or Abu Qatada al-Harrani, who has no entry of his own in Shamela's Tahdhib text. A Sonnet sub-agent reviewed all 174 links: 147 right, 7 wrong, 8 unlinked but in the registry, 11 absent, 1 unsure. Every non-right verdict and 25 right ones were checked by hand; the reviewer was wrong once («عبد العزيز بن جريج» is Ibn Jurayj's father, tk3438s, not a typo for Ibn Jurayj). 16 links are in `ilal_overrides.json`.
+
+**Mukhtalitun** (الكواكب النيرات 309, المختلطين للعلائي 25846). A sub-agent read all 249 entries (309: 70 + 51 in the editor's two appendices; 25846: 46 + 82 marginal additions marked (ز)) and merged them into **164 narrators**, 85 in both books. Every quote was machine-checked as a verbatim substring of its entry. Only 30 narrators have named students: 173 claims (105 before, 60 after, 7 conflicting, 1 both); 29 have group rules (76, e.g. «من سمع منه بالبصرة قبل أن يقدم بغداد»); 13 say nobody heard after. In 309, entries 1–70 are Ibn al-Kayyal's own text and both appendices are the editor's (`source: editor`). The books disagree directly on three students (Abu Nu'aym from Ibn Abi Aruba, Hammad b. Salama from Ata b. al-Sa'ib, Isra'il from Abu Ishaq; `ikhtilat_conflicts.json`). Of الاغتباط's 122 names, 23 are in neither book (Companions, Mujahid, Masruq, later Syrians); not merged. **131 of 164 narrators linked** (most of the rest are 6th–8th-century scholars) and **166 of 171 hearings**. Review as above: narrators 126 right / 12 wrong / 3 found / 18 absent / 5 unsure, students 152 / 7 / 10 / 4 / 1; 20 narrators and 18 students overridden, 24 right ones spot-checked by hand. A student must be listed with the mukhtalit, or have a single candidate, or be the clearly most cited one («وكيع بن الجراح» under Ibn Abi Aruba is not in the lists).
+
+**What they find** (`ilal_bench.py` on the 31-book run `final3`, 15,894 isnads; same rules as `TadlisRule` / `IkhtilatRule`):
+
+| | Shamela lists | App seeds (16 mudallisin, 7 mukhtalitun) |
+|---|---|---|
+| Tadlis: tier 3+ narrating with عن / أن / قال, no explicit formula | **3,243** | 2,326 |
+| Ikhtilat: a narrator narrating from a mukhtalit | **4,325** | 950 |
+
+- 917 tadlis findings come from narrators not in the seeds (al-Mughira b. Miqsam, Makhul, Baqiyya, Ibn Ayyash, al-Hasan b. Dhakwan ...).
+- **Ikhtilat needs weighting before it reaches the app.** 3,082 of the 4,325 are narrators the books themselves call light or disputed (Ibn Uyayna 437, Hisham b. Urwa 377, Hammad b. Salama 328, Abu Ishaq 318, Abd al-Razzaq 254, al-Maqburi 148); 501 are harmful (Ibn Abi Aruba 138 ...), 742 unstated. 3,796 have no recorded timing for the student (before 278, after 160). Phase 5 must use the severity, the group rules and the timing, not flag every link.
+
+**Ties** (the deferred-ties condition of Phase 2). Undecided names whose tied candidates include a narrator who would give a finding there hid **7.7% of tadlis findings**, past the 1% condition, mostly «أبو معاوية» (al-Darir / Hushaym, a tier-3 mudallis; 64) and «أبو إسحاق». So they were fixed here (`chain_named` in `chain_resolver.py`): a tie between equally linked candidates goes to the one a neighbour names with the isnad's own form, when that neighbour lists every tied candidate (al-A'mash's students include «أبو معاوية الضرير» and «هشيم بن بشير»), and only for a kunya, a bare ism or a nisba. A broader first version (no "lists every candidate" condition, any form) was 86% right on 80 random picks («أبي بشر» → بيان بن بشر, «أبي سلام» → the Kufan al-Aswad, «ابن عون» → عمرو بن عون); the final rule keeps 55 / 55 of those (1 unsure) and **59 / 60 on a fresh sample**. 31 books: **299 names gained, none lost** (96 «أبو معاوية», 60 «عبد الله», 22 «عمرو», 22 «الأوزاعي», 16 «أبي إسحاق»); coverage +1 point in 11 books and +2 in Sa'id b. Mansur. Hidden tadlis went from 7.7% to 4.7%.
+
+What remains hidden by ties is mostly ikhtilat (15% of those findings): bare «سفيان» (al-Thawri / Ibn Uyayna, 159), «عطاء» (Ibn al-Sa'ib, 59), «حماد» (Ibn Zayd / Ibn Salama, 47). They were not on the deferred list, the mukhtalitun involved are ones the books call light or disputed, and Phase 2 found the old rules for «سفيان» wrong 28% of the time; **left deferred, pending the user's decision** (§7).
+
+Other findings:
+- The registry holds duplicates of Tahdhib narrators in the compilers' books (رجال الحاكم's «أحمد بن حنبل» = tk96, تاريخ بغداد's «إسحاق الأزرق» = tk395, الباغندي in ري الظمآن and إرشاد القاصي). The Ilal linker prefers the tk entry when the nasab is the same; the cross-book merge of Phase 2 does not cover Tahdhib narrators.
+- Ibn Hajar's own tiers put al-A'mash and both Sufyans in tier 2 (accepted 'an'ana) and al-Zuhri, Qatada, Abu Ishaq, Ibn Jurayj, Hushaym and Abu al-Zubayr in tier 3, as the app's seeds did.
+
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** Phase 3 (Ilal data). Phase 2 is complete apart from the deferred ties (Phase 2, resolver gaps). Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction and first-pass reviews, writing only to the scratchpad or `data/shamela_rijal/review/` and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
+**Next task:** Phase 4 (hadith texts). Phase 3 is complete; one decision is open for the user: whether to take on the bare «سفيان» / «حماد» / «عطاء» ties (§6.4), which hide ikhtilat findings but were not on the deferred list. Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction and first-pass reviews, writing only to the scratchpad or `data/shamela_rijal/review/` and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
 
 ### Overview
 
@@ -319,7 +357,7 @@ Update the checkboxes whenever a task is finished, and record the commit next to
 | 0. Preparation and backups | ✅ Done |
 | 1. Pilot (Tahdhib + Taqrib, name linking, isnad test) | ✅ Done |
 | 2. Full narrator registry from Shamela | ✅ Done (ties deferred) |
-| 3. Ilal data (mudallisin, mukhtalitun) | ⬜ Not started |
+| 3. Ilal data (mudallisin, mukhtalitun) | ✅ Done (one tie decision open) |
 | 4. All hadith texts from Shamela | ⬜ Not started |
 | 5. Code changes (Domain, ETL, disambiguation, tests) | ⬜ Not started (largest phase) |
 | 6. Build a separate database and compare with v2 | ⬜ Not started |
@@ -374,7 +412,7 @@ Remaining resolver gaps:
 - [x] Isnad clean-up: «رضى الله عنه» with ى, accusative «أبا هريرة» / «جابرا», «قالا» after a name, «أبي، ح»; agreement no longer counts names past the end of the current chain (`afaef5c`)
 - [x] Al-Baghawi as «ابن منيع»: tried and not kept. A maternal-grandfather candidate («ابن بنت أحمد بن منيع» → «ابن منيع») fixed 3 al-Daraqutni names but broke 2 real ties («ابن نمير» → سوادة بن علي, «ابن حرب» → الحسن بن عثمان); 73 headers say «ابن بنت X» and most are not called «ابن X». Worth a dedicated alias only if the precision review finds more
 - [x] Companions and common names when context is weak: Tahdhib lists repaired (women, line breaks, separators, «N:» heads), fame tie-break for equally linked candidates, «ابن عمر» / «أبو سلمة بن عبد الرحمن» / «أبي بن كعب» / «ذكوان أبو صالح» matching (`b15bcd2`)
-- [ ] **Deferred until after Phase 7 (user decision):** real ties left undecided — «عبد الله» bare (146 names on the 31-book bench), «أبو معاوية» al-Darir / Hushaym (103), «أبو إسحاق» al-Sabi'i / al-Shaybani (31); about 0.3% of names, left unresolved rather than guessed. Condition: Phase 3 measures how often such a tie hides a mudallis / mukhtalit (Hushaym is a mudallis); if that is significant, fix them in Phase 3
+- [x] Real ties left undecided — «عبد الله» bare (146 names on the 31-book bench), «أبو معاوية» al-Darir / Hushaym (103), «أبو إسحاق» al-Sabi'i / al-Shaybani (31). Deferred with the condition that Phase 3 measure how often such a tie hides a mudallis / mukhtalit: 7.7% of tadlis findings, so fixed in Phase 3 by the kunya tie-break (§6.4; 96 «أبو معاوية», 60 «عبد الله», 19 «أبو إسحاق» resolved) (`d8845ce`)
 - [x] The compiler's own shaykh list as context for the first link: already in the resolver; al-Hakim was not found as the compiler, fixed (Mustadrak 78% → 79%) (`56105f6`)
 - [x] «عن أبيه» (diagnosed by a sub-agent: 410 unresolved with a known son): the father may be the one registry entry whose nasab continues the son's (father + grandfather), even when unlisted, but only when the son is certain; it also breaks ties between listed shaykhs; «أبيه» must be the father of the son chosen on the path (it had paired «أبو بردة» with another candidate's father). Tahdhib heads with symbols and no colon («ر ٤ شعيب بن محمد», ~280 incl. «تمييز») fixed, so عمرو بن شعيب's father is found. 145 «أبيه» gained, 29 changed (mostly corrections: al-Baqir → علي بن الحسين), 2 lost. A rule rejecting a listed father whose own father differs from the grandfather was tried and dropped (it lost «سلمة بن عمرو بن الأكوع», «بريدة») (`0e4d8b1`)
 - [x] Teacher lists missing from the Tahdhib parse: «روى عن ك سالم» (عمرو بن شعيب's typo'd colon; his «عن أبيه» now resolves, 65 names) and «روى عن X» with no colon at a line start (27 narrators: أحمد بن بشير، يعلى بن الحارث، العرزمي، أبي بن كعب), used only when no «روى عن:» exists and before the students. Full bench after the «عن أبيه» step: 455 narrators gained, 168 lost (39 had agreed; mostly header changes from the symbol fix); table updated (`bda1dcc`)
@@ -391,11 +429,22 @@ Housekeeping:
 - [x] Delete the superseded `parse_hakim_books.py` and `isnad_test.py` (user approved)
 - [x] One reproducible pipeline that writes the final registry (`pipeline.py`; first draft by a sub-agent; strict list links and Companion ranks added in review) (`171eef4`)
 
-### Phase 3 — Ilal data ⬜
+### Phase 3 — Ilal data ✅
 
-- [ ] طبقات المدلسين لابن حجر (1186), replacing the 16 hand-written mudallisin
-- [ ] الكواكب النيرات (309) and المختلطين للعلائي (25846), replacing the 7 hand-written mukhtalitun, with heard-before / heard-after students
-- [ ] Link both to registry IDs
+User decisions at the start: الاغتباط (130) and التبيين (1187) as cross-checks only; the editors' notes kept, tagged `source: editor`; a tie is "significant" from 1% of the findings.
+
+- [x] Dump the five books with their footnotes (`<id>_foot.tsv`) (`75ae047`)
+- [x] Save each name's registry id, transmission verbs and tied candidates in bench runs; 31 books unchanged (`7c99238`)
+- [x] طبقات المدلسين لابن حجر (1186), replacing the 16 hand-written mudallisin: 152 in five tiers + 22 in the appendix; linked 158 / 174 after a full review (`b8870f0`)
+- [x] الكواكب النيرات (309) and المختلطين للعلائي (25846), replacing the 7 hand-written mukhtalitun, with heard-before / heard-after students: 164 narrators, 173 student claims with quotes, 76 group rules (`a88e692`)
+- [x] Link both to registry IDs, with a review of every link (`b8870f0`, `a88e692`); pipeline step 7 writes `ilal.json` (`a88e692`)
+- [x] Measure on the 31-book bench against the seeds: tadlis 3,243 vs 2,326, ikhtilat 4,325 vs 950 (`ilal_bench.py`, `b8870f0`, `d8845ce`)
+- [x] Ties hiding findings: 7.7% of tadlis, past the 1% condition; kunya tie-break, 98% on a fresh sample (`d8845ce`)
+- [ ] **Open (user decision):** bare «سفيان» / «حماد» / «عطاء» ties, which hide 15% of ikhtilat findings (mostly light / disputed mukhtalitun). Recommended: leave deferred
+
+For Phase 5 (from what Phase 3 found):
+- `IlalSeedService` reads `ilal.json` by registry id instead of the seeds; `MudallisTier` from Ibn Hajar's tiers (the appendix has no tier).
+- `MukhtalitHearing.Timing` needs `Both` and `Conflict` besides `Before` / `After`, and the narrator needs the books' severity: most ikhtilat findings are from narrators the books call light or disputed, and most have no timing. Group rules («أهل البصرة قبل») and "nobody heard after" are in the data and not yet used by any rule.
 
 ### Phase 4 — Hadith texts ⬜
 
@@ -432,6 +481,14 @@ Day to day, from `data/shamela_rijal`:
 ```bash
 python ../../scripts/shamela4-extractor/rijal_pilot/bench.py <tag>               # 4 books, vs the previous run
 python ../../scripts/shamela4-extractor/rijal_pilot/bench.py <tag> --books all   # all 31, before a commit
+```
+
+The Ilal data and what it finds on a saved run (from `data/shamela_rijal`; `pipeline.py dump . --from 7` does the first two):
+
+```bash
+python ../../scripts/shamela4-extractor/rijal_pilot/parse_mudallisin.py dump mudallisin.json
+python ../../scripts/shamela4-extractor/rijal_pilot/link_ilal.py .
+python ../../scripts/shamela4-extractor/rijal_pilot/ilal_bench.py results/<tag> ilal.json --show 8
 ```
 
 `--base <tag>` picks the run to compare with, `--review N` the number of new disagreements shown (default 12; use 20–25 before a commit). Each name in a saved run carries `vs_current` (`agree` / `differ` / `past`). Checked against the verified run: the same numbers on all 31 books, the same saved results, and `vs_current` reproduces the agreement figures; with no change it reports 0 gained / 0 lost, and with the grandfather rule switched off it lists exactly the lost names.
