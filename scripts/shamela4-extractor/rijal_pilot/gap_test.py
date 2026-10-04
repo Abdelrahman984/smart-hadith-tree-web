@@ -54,7 +54,8 @@ NUMBERED_ISNAD = re.compile(r'[٠-٩]+\s*م?\s*-\s*(?=و?(?:أخبرنا|أخب�
 NOT_A_NARRATOR_START = ('قال', 'يقول', 'ورواه', 'رواه', 'وقد', 'ومنها', 'أخرجه', 'وأخرجه', 'تابعه', 'وكذلك')
 
 
-AFTER_NAME = re.compile(r'\s*(?:رض[يى] الله (?:عنه|عنها|عنهما|عنهم)|عليه السلام|﵁|﵂|﵄|﵃|﵀)')
+# «عائشة زوج النبي ﷺ» (no comma in the Muwatta of al-A'zami) ends the name like an honorific.
+AFTER_NAME = re.compile(r'\s*(?:رض[يى] الله (?:عنه|عنها|عنهما|عنهم)|عليه السلام|﵁|﵂|﵄|﵃|﵀|زوج(?: النبي| رسول الله)?(?=\s|$))')
 # A comma inside a segment ends the name unless the nasab goes on ("عبد الملك، بن أبي بكر"):
 # "عائشة، زوج النبي", "ابن جريج، أخبرهم", "أبي، ح" (tahwil).
 # "وهو / يعني" go on to identify him ("هشام، يعني ابن حسان", "سفيان، يعني الثوري"), not to describe
@@ -68,7 +69,7 @@ NAME_GOES_ON = re.compile(r'\s*(?:(?:بن|ابن|بنت|أبو|أبي|أبا)\s'
 def clean_segment(s: str) -> str:
     # Footnote marks "(٣)", "(¬٣)" and, in Musnad Ahmad, "(1)" ("ابن أبي أنيس (1) ، عن أبيه").
     s = re.sub(r'\s+', ' ', re.sub(r'\(¬?[٠-٩0-9]+\)', ' ', s)).strip()
-    s = s.replace(' , ', '، ').replace(',', '،')
+    s = s.replace(' , ', '، ').replace(',', '،').replace('؛', '،')   # «مالك ؛ أنه» (al-A'zami's Muwatta)
     s = re.sub(r'\s+-\s*|\s*-\s+', ' ', s)              # "إسماعيل، - وهو ابن علية -"
     s = AFTER_NAME.split(s)[0]
     if '،' in s:
