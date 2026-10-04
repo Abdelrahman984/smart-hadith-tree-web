@@ -7,6 +7,8 @@ import { X, Sparkles, AlertCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import AiNotice from '@/components/AiNotice';
 import GlossaryTerm from '@/features/glossary/GlossaryTerm';
+import ConsensusBanner from './ConsensusBanner';
+import { analyzeEvaluations, type EvaluationGroup } from '../utils/evaluationConsensus';
 
 const VERDICT_AR: Record<string, string> = {
   reliable: "ثقة",
@@ -41,6 +43,28 @@ const SCHOLAR_AR: Record<string, string> = {
 
 const getVerdictAr = (en: string) => VERDICT_AR[en.toLowerCase()] || en;
 const getScholarAr = (en: string) => SCHOLAR_AR[en.toLowerCase()] || en;
+
+const CAMP_HEADING: Record<EvaluationGroup["camp"], string> = {
+  tadil: "من عدّله ووثّقه",
+  jarh: "من جرّحه أو ضعّفه أو جهّله",
+  unclassified: "أقوال غير مصنَّفة",
+};
+
+function EvaluationCard({ evalRecord }: { evalRecord: { scholarName: string; verdictRating: string | null; evaluationText: string } }) {
+  return (
+    <div className="bg-slate-50 p-3 rounded border border-slate-100">
+      <div className="flex justify-between items-start mb-1">
+        <span className="font-semibold text-brand-teal text-sm">{getScholarAr(evalRecord.scholarName)}</span>
+        {evalRecord.verdictRating && (
+          <span className="text-xs px-1.5 py-0.5 bg-white border border-slate-200 rounded text-slate-600">
+            {getVerdictAr(evalRecord.verdictRating)}
+          </span>
+        )}
+      </div>
+      <p className="text-slate-700 text-sm italic">&quot;{evalRecord.evaluationText}&quot;</p>
+    </div>
+  );
+}
 
 interface ExtractedAiEvaluation {
   verbatimQuote: string;
@@ -98,6 +122,8 @@ export default function NarratorDrawer() {
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handleClose only calls stable store/state setters
   }, [isOpen]);
+
+  const consensus = narrator ? analyzeEvaluations(narrator.evaluations) : null;
 
   if (!isOpen) return null;
 
@@ -300,6 +326,11 @@ export default function NarratorDrawer() {
 
                   {aiSummary && (
                     <div className="text-sm text-purple-900 leading-relaxed font-arabic space-y-2">
+                      {aiSummary.status === "ok" && consensus?.status === "dispute" && (
+                        <p role="note" className="rounded border border-amber-300 bg-amber-50 p-2 text-xs font-semibold text-amber-900">
+                          العلماء مختلفون في هذا الراوي: الاقتباس أدناه قول واحد من أقوالهم وليس إجماعاً. راجع بقية الأقوال.
+                        </p>
+                      )}
                       {aiSummary.status === "ok" ? (
                         <div className="bg-white p-3 rounded shadow-sm border border-purple-100">
                           <p className="font-bold text-lg mb-1">«{aiSummary.verbatimQuote}»</p>
@@ -328,22 +359,33 @@ export default function NarratorDrawer() {
               {/* Scholar Evaluations */}
               <div>
                 <h4 className="text-lg font-semibold text-slate-800 mb-3">أقوال الجرح والتعديل</h4>
-                {narrator.evaluations.length > 0 ? (
-                  <div className="space-y-3">
-                    {narrator.evaluations.map((evalRecord, idx) => (
-                      <div key={idx} className="bg-slate-50 p-3 rounded border border-slate-100">
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="font-semibold text-brand-teal text-sm">{getScholarAr(evalRecord.scholarName)}</span>
-                          {evalRecord.verdictRating && (
-                            <span className="text-xs px-1.5 py-0.5 bg-white border border-slate-200 rounded text-slate-600">
-                              {getVerdictAr(evalRecord.verdictRating)}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-slate-700 text-sm italic">&quot;{evalRecord.evaluationText}&quot;</p>
+                {narrator.evaluations.length > 0 && consensus ? (
+                  <>
+                    <ConsensusBanner consensus={consensus} />
+                    {consensus.status === "dispute" ? (
+                      <div className="space-y-4">
+                        {consensus.groups.map((group) => (
+                          <section key={group.camp} aria-label={CAMP_HEADING[group.camp]}>
+                            <h5 className="mb-2 text-sm font-bold text-slate-700">
+                              {CAMP_HEADING[group.camp]}{" "}
+                              <span className="font-normal text-slate-500">({group.items.length.toLocaleString("ar-EG")})</span>
+                            </h5>
+                            <div className="space-y-3">
+                              {group.items.map(({ evaluation, index }) => (
+                                <EvaluationCard key={index} evalRecord={evaluation} />
+                              ))}
+                            </div>
+                          </section>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {narrator.evaluations.map((evalRecord, idx) => (
+                          <EvaluationCard key={idx} evalRecord={evalRecord} />
+                        ))}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <p className="text-sm text-slate-500">لا توجد أقوال مسجلة لهذا الراوي.</p>
                 )}
