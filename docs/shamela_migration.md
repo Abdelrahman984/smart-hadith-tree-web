@@ -353,7 +353,7 @@ Other findings:
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** Phase 4b (resolver fixes from Shamela's links; measure each with `links/eval_links.py` on held-out records). Phase 4 is complete; Phase 3 is complete; the bare «سفيان» / «حماد» / «عطاء» ties (§6.4) are deferred until after Phase 7 (user decision). Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction, hand-reading and first-pass reviews, writing only to the scratchpad, `data/shamela_rijal/review/` or `rijal_pilot/review_drafts/`, and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
+**Next task:** Phase 5 (code). Phase 4b is deferred (user decision); Phase 4 is complete; Phase 3 is complete; the bare «سفيان» / «حماد» / «عطاء» ties (§6.4) are deferred until after Phase 7 (user decision). Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction, hand-reading and first-pass reviews, writing only to the scratchpad, `data/shamela_rijal/review/` or `rijal_pilot/review_drafts/`, and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
 
 **Working rules** (from Phase 3; follow them in every later phase):
 1. **Every sub-agent review gets a second check.** The main session checks every item not judged "right", plus a random sample of the "right" ones. In Phase 3 a reviewer once "corrected" a right reading (Ibn Jurayj's father taken for Ibn Jurayj).
@@ -370,7 +370,7 @@ Update the checkboxes whenever a task is finished, and record the commit next to
 | 2. Full narrator registry from Shamela | ✅ Done (ties deferred) |
 | 3. Ilal data (mudallisin, mukhtalitun) | ✅ Done (bare-name ties deferred) |
 | 4. All hadith texts from Shamela | ✅ Done |
-| 4b. Resolver fixes from Shamela's links | ⬜ Not started |
+| 4b. Resolver fixes from Shamela's links | ⏸ Deferred (user decision) |
 | 5. Code changes (Domain, ETL, disambiguation, tests) | ⬜ Not started (largest phase) |
 | 6. Build a separate database and compare with v2 | ⬜ Not started |
 | 7. Remove Itqan and update docs | ⬜ Not started |
@@ -522,7 +522,9 @@ A record:
 - [x] Separate the compiler's own remarks from the matn, and keep volume and page references: `scripts/shamela4-extractor/split_parts.py` (first draft by a sub-agent, two rounds of review) fills `parts` in place after the builder. Grammar only (no registry): it walks the chain (verbs, «عن», tahwil, speaker tags, asides such as «شك X» / «أو أحدهما» / «يحدث … أنه سمع X» / «يعني»), then a second isnad at a sentence start, a remark from the book's own openers (`REMARKS` table: «قال أبو عيسى», «هذا حديث صحيح …», «لم يرو هذا الحديث عن … إلا …», «وهذا الحديث لا نعلمه …»), and the editor's `note`s (al-Darimi's takhrij lines, Abu Ya'la's «[حكم حسين سليم أسد]», al-Adab al-Mufrad's grades, Ibn Khuzaymah's «قال الألباني / الأعظمي»). Measured on Shamela's matn groups (`--eval --part held`, records with id % 5 == 0 held out; matn start within ±3 words): with the editions' quotation marks (used in the six linked hadith books) Bukhari 97.7%, Muslim 94.4%, Abu Dawud 94.9%, al-Tirmidhi 98.5%, al-Nasa'i 98.2%, al-Tayalisi 99.8%; blind (no quotes, the estimate for the other books) 88.9 / 82.1 / 85.3 / 91.5 / 90.0 / 91.9%, the Muwatta 84.6% — part of the blind gap is Shamela's own convention (the matn starts after «X قال:» in ~80% of records and at the frame in ~20%). The first round's hand check (58 / 60) was lenient; the main session's own check found ~9 / 13 and sent back four failure classes (asides ending the isnad early, a dialogue's «قال:» taken for a remark, missed «ولم يرو …» / variant notes, editor's takhrij in the matn); after the fix, a fresh sample of 14 records from 7 books not used in tuning: 13 right, 1 with a follow-up isnad and an editor's line left in the matn (Ibn Khuzaymah ٢٥٠٤). Left: al-Bayhaqi's chains for critics' statements (Ibn Adi, Ahmad) are marked as a second isnad + matn; ~1,730 chain-less records in Ibn Abi Shayba are mostly sayings without an isnad, a few are narrator lines from its appendix.
 - [x] Move all 31 books to `data/shamela/` in one format (279,198 records; `build_shamela_books.py`, then `split_parts.py --write data/shamela <slugs>`)
 
-### Phase 4b — Resolver fixes from Shamela's links ⬜
+### Phase 4b — Resolver fixes from Shamela's links ⏸ Deferred
+
+**Skipped for now (user decision, 2026-10-04):** the resolver goes into Phase 5 as it is (97.55% against Shamela's links). The tasks below stay as known residuals; pick them up after Phase 6 if the comparison shows a need. Fixing them in the Python resolver is cheaper than after the C# port (the link measurement runs on the Python version). The bare-name ties of the 7 linked books can instead be settled in Phase 5, by reading Shamela's narrator ids when their chains are rebuilt.
 
 User decisions (2026-10-04): after Phase 4, fix the largest error classes found by the link measurement (Phase 4), each measured with `links/eval_links.py` on held-out records (rule 2: tune on part of the records, confirm on the rest) and with `bench.py --books all`; and, in the 7 linked books, settle the bare-name ties («سفيان», «حماد», «عبد الله», «هشام» …) with Shamela's own link when it is one of our tied candidates (other books stay undecided).
 
@@ -538,6 +540,7 @@ User decisions (2026-10-04): after Phase 4, fix the largest error classes found 
 - [ ] Domain: `ItqanId` / `ItqanGrade` → a source reference and `Grade`; `ScholarEvaluation` with critic and book; EF migration
 - [ ] ETL: a new parser in place of `ItqanDatasetParser`, and a name index built from the registry instead of `by_name.json`
 - [ ] Chain building: the joint resolver ported into `ChainReprocessingService` / `ContextualDisambiguator`, starting each chain after the compiler's own name (§6.2: the Muwatta's «يحيى» loop)
+- [ ] In the 7 Shamela-linked books, use Shamela's narrator id (`narrators` spans, mapped by `links/map_s1.py`) when it is one of the resolver's tied candidates (user decision 2026-10-04; moved here from Phase 4b)
 - [ ] `NarratorGradeScale` from Ibn Hajr's ranks; `IlalSeedService` from the Phase 3 data
 - [ ] Update the unit tests (`ContextualDisambiguatorTests`, `IlalAnalysisServiceDbTests`, ...)
 
