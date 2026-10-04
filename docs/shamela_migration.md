@@ -339,7 +339,7 @@ In the live database, **1,296 of Muslim's 7,368 hadiths (18%)** have a first cha
 
 **Ties** (the deferred-ties condition of Phase 2). Undecided names whose tied candidates include a narrator who would give a finding there hid **7.7% of tadlis findings**, past the 1% condition, mostly «أبو معاوية» (al-Darir / Hushaym, a tier-3 mudallis; 64) and «أبو إسحاق». So they were fixed here (`chain_named` in `chain_resolver.py`): a tie between equally linked candidates goes to the one a neighbour names with the isnad's own form, when that neighbour lists every tied candidate (al-A'mash's students include «أبو معاوية الضرير» and «هشيم بن بشير»), and only for a kunya, a bare ism or a nisba. A broader first version (no "lists every candidate" condition, any form) was 86% right on 80 random picks («أبي بشر» → بيان بن بشر, «أبي سلام» → the Kufan al-Aswad, «ابن عون» → عمرو بن عون); the final rule keeps 55 / 55 of those (1 unsure) and **59 / 60 on a fresh sample**. 31 books: **299 names gained, none lost** (96 «أبو معاوية», 60 «عبد الله», 22 «عمرو», 22 «الأوزاعي», 16 «أبي إسحاق»); coverage +1 point in 11 books and +2 in Sa'id b. Mansur. Hidden tadlis went from 7.7% to 4.7%.
 
-What remains hidden by ties is mostly ikhtilat (15% of those findings): bare «سفيان» (al-Thawri / Ibn Uyayna, 159), «عطاء» (Ibn al-Sa'ib, 59), «حماد» (Ibn Zayd / Ibn Salama, 47). They were not on the deferred list, the mukhtalitun involved are ones the books call light or disputed, and Phase 2 found the old rules for «سفيان» wrong 28% of the time; **left deferred, pending the user's decision** (§7).
+What remains hidden by ties is mostly ikhtilat (15% of those findings): bare «سفيان» (al-Thawri / Ibn Uyayna, 159), «عطاء» (Ibn al-Sa'ib, 59), «حماد» (Ibn Zayd / Ibn Salama, 47). They were not on the deferred list, the mukhtalitun involved are ones the books call light or disputed, and Phase 2 found the old rules for «سفيان» wrong 28% of the time; **deferred until after Phase 7 (user decision, 2026-10-04)** (§7).
 
 Other findings:
 - The registry holds duplicates of Tahdhib narrators in the compilers' books (رجال الحاكم's «أحمد بن حنبل» = tk96, تاريخ بغداد's «إسحاق الأزرق» = tk395, الباغندي in ري الظمآن and إرشاد القاصي). The Ilal linker prefers the tk entry when the nasab is the same; the cross-book merge of Phase 2 does not cover Tahdhib narrators.
@@ -348,7 +348,7 @@ Other findings:
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** Phase 4 (hadith texts). Phase 3 is complete; one decision is open for the user: whether to take on the bare «سفيان» / «حماد» / «عطاء» ties (§6.4), which hide ikhtilat findings but were not on the deferred list. Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction and first-pass reviews, writing only to the scratchpad or `data/shamela_rijal/review/` and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
+**Next task:** Phase 4 (hadith texts). Phase 3 is complete; the bare «سفيان» / «حماد» / «عطاء» ties (§6.4) are deferred until after Phase 7 (user decision). Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction and first-pass reviews, writing only to the scratchpad or `data/shamela_rijal/review/` and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
 
 ### Overview
 
@@ -357,7 +357,7 @@ Update the checkboxes whenever a task is finished, and record the commit next to
 | 0. Preparation and backups | ✅ Done |
 | 1. Pilot (Tahdhib + Taqrib, name linking, isnad test) | ✅ Done |
 | 2. Full narrator registry from Shamela | ✅ Done (ties deferred) |
-| 3. Ilal data (mudallisin, mukhtalitun) | ✅ Done (one tie decision open) |
+| 3. Ilal data (mudallisin, mukhtalitun) | ✅ Done (bare-name ties deferred) |
 | 4. All hadith texts from Shamela | ⬜ Not started |
 | 5. Code changes (Domain, ETL, disambiguation, tests) | ⬜ Not started (largest phase) |
 | 6. Build a separate database and compare with v2 | ⬜ Not started |
@@ -440,7 +440,7 @@ User decisions at the start: الاغتباط (130) and التبيين (1187) as
 - [x] Link both to registry IDs, with a review of every link (`b8870f0`, `a88e692`); pipeline step 7 writes `ilal.json` (`a88e692`)
 - [x] Measure on the 31-book bench against the seeds: tadlis 3,243 vs 2,326, ikhtilat 4,325 vs 950 (`ilal_bench.py`, `b8870f0`, `d8845ce`)
 - [x] Ties hiding findings: 7.7% of tadlis, past the 1% condition; kunya tie-break, 98% on a fresh sample (`d8845ce`)
-- [ ] **Open (user decision):** bare «سفيان» / «حماد» / «عطاء» ties, which hide 15% of ikhtilat findings (mostly light / disputed mukhtalitun). Recommended: leave deferred
+- [ ] **Deferred until after Phase 7 (user decision, 2026-10-04):** bare «سفيان» / «حماد» / «عطاء» ties, which hide 15% of ikhtilat findings (mostly light / disputed mukhtalitun)
 
 For Phase 5 (from what Phase 3 found):
 - `IlalSeedService` reads `ilal.json` by registry id instead of the seeds; `MudallisTier` from Ibn Hajar's tiers (the appendix has no tier).
