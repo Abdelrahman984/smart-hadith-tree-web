@@ -365,7 +365,7 @@ Remaining resolver gaps:
 - [x] The compiler's own shaykh list as context for the first link: already in the resolver; al-Hakim was not found as the compiler, fixed (Mustadrak 78% → 79%) (`56105f6`)
 - [ ] "عن أبيه" after an unresolved narrator
 - [ ] Port the contextual overrides of `ContextualDisambiguator` (e.g. Sufyan / Hammad by student) to the new IDs
-- [x] Measure precision on a systematic sample: 150 names, 94% (`COMMIT`)
+- [x] Measure precision on a systematic sample: 150 names, 94% (`369fd56`)
 - [ ] Fix what the review found: kunya stub entries, «X - وهو ابن Y -» and «X وY» in segmentation, later namesakes winning by chain in early positions
 - [ ] Re-measure on 500 names with the sub-agent first pass, reviewing only flagged cases and a random 10%
 
