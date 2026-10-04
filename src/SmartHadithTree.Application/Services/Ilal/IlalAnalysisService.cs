@@ -97,7 +97,10 @@ public class IlalAnalysisService(IHadithTreeDbContext context) : IIlalAnalysisSe
             .GroupBy(t => t.HadithId)
             .ToDictionary(g => g.Key, g => g.Select(t => new IlalLink(t.StudentId, t.SheikhId, t.TransmissionTerm, t.StepOrder)).ToList());
 
+        // Keep the caller's order: the database returns rows in no particular order, and the rules
+        // (representative chain per branch, clustering, tie-breaks) must not depend on it.
         var chains = hadiths
+            .OrderBy(h => ids.IndexOf(h.Id))
             .Select(h => new IlalChain
             {
                 HadithId = h.Id,

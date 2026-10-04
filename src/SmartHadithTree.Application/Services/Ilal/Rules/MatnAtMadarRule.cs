@@ -24,7 +24,8 @@ public sealed class MatnAtMadarRule : IIlalRule
     /// </summary>
     public const int MinSubstitutedWords = 2;
 
-    internal enum DiffKind { None, Unrelated, Addition, Omission, Contradiction }
+    /// <summary>How a compared text differs from a reference text.</summary>
+    public enum DiffKind { None, Unrelated, Addition, Omission, Contradiction }
 
     private sealed class TextCluster
     {
@@ -170,13 +171,16 @@ public sealed class MatnAtMadarRule : IIlalRule
 
     private static readonly HashSet<string> FramingTokens = new(StringComparer.Ordinal)
     {
-        "ان", "انه", "انها", "قال", "فقال", "النبي", "رسول", "الله", "نبي"
+        "ان", "انه", "انها", "قال", "فقال", "النبي", "رسول", "الله", "نبي",
+        // Narrative preface that only sets the scene («كنت مع رسول الله في بعض أسفاره وكان …»); a text
+        // that opens with it and one that does not are the same hadith, not an addition.
+        "كنت", "مع", "في", "بعض", "اسفاره", "كان", "وكان"
     };
 
     /// <summary>Classifies the difference between a reference text and a compared text.</summary>
-    internal static DiffKind Classify(AlignmentResult diff)
+    public static DiffKind Classify(AlignmentResult diff)
     {
-        if (diff.Similarity < MinRelatedSimilarity) return DiffKind.Unrelated;
+        if (!AreRelated(diff)) return DiffKind.Unrelated;
 
         var addedTokens = diff.Segments
             .Where(s => s.Kind == AlignmentKind.Added)
@@ -193,8 +197,9 @@ public sealed class MatnAtMadarRule : IIlalRule
         var removedSet = new HashSet<string>(removedTokens, StringComparer.Ordinal);
         int transposedCount = addedTokens.Count(removedSet.Contains);
 
-        var substituted = diff.SubstitutedCount;
-        var maxSingleSubstitution = MaxSingleSubstitution(diff);
+        var sites = SubstitutionSites(diff);
+        var substituted = sites.Sum();
+        var maxSingleSubstitution = sites.DefaultIfEmpty(0).Max();
         var addedOnly = Math.Max(0, addedTokens.Count - substituted - transposedCount);
         var removedOnly = Math.Max(0, removedTokens.Count - substituted - transposedCount);
 
@@ -215,20 +220,45 @@ public sealed class MatnAtMadarRule : IIlalRule
         return DiffKind.None;
     }
 
-    private static int MaxSingleSubstitution(AlignmentResult diff)
+    /// <summary>
+    /// Whether the two texts are versions of the same matn. The overall similarity is not enough on its
+    /// own: a long addition lowers it although the shorter text is wholly contained in the longer one,
+    /// and framing words («كان النبي» / «كنت مع رسول الله في بعض أسفاره») inflate the difference in short texts.
+    /// So the content words are compared too, by overlap with the shorter text.
+    /// </summary>
+    private static bool AreRelated(AlignmentResult diff)
     {
-        int max = 0;
+        if (diff.Similarity >= MinRelatedSimilarity) return true;
+
+        var shared = diff.Segments.Where(s => s.Kind == AlignmentKind.Equal).Sum(s => s.Tokens.Count(IsContentWord));
+        var reference = shared + diff.Segments.Where(s => s.Kind == AlignmentKind.Removed).Sum(s => s.Tokens.Count(IsContentWord));
+        var compared = shared + diff.Segments.Where(s => s.Kind == AlignmentKind.Added).Sum(s => s.Tokens.Count(IsContentWord));
+        var shorter = Math.Min(reference, compared);
+
+        return shorter >= MinSignificantWords && (double)shared / shorter >= MinRelatedSimilarity;
+    }
+
+    /// <summary>
+    /// Size of each substitution site (a removed run directly next to an added run), counting only
+    /// content words: swapping «كان النبي» for «كنت مع رسول الله» replaces framing, not wording.
+    /// </summary>
+    private static List<int> SubstitutionSites(AlignmentResult diff)
+    {
+        var sites = new List<int>();
         for (int i = 0; i < diff.Segments.Count - 1; i++)
         {
             var a = diff.Segments[i];
             var b = diff.Segments[i + 1];
             if (a.Kind != AlignmentKind.Equal && b.Kind != AlignmentKind.Equal && a.Kind != b.Kind)
             {
-                max = Math.Max(max, Math.Min(a.Tokens.Count, b.Tokens.Count));
+                var size = Math.Min(a.Tokens.Count(IsContentWord), b.Tokens.Count(IsContentWord));
+                if (size > 0) sites.Add(size);
             }
         }
-        return max;
+        return sites;
     }
+
+    private static bool IsContentWord(string token) => !FramingTokens.Contains(token);
 
     private static int LongestRemovedRun(AlignmentResult diff) =>
         diff.Segments.Where(s => s.Kind == AlignmentKind.Removed).Select(s => s.Tokens.Count).DefaultIfEmpty(0).Max();

@@ -116,6 +116,17 @@ public class HiddenInqitaRuleTests
     }
 
     [Fact]
+    public void CompilersOwnLink_IsNotJudged()
+    {
+        // ب → أ is the compiler's link: the books rarely list the compilers' shaykhs, so it is skipped
+        var b = new IlalTestBuilder().Narrator("أ").Narrator("ب").Narrator("ج").Narrator("د");
+        b.Chain("x", "كتاب", "أ", "حدثنا", "ب", "عن", "ج");
+        b.Relation("ج", "ب").Relation("ب", "د").Relation("د", "أ"); // أ and ب have data, but no ب→أ relation
+
+        new HiddenInqitaRule().Evaluate(b.Build()).Should().BeEmpty();
+    }
+
+    [Fact]
     public void LinkWithSparseData_IsNotFlagged()
     {
         var b = new IlalTestBuilder().Narrator("أ").Narrator("ب").Narrator("ج");

@@ -10,7 +10,7 @@ namespace SmartHadithTree.Domain.Utilities;
 public static partial class MatnText
 {
     // Honorifics vary between books and would otherwise show up as textual variants.
-    [GeneratedRegex(@"صلي\s+الله\s+عليه\s+وسلم|صلى\s+الله\s+عليه\s+وسلم|ﷺ|رضي\s+الله\s+عنهما|رضي\s+الله\s+عنهم|رضي\s+الله\s+عنها|رضي\s+الله\s+عنه|عليه\s+السلام")]
+    [GeneratedRegex(@"صل[يى]\s+الله\s+عليه\s+(?:و?اله\s+)?وسلم|ﷺ|رضي\s+الله\s+عنهما|رضي\s+الله\s+عنهم|رضي\s+الله\s+عنها|رضي\s+الله\s+عنه|عليه\s+(?:السلام|الصلا[ةه]\s+والسلام)")]
     private static partial Regex HonorificsRegex();
 
     [GeneratedRegex(@"[^\p{L}\s]")]
@@ -24,7 +24,9 @@ public static partial class MatnText
     private static partial Regex ProphetMarkerRegex();
 
     // The start of the matn: a transmission/speech verb directly followed by a reference to the Prophet ﷺ.
-    [GeneratedRegex(@"(قال|ان|عن|سمعت|سمع|رايت|كان|يقول)\s+(رسول\s+الله|النبي|نبي\s+الله)")]
+    // The prefix letters (و / ف) are allowed, but the verb must start a word: "فقال رسول الله" is a start,
+    // while the "كان" inside "وكانت" is not. «كنت مع رسول الله» (a Companion narrating his own presence) starts the matn too.
+    [GeneratedRegex(@"(?<!\p{L})[وف]?(?:قال|ان|عن|سمعت|سمع|رايت|كان|يقول|كنت\s+مع)\s+(?:رسول\s+الله|النبي|نبي\s+الله)")]
     private static partial Regex MatnStartRegex();
 
     [GeneratedRegex(@"\s+")]
