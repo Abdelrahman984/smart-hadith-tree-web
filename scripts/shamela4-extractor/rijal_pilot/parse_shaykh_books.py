@@ -63,6 +63,10 @@ BOOKS = [   # full-head books first: short-head books merge into them
     {'id': 1208, 'source': 'tuhfa', 'layout': 'star'},
     {'id': 1893, 'source': 'tajil', 'layout': 'tajil'},
     {'id': 736, 'source': 'khatib', 'layout': 'khatib'},
+    # لسان الميزان (parse_lisan.py -> lisan.json, layout 'lisan') is not merged: it is a book of criticised
+    # narrators, rarely in these isnads, and even with namesakes of Tahdhib narrators skipped it gained 182
+    # names and lost 221 across the 31 books (ties with «قتيبة», «علي بن المديني»). Kept for grading later.
+    # {'id': 36357, 'source': 'lisan', 'layout': 'lisan'},
 ]
 
 AR_DIGITS = str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789')
@@ -349,9 +353,54 @@ def khatib_entry(book: dict, num: int, header: str, body: str) -> dict | None:
     return entry(book, num, header, shuyukh, talamidh, None)
 
 
+# Lisan heads run on into the narrator's shaykh and al-Dhahabi's verdict: "معروف، عن الحسن، عن أبي
+# بكرة، مجهول". Header words count as the narrator's own, so «الحسن» would find this Ma'ruf: cut them.
+LISAN_HEAD_END = re.compile(r'\s*[،,]\s*(?:و?(?:عن|حدث|روى|يروي|سمع)|وعنه|لا\s|مجهول|ضعيف|كذاب|متروك|واه|انتهى'
+                            r'|له\s|فيه|قال|شيخ|ليس|تكلم|ذكره|اتهم|صدوق|ثقة)|\.\s|\.?\s*انتهى')
+
+
+tahdhib_header_words = {w for e in json.load(open(TAHDHIB, encoding='utf-8')) for w in e['header'][:250].split()}
+
+
+def lisan_entries(book: dict) -> None:
+    path = os.path.join(os.path.dirname(os.path.abspath(TAHDHIB)), 'lisan.json')
+    if not os.path.exists(path):
+        print('lisan.json not found: run parse_lisan.py first')
+        return
+    for e in json.load(open(path, encoding='utf-8')):
+        if e['kind'] != 'entry':
+            continue
+        header = e['header']
+        if m := LISAN_HEAD_END.search(header):
+            header = header[:m.start()]
+        header = header.strip(' .،')
+        if not re.search(r'(?:^|\s)(?:بن|ابن|أبو|بنت)\s', header):
+            stats['lisan: no nasab or kunya in the head'] += 1     # "معروف": a bare name adds only ties
+            continue
+        # Lisan's namesakes of Tahdhib narrators («قتيبة بن سعيد», «عثمان بن عفان», «علي بن المديني») are
+        # criticised men rarely meant in these isnads, but as entries they tied with the famous ones: skip
+        # any whose ism and father are a Tahdhib narrator's, whatever the rest of the nasab or the nisba.
+        if khatib_in_tahdhib(header) or nasab_key(header)[:2] in tahdhib_prefixes:
+            stats['lisan: a Tahdhib narrator or his namesake'] += 1
+            continue
+        # A Tahdhib laqab as ism («بندار بن محمد»): it turned «بندار» (محمد بن بشار) into an ism.
+        if (w := header.split()[0]) not in first_words and w in tahdhib_header_words:
+            stats['lisan: named like a Tahdhib laqab'] += 1
+            continue
+        if not e['shuyukh'] and not e['talamidh']:
+            stats['lisan: no lists'] += 1
+            continue
+        out = entry(book, e['num'], header, e['shuyukh'], e['talamidh'], None)
+        out['quotes'] = e['quotes']
+        add(out, short_head=False)
+
+
 for book in BOOKS:
-    text = load(book['id'])
     layout = book['layout']
+    if layout == 'lisan':
+        lisan_entries(book)
+        continue
+    text = load(book['id'])
     if layout == 'bracket':
         heads = list(re.finditer(r'\[([٠-٩]+)\]\s*([^\n]+)', text))
     elif layout == 'paren':                               # "(٩٣) عبيد الله بن عمر ..." at a line start

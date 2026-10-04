@@ -52,6 +52,7 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 | File | Produced by | Contents |
 |---|---|---|
 | `dump/<id>_pages.tsv`, `dump/<id>_titles.tsv` | `ShamelaLuceneDumper` | Raw book text |
+| `lisan.json` | `parse_lisan.py` | 9,170 Lisan al-Mizan entries + 1,646 cross-references (not merged, see §7) |
 | `tahdhib.json` | `parse_tahdhib.py` | 8,471 Tahdhib al-Kamal entries + 120 cross-references |
 | `taqrib.json` | `parse_taqrib.py` | 8,828 Taqrib entries + 1,419 "X هو Y" redirects |
 | `align.json` | `align_taqrib.py` | Tahdhib ↔ Taqrib alignment (92.8% of Tahdhib) |
@@ -355,7 +356,7 @@ Compilers' shaykh books (via `parse_shaykh_books.py`):
 General rijal books for what remains (each needs its own parser):
 - [x] تاريخ بغداد (736): `khatib` layout, stricter Tahdhib skip, cross-book duplicate merge; al-Daraqutni 74% → 76% (`bcf95f2`)
 - [ ] سير أعلام النبلاء (10906)
-- [ ] لسان الميزان (36357)
+- [x] لسان الميزان (36357): parsed (`parse_lisan.py` → `lisan.json`, 9,170 entries, 1,646 cross-references; first draft by a sub-agent) but **not merged** into the resolver. Even with namesakes of Tahdhib narrators skipped (same ism + father) and Tahdhib laqabs used as isms («بندار بن محمد») skipped, its 3,544 added narrators gained 182 names and lost 221 across the 31 books: criticised men rarely meant in these isnads, tying with «قتيبة», «علي بن المديني», «الحسن بن سفيان». Kept for narrator grading (Phase 3/5); the `lisan` layout in `parse_shaykh_books.py` is ready but commented out (`COMMIT`)
 - [ ] الثقات ممن لم يقع في الكتب الستة (96165)
 
 Remaining resolver gaps:
