@@ -45,6 +45,7 @@ interface ExtractedAiEvaluation {
   sourceBook: string;
   tier: string;
   justification: string;
+  status: "ok" | "no-evaluations" | "unverified" | "unavailable";
 }
 
 export default function NarratorDrawer() {
@@ -65,7 +66,7 @@ export default function NarratorDrawer() {
     setAiError(null);
     try {
       const res = await fetch(`http://localhost:5147/api/Narrators/${selectedNarratorId}/ai-summary`);
-      if (!res.ok) throw new Error("فشل استخراج البيانات. تأكد من إعداد مفتاح OpenAI.");
+      if (!res.ok) throw new Error("فشل استخراج البيانات. حاول لاحقاً أو راجع أقوال العلماء الأصلية.");
       const data = await res.json();
       setAiSummary(data);
     } catch (err) {
@@ -284,18 +285,25 @@ export default function NarratorDrawer() {
 
                   {aiSummary && (
                     <div className="text-sm text-purple-900 leading-relaxed font-arabic space-y-2">
-                      <div className="bg-white p-3 rounded shadow-sm border border-purple-100">
-                        <p className="font-bold text-lg mb-1">«{aiSummary.verbatimQuote}»</p>
-                        <p className="text-xs text-purple-600 mb-3">— {aiSummary.sourceBook}</p>
-                        <div className="flex gap-2 items-center bg-purple-50 p-2 rounded">
-                          <span className="px-2 py-1 bg-purple-200 text-purple-900 rounded text-xs font-bold shadow-sm">
-                            {aiSummary.tier}
-                          </span>
-                          <span className="text-xs text-slate-700">
-                            {aiSummary.justification}
-                          </span>
+                      {aiSummary.status === "ok" ? (
+                        <div className="bg-white p-3 rounded shadow-sm border border-purple-100">
+                          <p className="font-bold text-lg mb-1">«{aiSummary.verbatimQuote}»</p>
+                          <p className="text-xs text-purple-600 mb-3">— {aiSummary.sourceBook}</p>
+                          <div className="flex gap-2 items-center bg-purple-50 p-2 rounded">
+                            <span className="px-2 py-1 bg-purple-200 text-purple-900 rounded text-xs font-bold shadow-sm">
+                              {aiSummary.tier}
+                            </span>
+                            <span className="text-xs text-slate-700">
+                              {aiSummary.justification}
+                            </span>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="bg-amber-50 p-3 rounded border border-amber-200 text-amber-900">
+                          <p className="font-bold mb-1">غير مصنَّف آلياً</p>
+                          <p className="text-xs">{aiSummary.justification}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

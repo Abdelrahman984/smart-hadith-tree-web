@@ -2,6 +2,7 @@ using SmartHadithTree.Application.Interfaces;
 using SmartHadithTree.Application.DTOs;
 using Microsoft.SemanticKernel;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace SmartHadithTree.Application.Services;
 
@@ -16,11 +17,11 @@ public class AiEvaluationService(Kernel kernel) : IAiEvaluationService
     {
         if (narrator.Evaluations == null || narrator.Evaluations.Count == 0)
         {
+            // No source material: abstain. Never infer a grade for a narrator we know nothing about.
             return new ExtractedAiEvaluationDto
             {
-                VerbatimQuote = "لا توجد أقوال مسجلة.",
-                Tier = "T7", // Default to weak if unknown
-                Justification = "No evaluations found."
+                Status = AiEvaluationStatus.NoEvaluations,
+                Justification = "لا توجد أقوال مسجلة لهذا الراوي في البيانات؛ لا يُصدر النظام تصنيفاً دون مرجع."
             };
         }
 
@@ -75,14 +76,59 @@ T12 = كذاب / وضاع
                 json = json.Trim();
 
                 var dto = JsonSerializer.Deserialize<ExtractedAiEvaluationDto>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                if (dto != null) return dto;
+                if (dto != null) return Validate(dto, narrator.Evaluations.Select(e => e.EvaluationText));
             }
-            
-            return new ExtractedAiEvaluationDto { VerbatimQuote = "تعذر استخراج البيانات." };
+
+            return Unavailable();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return new ExtractedAiEvaluationDto { VerbatimQuote = $"حدث خطأ: {ex.Message}" };
+            // Do not leak exception details (provider errors may contain keys or endpoints) to the client.
+            return Unavailable();
         }
+    }
+
+    private static ExtractedAiEvaluationDto Unavailable() => new()
+    {
+        Status = AiEvaluationStatus.Unavailable,
+        Justification = "تعذر توليد الملخص الآلي حالياً. راجع أقوال العلماء الأصلية أدناه."
+    };
+
+    /// <summary>
+    /// Accepts the model output only if the quote is verbatim from the supplied evaluations and the tier
+    /// is a known value. Otherwise the result is marked unverified and carries no tier.
+    /// </summary>
+    public static ExtractedAiEvaluationDto Validate(ExtractedAiEvaluationDto dto, IEnumerable<string> evaluationTexts)
+    {
+        var grounded = IsQuoteGrounded(dto.VerbatimQuote, evaluationTexts);
+        if (!grounded || !TierPattern.IsMatch(dto.Tier ?? string.Empty))
+        {
+            return new ExtractedAiEvaluationDto
+            {
+                Status = AiEvaluationStatus.Unverified,
+                Justification = "لم يُتحقق من مطابقة الاقتباس لأقوال العلماء المسجلة، فلا يُعرض تصنيف آلي. راجع الأقوال الأصلية."
+            };
+        }
+
+        dto.Status = AiEvaluationStatus.Ok;
+        return dto;
+    }
+
+    /// <summary>True when the quote appears verbatim (after diacritics/tatweel/whitespace normalization) in any evaluation text.</summary>
+    public static bool IsQuoteGrounded(string? quote, IEnumerable<string> evaluationTexts)
+    {
+        var q = NormalizeForMatch(quote);
+        if (q.Length == 0) return false;
+        return evaluationTexts.Any(t => NormalizeForMatch(t).Contains(q, StringComparison.Ordinal));
+    }
+
+    private static readonly Regex TierPattern = new(@"^T([1-9]|1[0-2])$", RegexOptions.Compiled);
+    private static readonly Regex StripPattern = new(@"[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640«»""'\u201C\u201D]", RegexOptions.Compiled);
+
+    private static string NormalizeForMatch(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+        var stripped = StripPattern.Replace(text, string.Empty);
+        return Regex.Replace(stripped, @"\s+", " ").Trim();
     }
 }
