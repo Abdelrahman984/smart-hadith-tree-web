@@ -144,7 +144,7 @@ Coverage means the share of narrator names in the first 8 links of each chain th
 | Book (sample) | Ours: first greedy | Ours: now | Current system | Agreement | Ours past the current chain |
 |---|---|---|---|---|---|
 | al-Bukhari (500) | 54% | **85%** | 82% | 83% | 218 |
-| al-Mustadrak (1,000) | 59% | **78%** | 92% | 60% † | 946 |
+| al-Mustadrak (1,000) | 59% | **79%** | 92% | 60% † | 948 |
 | al-Mu'jam al-Kabir (500) | 70%* | **86%** | 82% | 88% | 387 |
 | al-Mu'jam al-Awsat (500) | 65%* | **83%** | 88% | 87% | 121 |
 | al-Mu'jam al-Saghir (500) | 65%* | **86%** | 85% | 84% | 126 |
@@ -252,6 +252,10 @@ Fixing them added ~5,600 list items. Complete lists also make real namesakes tie
 - Many "disagreements" are the current system's: «أبي صالح» from al-A'mash → باذام (it is Dhakwan al-Samman, whom it also names «ذكوان بن الله», so every Dhakwan counts as a disagreement), «عكرمة» → عكرمة بن منصور, «عبيد الله» from Yahya → عبيد الله بن معاذ, «نافع» → نافع بن همام, Ibn Sirin as «محمد بن أبي عمرة».
 - Tie-break resolutions agree 73% (ordinary chain resolutions 81%), largely for the reasons above.
 
+**The compiler's shaykh list for the first link.** It was already used (the edge from the compiler to his shaykh), but al-Hakim was never found as the compiler: the Mustadrak prefix «…بن حمدويه الحاكم» did not match his header «…بن حمدويه بن نعيم», and an empty duplicate entry from السلسبيل shares that prefix. The compiler is now the matching entry with the most lists. The Mustadrak rose from 78% to 79% (94 names gained); «أبو بكر بن إسحاق» is now Ahmad b. Ishaq al-Faqih, not Ibn Khuzaymah. Other findings:
+- Tahdhib gives no shaykh list for al-Tirmidhi, al-Nasa'i and Ibn Majah («قد سميناهم في مواضعهم»); their link comes from each shaykh's student list, which works.
+- «أبو بكر محمد بن أحمد» in the Mustadrak is a real ambiguity: several of al-Hakim's shaykhs carry it (Ibn Balawayh among them), so it stays undecided. Putting the compiler's shaykhs ahead of the 80-candidate cut changed nothing there, and for a bare «محمد» it made things worse, so it was not kept.
+
 A manual review of 12 Ibn Hibban chains (~70 names) found 1 likely error: "أبي جعفر" from يحيى بن أبي كثير → al-Baqir, probably al-Ansari al-Mu'adhdhin.
 
 ### 6.1 Data finding: shifted hadith records (affects the live app today)
@@ -287,7 +291,7 @@ In the live database, **1,296 of Muslim's 7,368 hadiths (18%)** have a first cha
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** the first unchecked item of Phase 2's resolver gaps (al-Baghawi as «ابن منيع»). The record-boundary fix (§6.1) stays in Phase 4 unless the user asks for it earlier.
+**Next task:** the precision review (a 150-name sample is ready, see Phase 2), then the first unchecked item of Phase 2's resolver gaps. The record-boundary fix (§6.1) stays in Phase 4 unless the user asks for it earlier.
 
 ### Overview
 
@@ -352,7 +356,7 @@ Remaining resolver gaps:
 - [ ] Al-Baghawi as «ابن منيع» (and other shaykhs known by a maternal grandfather)
 - [x] Companions and common names when context is weak: Tahdhib lists repaired (women, line breaks, separators, «N:» heads), fame tie-break for equally linked candidates, «ابن عمر» / «أبو سلمة بن عبد الرحمن» / «أبي بن كعب» / «ذكوان أبو صالح» matching (`b15bcd2`)
 - [ ] Real ties left undecided: «أبو إسحاق» (al-Sabi'i / al-Shaybani), «أبو معاوية» (al-Darir / Hushaym), «عبد الله» bare
-- [ ] Namesakes of the same name and generation, who belong to different compilers (Ibn Hibban's «محمد بن عبد السلام» against al-Hakim's): use the compiler's own shaykh list as context for the first link
+- [x] The compiler's own shaykh list as context for the first link: already in the resolver; al-Hakim was not found as the compiler, fixed (Mustadrak 78% → 79%) (`COMMIT`)
 - [ ] "عن أبيه" after an unresolved narrator
 - [ ] Port the contextual overrides of `ContextualDisambiguator` (e.g. Sufyan / Hammad by student) to the new IDs
 - [ ] Measure precision on a larger, systematic sample (not only small manual reviews)

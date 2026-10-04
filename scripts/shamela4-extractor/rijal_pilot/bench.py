@@ -30,7 +30,7 @@ RESULTS = 'results'
 # book -> (compiler's Tahdhib header prefix, current-system chains file, sample size)
 BOOKS = {
     'bukhari': ('محمد بن إسماعيل بن إبراهيم بن المغيرة', 'current_chains.json', 500),
-    'mustadrak_hakim': ('محمد بن عبد الله بن محمد بن حمدويه الحاكم', 'current_chains.json', 1000),
+    'mustadrak_hakim': ('محمد بن عبد الله بن محمد بن حمدويه بن نعيم', 'current_chains.json', 1000),
     'mujam_kabir_tabarani': ('سليمان بن أحمد بن أيوب', 'current_chains_tabarani.json', 500),
     'mujam_awsat_tabarani': ('سليمان بن أحمد بن أيوب', 'current_chains_tabarani.json', 500),
     'mujam_saghir_tabarani': ('سليمان بن أحمد بن أيوب', 'current_chains_tabarani.json', 500),
