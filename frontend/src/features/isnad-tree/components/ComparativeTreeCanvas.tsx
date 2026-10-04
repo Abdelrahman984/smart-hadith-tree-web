@@ -118,6 +118,9 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
               gradeEn: n.gradeEn,
               isAnomaly: n.isAnomaly,
               anomalyReason: n.anomalyReason,
+              travelNote: n.travelNote,
+              hasMatnVariation: n.hasMatnVariation,
+              matnVariationSnippet: n.matnVariationSnippet,
               isMudallis: n.isMudallis,
               hasMukhtalit: n.hasMukhtalit,
               residencePlaces: n.residencePlaces,
@@ -136,6 +139,12 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
           const newBooks = n.sourceBooks || [];
           const mergedBooks = Array.from(new Set([...((existingNode.data.sourceBooks as string[]) || []), ...newBooks]));
           existingNode.data.sourceBooks = mergedBooks;
+          // Keep any hint seen on this narrator's other transmissions.
+          existingNode.data.travelNote ??= n.travelNote;
+          if (n.hasMatnVariation && !existingNode.data.hasMatnVariation) {
+            existingNode.data.hasMatnVariation = true;
+            existingNode.data.matnVariationSnippet = n.matnVariationSnippet;
+          }
         }
       }
     });

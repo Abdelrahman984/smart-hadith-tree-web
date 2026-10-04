@@ -100,6 +100,7 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
               gradeEn: n.gradeEn,
               isAnomaly: n.isAnomaly,
               anomalyReason: n.anomalyReason,
+              travelNote: n.travelNote,
               isMudallis: n.isMudallis,
               hasMukhtalit: n.hasMukhtalit,
               residencePlaces: n.residencePlaces,

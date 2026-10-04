@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SmartHadithTree.Application.DTOs;
 
 using SmartHadithTree.Application.Interfaces;
+using SmartHadithTree.Domain.Utilities;
 
 namespace SmartHadithTree.Infrastructure.Data.Repositories;
 
@@ -97,11 +98,10 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                         node.IsAnomaly = true;
                         node.AnomalyReason = $"انقطاع زمني: التلميذ ولد سنة {studentMeta.BirthYearHijri} بعد وفاة الشيخ سنة {sheikhMeta.DeathYearHijri}";
                     }
-                    // 2. Geographic check: If both have known cities and zero overlap (excluding Hajj hubs)
-                    else if (HasGeographicDisconnection(sheikhMeta.ResidencePlaces, sheikhMeta.DeathPlace, studentMeta.ResidencePlaces, studentMeta.DeathPlace, out var geoReason))
+                    // 2. Geographic hint (not a break): no shared city or region
+                    else if (PlaceRegions.HaveNothingInCommon(sheikhMeta.ResidencePlaces, sheikhMeta.DeathPlace, studentMeta.ResidencePlaces, studentMeta.DeathPlace, out var travelNote))
                     {
-                        node.IsAnomaly = true;
-                        node.AnomalyReason = geoReason;
+                        node.TravelNote = travelNote;
                     }
                 }
             }
@@ -335,64 +335,15 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                         node.IsAnomaly = true;
                         node.AnomalyReason = $"انقطاع زمني: التلميذ ولد سنة {studentMeta.BirthYearHijri} بعد وفاة الشيخ سنة {sheikhMeta.DeathYearHijri}";
                     }
-                    else if (HasGeographicDisconnection(sheikhMeta.ResidencePlaces, sheikhMeta.DeathPlace, studentMeta.ResidencePlaces, studentMeta.DeathPlace, out var geoReason))
+                    else if (PlaceRegions.HaveNothingInCommon(sheikhMeta.ResidencePlaces, sheikhMeta.DeathPlace, studentMeta.ResidencePlaces, studentMeta.DeathPlace, out var travelNote))
                     {
-                        node.IsAnomaly = true;
-                        node.AnomalyReason = geoReason;
+                        node.TravelNote = travelNote;
                     }
                 }
             }
         }
 
         return mergedNodes;
-    }
-
-    private static bool HasGeographicDisconnection(
-        string? sheikhResidence,
-        string? sheikhDeath,
-        string? studentResidence,
-        string? studentDeath,
-        out string? reason)
-    {
-        reason = null;
-        var sheikhCities = ExtractCities(sheikhResidence, sheikhDeath);
-        var studentCities = ExtractCities(studentResidence, studentDeath);
-
-        if (sheikhCities.Count == 0 || studentCities.Count == 0)
-            return false;
-
-        // If they share any city or region
-        if (sheikhCities.Overlaps(studentCities))
-            return false;
-
-        // If both entered Hijaz (Mecca/Medina) where scholars commonly met during Hajj
-        var hijaz = new[] { "مكة", "المدينة", "الحجاز" };
-        if (sheikhCities.Any(c => hijaz.Contains(c)) && studentCities.Any(c => hijaz.Contains(c)))
-            return false;
-
-        reason = $"تباين مكاني (يُراجع للرحلة): بلدان الشيخ ({string.Join("، ", sheikhCities)}) تختلف عن بلدان التلميذ ({string.Join("، ", studentCities)})";
-        return true;
-    }
-
-    private static HashSet<string> ExtractCities(string? residence, string? death)
-    {
-        var set = new HashSet<string>(StringComparer.Ordinal);
-        if (!string.IsNullOrWhiteSpace(residence))
-        {
-            foreach (var p in residence.Split(['،', ',', '-'], StringSplitOptions.RemoveEmptyEntries))
-            {
-                var trimmed = p.Trim();
-                if (!string.IsNullOrEmpty(trimmed))
-                    set.Add(trimmed);
-            }
-        }
-        if (!string.IsNullOrWhiteSpace(death))
-        {
-            var trimmed = death.Trim();
-            if (!string.IsNullOrEmpty(trimmed))
-                set.Add(trimmed);
-        }
-        return set;
     }
 }
 

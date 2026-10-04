@@ -26,6 +26,8 @@ export interface IsnadNodeDto {
   uniqueHadithCount?: number | null;
   isAnomaly?: boolean;
   anomalyReason?: string;
+  /** A hint to review (no shared city or region); not a break. */
+  travelNote?: string;
 }
 
 export interface IsnadTreeResponseDto {

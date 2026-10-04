@@ -34,8 +34,15 @@ public class IsnadNodeDto
     public int? TotalNarrationsCount { get; set; }
     public int? UniqueHadithCount { get; set; }
     
+    /// <summary>A proven break (انقطاع), e.g. the student was born after the sheikh died.</summary>
     public bool IsAnomaly { get; set; }
     public string? AnomalyReason { get; set; }
+
+    /// <summary>
+    /// A hint for the researcher: the sheikh and student share no city or region. Scholars travelled
+    /// widely, so this is not a break and never sets <see cref="IsAnomaly"/>.
+    /// </summary>
+    public string? TravelNote { get; set; }
 }
 
 public class IsnadTreeResponseDto
