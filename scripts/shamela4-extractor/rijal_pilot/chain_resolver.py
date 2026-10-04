@@ -37,6 +37,31 @@ def _talamidh_of() -> list[set[int]]:
 talamidh_of = cached('talamidh_of', _talamidh_of)
 
 
+# Bare names the current system's ContextualDisambiguator maps without a condition, kept only where our
+# own chain resolution agrees with it 97%+ (30+ cases) on the 31-book bench: used when the chain cannot
+# decide. Rules our evidence contradicts («سفيان» 28%, «جابر» 26%, «يحيى بن سعيد» 35%, «عكرمة»,
+# «محمد بن كثير», «ابن علية») are left out. Values are header prefixes, matched to one entry at load.
+DEFAULT_FOR = {
+    'ابن عباس': 'عبد الله بن عباس بن عبد المطلب', 'عبد الله بن عباس': 'عبد الله بن عباس بن عبد المطلب',
+    'عائشة': 'عائشة بنت أبي بكر الصديق أم المؤمنين', 'ابن عمر': 'عبد الله بن عمر بن الخطاب القرشي',
+    'الزهري': 'محمد بن مسلم بن عبيد الله بن عبد الله بن شهاب', 'ابن شهاب': 'محمد بن مسلم بن عبيد الله بن عبد الله بن شهاب',
+    'جابر بن عبد الله': 'جابر بن عبد الله بن عمرو بن حرام', 'أنس': 'أنس بن مالك بن النضر',
+    'قتادة': 'قتادة بن دعامة', 'الأعمش': 'سليمان بن مهران الأسدي', 'مجاهد': 'مجاهد بن جبر',
+    'شعبة': 'شعبة بن الحجاج بن الورد', 'أبو العباس محمد بن يعقوب': 'محمد بن يعقوب بن يوسف بن معقل',
+    'عروة': 'عروة بن الزبير بن العوام', 'نافع': 'نافع ، مولى عبد الله بن عمر', 'الحكم': 'الحكم بن عتيبة',
+    'معمر': 'معمر بن راشد', 'ابن جريج': 'عبد الملك بن عبد العزيز بن جريج', 'مالك': 'مالك بن أنس بن مالك بن أبي عامر',
+    'أبي سلمة': 'أبو سلمة بن عبد الرحمن بن عوف', 'وكيع': 'وكيع بن الجراح بن مليح الرؤاسي', 'سالم بن عبد الله': 'سالم بن عبد الله بن عمر بن الخطاب',
+    'ابن سيرين': 'محمد بن سيرين الأنصاري', 'أبو الزبير': 'محمد بن مسلم بن تدرس',
+    'أبو بكر بن أبي شيبة': 'عبد الله بن محمد بن إبراهيم بن عثمان بن خواستي', 'إسماعيل ابن علية': 'إسماعيل بن إبراهيم بن مقسم',
+    'ابن عيينة': 'سفيان بن عيينة بن أبي عمران', 'شقيق': 'شقيق بن سلمة',
+}
+default_of = {}
+for _name, _prefix in DEFAULT_FOR.items():
+    _hit = [j for j, e in enumerate(entries) if e['header'].startswith(_prefix)]
+    if len(_hit) == 1:
+        default_of[_name] = _hit[0]
+
+
 def edge(student: int | None, shaykh: int | None) -> int:
     if student is None or shaykh is None:
         return 0
@@ -122,6 +147,8 @@ def resolve(segs: list[str], start: int | None) -> list[tuple[str, int | None, s
             # not al-Ahwazi (6). Only for kunya + ism + father: on shorter forms ("ابن أبي
             # مليكة", "عبدان") the most-cited candidate is often not the narrator meant.
             out.append((seg, f, 'fame'))
+        elif (d := default_of.get(seg.strip())) is not None and d in c and (j is None or local(d) >= local(j)):
+            out.append((seg, d, 'default'))
         else:
             out.append((seg, None, 'ambiguous'))
     return out

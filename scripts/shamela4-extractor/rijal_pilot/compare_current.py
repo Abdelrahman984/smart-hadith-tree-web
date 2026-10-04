@@ -123,16 +123,30 @@ def named_in_kunya_entry(j: int, sheikh: str) -> bool:
     return len(words) >= n and key(name) in flat
 
 
+# Itqan ids mapped to registry entries (review/itqan_id_map.json, by header): the current system names
+# some narrators wrongly but means the right person («نافع بن همام» is Nafi' mawla Ibn Umar, «عكرمة بن
+# منصور» is Ikrima mawla Ibn Abbas, «محمد بن أبي عمرة» is Ibn Sirin).
+itqan_to = {}
+_map = os.path.join(os.path.dirname(os.path.abspath(TAHDHIB)), 'review', 'itqan_id_map.json')
+if os.path.exists(_map):
+    _by_head = {}
+    for _j, _e in enumerate(entries):
+        _by_head.setdefault(re.sub(r'\s+', ' ', _e['header'])[:90], _j)
+    for _x in json.load(open(_map, encoding='utf-8'))['ids']:
+        if _x.get('registry_header') and (_k := re.sub(r'\s+', ' ', _x['registry_header'])[:90]) in _by_head:
+            itqan_to[_x['itqan_id']] = _by_head[_k]
+
 agree, disagree, beyond, cases = 0, 0, 0, []
 vs_current = {}                     # (row, position) -> 'agree' / 'differ' / 'past', for SAVE
 for r, (text, ours, links) in enumerate(rows):
     now = {ism_father(l['sheikh']) for l in links}
+    now_ids = {itqan_to.get(l.get('sheikhItqan')) for l in links} - {None}
     for pos, (seg, j, how) in enumerate(ours):
         if j is None:
             continue
         # alt_nasab: the Taqrib form of a typo'd Tahdhib header ("عبيد الله بن عتبة" for عبيد الله بن
         # عبد الله بن عتبة) is the same narrator.
-        if (ism_father(entries[j]['header']) in now or (alt_nasab[j] and tuple(alt_nasab[j][:2]) in now)
+        if (j in now_ids or ism_father(entries[j]['header']) in now or (alt_nasab[j] and tuple(alt_nasab[j][:2]) in now)
                 or any(named_in_kunya_entry(j, l['sheikh']) for l in links)):
             agree += 1
             vs_current[r, pos] = 'agree'

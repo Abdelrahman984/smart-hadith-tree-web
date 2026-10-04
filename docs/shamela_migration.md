@@ -140,41 +140,41 @@ The segmentation:
 
 ## 6. Results so far (samples, same hadiths as the current DB)
 
-Coverage means the share of narrator names in the first 8 links of each chain that were identified. Agreement means the share of our identified narrators that the current system also identified (same ism + father; a Companion known by his kunya also agrees when his Tahdhib header gives the current system's name, «أبو هريرة» = «عبد الرحمن بن صخر»; the Taqrib form of a typo'd Tahdhib name counts too, «عبيد الله بن عتبة» = «عبيد الله بن عبد الله بن عتبة»). A name past the end of the current chain ("… ← عروة" with no «عائشة») has nothing to compare with: it is counted in the last column, not as a disagreement. Before the clean-up step below, those names counted as disagreements, so older agreement figures in commit messages are lower.
+Coverage means the share of narrator names in the first 8 links of each chain that were identified. Agreement means the share of our identified narrators that the current system also identified (same ism + father; a Companion known by his kunya also agrees when his Tahdhib header gives the current system's name, «أبو هريرة» = «عبد الرحمن بن صخر»; the Taqrib form of a typo'd Tahdhib name counts too, «عبيد الله بن عتبة» = «عبيد الله بن عبد الله بن عتبة»; and a current-system narrator whose Itqan id is mapped to our entry agrees whatever name it carries, since Itqan names some narrators wrongly but means the right person: «نافع بن همام» is Nafi' mawla Ibn Umar, «عكرمة بن منصور» Ikrima mawla Ibn Abbas, «محمد بن أبي عمرة» Ibn Sirin — 77 ids in `review/itqan_id_map.json` so far). A name past the end of the current chain ("… ← عروة" with no «عائشة») has nothing to compare with: it is counted in the last column, not as a disagreement. Before the clean-up step below, those names counted as disagreements, so older agreement figures in commit messages are lower.
 
 | Book (sample) | Ours: first greedy | Ours: now | Current system | Agreement | Ours past the current chain |
 |---|---|---|---|---|---|
-| al-Bukhari (500) | 54% | **86%** | 81% | 83% | 220 |
-| al-Mustadrak (1,000) | 59% | **80%** | 91% | 60% † | 961 |
-| al-Mu'jam al-Kabir (500) | 70%* | **86%** | 81% | 88% | 388 |
-| al-Mu'jam al-Awsat (500) | 65%* | **83%** | 87% | 87% | 122 |
-| al-Mu'jam al-Saghir (500) | 65%* | **86%** | 84% | 84% | 126 |
-| al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **81%** | ✱ † | 45% † | 549 |
-| Shu'ab al-Iman (500) | 60%* | **72%** | 95% † | 78% † | 273 |
-| Sahih Ibn Hibban (500) | 74%* | **88%** | 85% | 90% | 190 |
-| Musnad Ahmad (500) | 75%* | **85%** | 86% | 85% | 117 |
-| al-Muwatta (500) | 53%* | **69%** ‡ | 78% ‡ | 78% | 136 |
-| Sunan al-Daraqutni (500) | 68%* | **83%** | 87% | 81% | 239 |
-| Sahih Ibn Khuzaymah (500) | 68%* | **83%** | 80% | 85% | 317 |
-| Mustakhraj Abi Awanah (500) | 67%* | **81%** | 68% | 83% | 529 |
-| Musannaf Abd al-Razzaq (500) | — | **76%** | 76% | 88% | 115 |
-| Musnad al-Tayalisi (500) | — | **84%** | ✱ | 79% | 22 |
-| Musnad al-Shafi'i (500) | — | **84%** | 80% | 88% | 145 |
-| Musnad al-Humaydi (500) | 44% | **83%** | 88% | 90% | 76 |
-| Sunan Sa'id b. Mansur (500) | — | **78%** | ✱ | 80% | 44 |
-| Musnad Ishaq (500) | — | **82%** | 82% | 87% | 196 |
-| Musnad al-Bazzar (500) | — | **86%** | 94% | 78% | 77 |
-| Musnad Abi Ya'la (500) | — | **83%** | 87% | 88% | 121 |
-| Sahih Muslim (500) | — | **86%** | 69% | 86% § | 506 |
-| Sunan Abi Dawud (500) | — | **83%** | 79% | 87% | 221 |
-| Jami' al-Tirmidhi (500) | — | **89%** | 90% | 90% | 125 |
-| Sunan al-Nasa'i (500) | — | **87%** | 82% | 87% | 218 |
-| Sunan Ibn Majah (500) | — | **88%** | 83% | 91% | 232 |
-| Sunan al-Darimi (500) | — | **84%** | 86% | 87% | 116 |
-| al-Adab al-Mufrad (500) | 58% | **81%** | 82% | 84% | 94 |
-| al-Shama'il (396) | 72% | **86%** | 86% | 93% | 93 |
-| Musannaf Ibn Abi Shayba (500) | — | **75%** | 89% | 79% | 56 |
-| al-Sunan al-Kubra, al-Nasa'i (500) | — | **87%** | 87% | 86% | 139 |
+| al-Bukhari (500) | 54% | **86%** | 81% | 84% | 230 |
+| al-Mustadrak (1,000) | 59% | **81%** | 91% | 61% † | 971 |
+| al-Mu'jam al-Kabir (500) | 70%* | **87%** | 81% | 89% | 391 |
+| al-Mu'jam al-Awsat (500) | 65%* | **83%** | 87% | 89% | 121 |
+| al-Mu'jam al-Saghir (500) | 65%* | **86%** | 84% | 86% | 122 |
+| al-Sunan al-Kubra, al-Bayhaqi (500) | 60%* | **81%** | ✱ † | 45% † | 551 |
+| Shu'ab al-Iman (500) | 60%* | **73%** | 95% † | 80% † | 272 |
+| Sahih Ibn Hibban (500) | 74%* | **89%** | 85% | 90% | 190 |
+| Musnad Ahmad (500) | 75%* | **86%** | 86% | 87% | 123 |
+| al-Muwatta (500) | 53%* | **70%** ‡ | 78% ‡ | 87% | 139 |
+| Sunan al-Daraqutni (500) | 68%* | **84%** | 87% | 83% | 239 |
+| Sahih Ibn Khuzaymah (500) | 68%* | **84%** | 80% | 86% | 317 |
+| Mustakhraj Abi Awanah (500) | 67%* | **82%** | 68% | 85% | 532 |
+| Musannaf Abd al-Razzaq (500) | — | **77%** | 76% | 91% | 120 |
+| Musnad al-Tayalisi (500) | — | **85%** | ✱ | 80% | 22 |
+| Musnad al-Shafi'i (500) | — | **85%** | 80% | 92% | 150 |
+| Musnad al-Humaydi (500) | 44% | **83%** | 88% | 91% | 79 |
+| Sunan Sa'id b. Mansur (500) | — | **78%** | ✱ | 82% | 43 |
+| Musnad Ishaq (500) | — | **83%** | 82% | 88% | 216 |
+| Musnad al-Bazzar (500) | — | **86%** | 94% | 81% | 75 |
+| Musnad Abi Ya'la (500) | — | **84%** | 87% | 88% | 126 |
+| Sahih Muslim (500) | — | **87%** | 69% | 87% § | 511 |
+| Sunan Abi Dawud (500) | — | **84%** | 79% | 89% | 226 |
+| Jami' al-Tirmidhi (500) | — | **90%** | 90% | 91% | 128 |
+| Sunan al-Nasa'i (500) | — | **88%** | 82% | 88% | 221 |
+| Sunan Ibn Majah (500) | — | **88%** | 83% | 92% | 236 |
+| Sunan al-Darimi (500) | — | **85%** | 86% | 89% | 122 |
+| al-Adab al-Mufrad (500) | 58% | **82%** | 82% | 85% | 100 |
+| al-Shama'il (396) | 72% | **87%** | 86% | 94% | 97 |
+| Musannaf Ibn Abi Shayba (500) | — | **76%** | 89% | 81% | 60 |
+| al-Sunan al-Kubra, al-Nasa'i (500) | — | **88%** | 87% | 87% | 140 |
 
 \* Joint resolver already applied, before that compiler's shaykh books were added.
 ✱ Over 100%: the current system counts more links than our name segments (it also links the book's transmitters), so its share is not comparable.
@@ -264,6 +264,10 @@ Fixing them added ~5,600 list items. Complete lists also make real namesakes tie
 - Verdicts are in `review/precision_firstpass.json`.
 
 **Segmentation fixes from the review.** The trailer rule that strips a place after a name («ببغداد», «بنيسابور») stripped **any** last word starting with «ب»: «بكر», «بكير», «بشار», «بلال», «بشر», «بردة», «بريدة» (over 7,000 segments in Bukhari and al-Bayhaqi alone). «محمد بن بشار» became «محمد بن», «يحيى بن بكير» «يحيى بن»; the chain often still found them, which hid the bug. It now never strips a word after «بن / بنت / أبي / أبو / أبا / أم». Also: dashes around a note («إسماعيل، - وهو ابن علية -») hid «وهو»; «X وهو ابن Y» / «X يعني ابن Y» now give «X ابن Y», «يعني X» gives X like «هو X», but «وهو من بني …» (a description) ends the name; «X وأبي Y» keeps the first shaykh. Coverage +1 to +4 points in 17 books (Ibn Khuzaymah +4, al-Bayhaqi +3, Ahmad +2); agreement steady or +1. Counted by narrator per isnad: 1,460 gained (986 agree with the current system, 305 differ), 546 lost (317 had disagreed: the wrong guesses for «محمد بن»; 121 agreed, mostly a name pushed past the first-8 limit by a now-complete first name, or a full name spelled differently in the registry, «شبيب بن بشير» / «بشر»). The current system's column moves by −1 because our name-segment count, its denominator, grew.
+
+**Rules of `ContextualDisambiguator`, ported where our evidence confirms them.** A Sonnet sub-agent listed its rules (111 entries, ~62 distinct; every condition is the student; targets are Itqan ids) and mapped the 77 Itqan ids to registry entries (67 exact, 10 probable; all spot-checks right). Measured against our resolutions on the 31-book bench, its unconditional rules agree with ours 95% of the time (15,105 / 15,895). The 28 bare names where we agree 97%+ over 30+ cases are a fallback (`DEFAULT_FOR` in `chain_resolver.py`) when the chain cannot decide: 471 names gained, none lost («ابن عباس» 136, «عائشة» 113, «ابن عمر» 36, «جابر بن عبد الله» 31, «الزهري» 26). Rules our evidence contradicts are not ported: «سفيان» (28% differ), «جابر» (26%), «يحيى بن سعيد» (35%), «عكرمة», «محمد بن كثير», «ابن علية». The conditional rules (student-specific) are what the chain already does from the lists.
+
+**Correction to the earlier disagreement reviews:** Itqan's «نافع بن همام», «عكرمة بن منصور» and «محمد بن أبي عمرة» are naming errors for the right narrator, not identification errors. With the id mapping in the metric, agreement rose 1–4 points in most books and 9 in the Muwatta.
 
 A manual review of 12 Ibn Hibban chains (~70 names) found 1 likely error: "أبي جعفر" from يحيى بن أبي كثير → al-Baqir, probably al-Ansari al-Mu'adhdhin.
 
@@ -367,7 +371,9 @@ Remaining resolver gaps:
 - [ ] Real ties left undecided: «أبو إسحاق» (al-Sabi'i / al-Shaybani), «أبو معاوية» (al-Darir / Hushaym), «عبد الله» bare
 - [x] The compiler's own shaykh list as context for the first link: already in the resolver; al-Hakim was not found as the compiler, fixed (Mustadrak 78% → 79%) (`56105f6`)
 - [ ] "عن أبيه" after an unresolved narrator
-- [ ] Port the contextual overrides of `ContextualDisambiguator` (e.g. Sufyan / Hammad by student) to the new IDs
+- [x] Port `ContextualDisambiguator`: rules listed and Itqan ids mapped (sub-agent), 28 unconditional rules our evidence confirms used as a fallback; the agreement metric uses the id mapping (`COMMIT`)
+- [ ] Map every Itqan id used in the current chains to the registry (sub-agent task): exact agreement for the whole bench, and needed for Phase 6
+- [ ] Known residual: later namesakes chosen by chain (a handful: «أبو هريرة» → الكلابي, «أبو الوليد الفقيه» → ابن عرق); needs generation data
 - [x] Measure precision on a systematic sample: 150 names, 94% (`369fd56`)
 - [x] Segmentation fixes from the review: the «ب» trailer bug, «- وهو ابن Y -», «يعني X», «X وأبي Y» (`a5a6751`)
 - [x] Kunyas glued in the edition («أبوالتياح», «أبويحيى», ~170 headers) were not read, so «أبي التياح» found only a bare stub from تعجيل المنفعة instead of يزيد بن حميد: split in `norm` / `soft_norm` (not «أبوه», «أبواب», «أبوين»). +1 point in 6 books; «أبي البختري» is now سعيد بن فيروز, not a later namesake (`4453885`)
