@@ -11,11 +11,15 @@ public sealed class IlalTestBuilder
     private readonly HashSet<(Guid, Guid)> _relations = [];
     private readonly HashSet<Guid> _withRelations = [];
     private readonly Dictionary<(Guid, Guid), HearingTiming> _hearings = [];
+    private readonly Dictionary<(Guid, Guid), string> _evidence = [];
+    private readonly Dictionary<Guid, List<MukhtalitGroupRuleInfo>> _groupRules = [];
 
     public IlalTestBuilder Narrator(string name, string grade = "reliable", string? tier = null,
-        int? mudallisTier = null, bool mukhtalit = false)
+        int? mudallisTier = null, bool mukhtalit = false, IkhtilatSeverity? severity = null,
+        bool noHearingAfter = false, int? rank = null)
     {
-        _narrators[name] = new IlalNarrator(Guid.NewGuid(), name, grade, tier, mudallisTier, mukhtalit, null);
+        _narrators[name] = new IlalNarrator(Guid.NewGuid(), name, grade, tier, mudallisTier, mukhtalit, null,
+            rank, severity, noHearingAfter);
         return this;
     }
 
@@ -57,12 +61,28 @@ public sealed class IlalTestBuilder
         return this;
     }
 
+    public IlalTestBuilder Hearing(string mukhtalit, string student, HearingTiming timing, string evidence)
+    {
+        Hearing(mukhtalit, student, timing);
+        _evidence[(Id(mukhtalit), Id(student))] = evidence;
+        return this;
+    }
+
+    public IlalTestBuilder GroupRule(string mukhtalit, string group, HearingTiming timing, string quote)
+    {
+        if (!_groupRules.TryGetValue(Id(mukhtalit), out var list)) _groupRules[Id(mukhtalit)] = list = [];
+        list.Add(new MukhtalitGroupRuleInfo(group, timing, quote));
+        return this;
+    }
+
     public IlalContext Build() => new()
     {
         Chains = _chains,
         Narrators = _narrators.Values.ToDictionary(n => n.Id),
         Relations = _relations,
         NarratorsWithRelations = _withRelations,
-        Hearings = _hearings
+        Hearings = _hearings,
+        HearingEvidence = _evidence,
+        GroupRules = _groupRules.ToDictionary(p => p.Key, p => (IReadOnlyList<MukhtalitGroupRuleInfo>)p.Value)
     };
 }

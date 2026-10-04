@@ -34,6 +34,7 @@ builder.Services.AddSingleton<SmartHadithTree.Etl.Parsers.Itqan.ContextualDisamb
 builder.Services.AddTransient<BulkDataIngestionService>();
 builder.Services.AddTransient<ChainReprocessingService>();
 builder.Services.AddTransient<IlalSeedService>();
+builder.Services.AddTransient<ShamelaIlalService>();
 builder.Services.AddTransient<EtlOrchestrator>();
 
 var host = builder.Build();
@@ -74,6 +75,14 @@ try
             .Where(g => g != Guid.Empty)
             .ToList();
         await reprocessor.ReprocessHadithIdsAsync(itqanPath, hadithIds, CancellationToken.None);
+    }
+    else if (source.Equals("seed-ilal-shamela", StringComparison.OrdinalIgnoreCase))
+    {
+        // Mudallisin and mukhtalitun of the Shamela books, onto narrators loaded from data/shamela_rijal.
+        // E.g. dotnet run -- seed-ilal-shamela data/shamela_rijal
+        var rijalPath = args.Length > 1 ? args[1] : "data/shamela_rijal";
+        var shamelaIlal = scope.ServiceProvider.GetRequiredService<ShamelaIlalService>();
+        await shamelaIlal.RunAsync(Path.Combine(rijalPath, "ilal.json"), CancellationToken.None);
     }
     else if (source.Equals("seed-ilal", StringComparison.OrdinalIgnoreCase))
     {

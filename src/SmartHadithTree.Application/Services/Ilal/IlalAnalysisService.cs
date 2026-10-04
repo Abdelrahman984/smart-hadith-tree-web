@@ -109,10 +109,13 @@ public class IlalAnalysisService(IHadithTreeDbContext context) : IIlalAnalysisSe
                 n.KnownAs,
                 n.Kunyah,
                 n.ItqanGrade,
+                n.IbnHajarRank,
                 n.GenerationTier,
                 n.MudallisTier,
                 n.HasMukhtalit,
-                n.IkhtilatNote
+                n.IkhtilatNote,
+                n.IkhtilatSeverity,
+                n.NoHearingAfterIkhtilat
             })
             .ToListAsync(ct);
 
@@ -125,7 +128,10 @@ public class IlalAnalysisService(IHadithTreeDbContext context) : IIlalAnalysisSe
                 n.GenerationTier,
                 n.MudallisTier,
                 n.HasMukhtalit,
-                n.IkhtilatNote));
+                n.IkhtilatNote,
+                n.IbnHajarRank,
+                n.IkhtilatSeverity,
+                n.NoHearingAfterIkhtilat));
 
         var relations = await context.NarratorRelations.AsNoTracking()
             .Where(r => narratorIds.Contains(r.TeacherId) && narratorIds.Contains(r.StudentId))
@@ -146,7 +152,12 @@ public class IlalAnalysisService(IHadithTreeDbContext context) : IIlalAnalysisSe
 
         var hearings = await context.MukhtalitHearings.AsNoTracking()
             .Where(h => narratorIds.Contains(h.MukhtalitId))
-            .Select(h => new { h.MukhtalitId, h.StudentId, h.Timing })
+            .Select(h => new { h.MukhtalitId, h.StudentId, h.Timing, h.Evidence, h.SourceBook })
+            .ToListAsync(ct);
+
+        var groupRules = await context.MukhtalitGroupRules.AsNoTracking()
+            .Where(r => narratorIds.Contains(r.MukhtalitId))
+            .Select(r => new { r.MukhtalitId, r.GroupAr, r.Timing, r.Quote })
             .ToListAsync(ct);
 
         return new IlalContext
@@ -155,7 +166,15 @@ public class IlalAnalysisService(IHadithTreeDbContext context) : IIlalAnalysisSe
             Narrators = narrators,
             Relations = relations.Select(r => (r.TeacherId, r.StudentId)).ToHashSet(),
             NarratorsWithRelations = teachersWithData.Concat(studentsWithData).ToHashSet(),
-            Hearings = hearings.ToDictionary(h => (h.MukhtalitId, h.StudentId), h => h.Timing)
+            Hearings = hearings.ToDictionary(h => (h.MukhtalitId, h.StudentId), h => h.Timing),
+            HearingEvidence = hearings
+                .Where(h => !string.IsNullOrWhiteSpace(h.Evidence))
+                .ToDictionary(h => (h.MukhtalitId, h.StudentId),
+                    h => string.IsNullOrWhiteSpace(h.SourceBook) ? h.Evidence! : $"{h.Evidence} ({h.SourceBook})"),
+            GroupRules = groupRules
+                .GroupBy(r => r.MukhtalitId)
+                .ToDictionary(g => g.Key,
+                    g => (IReadOnlyList<MukhtalitGroupRuleInfo>)g.Select(r => new MukhtalitGroupRuleInfo(r.GroupAr, r.Timing, r.Quote)).ToList())
         };
     }
 

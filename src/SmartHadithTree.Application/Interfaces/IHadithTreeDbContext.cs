@@ -12,6 +12,7 @@ public interface IHadithTreeDbContext
     DbSet<HadithCluster> HadithClusters { get; }
     DbSet<NarratorRelation> NarratorRelations { get; }
     DbSet<MukhtalitHearing> MukhtalitHearings { get; }
+    DbSet<MukhtalitGroupRule> MukhtalitGroupRules { get; }
     
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
