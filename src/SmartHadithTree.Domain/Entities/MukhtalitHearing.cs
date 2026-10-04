@@ -19,4 +19,10 @@ public class MukhtalitHearing
     public Guid StudentId { get; set; }
 
     public HearingTiming Timing { get; set; }
+
+    /// <summary>The critic's own words that state the timing (verbatim from the source book).</summary>
+    public string? Evidence { get; set; }
+
+    /// <summary>The book the evidence comes from (e.g. الكواكب النيرات).</summary>
+    public string? SourceBook { get; set; }
 }

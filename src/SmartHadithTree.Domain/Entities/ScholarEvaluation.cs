@@ -30,6 +30,12 @@ public class ScholarEvaluation
     /// <summary>المصدر — The source book (e.g., تهذيب التهذيب، الجرح والتعديل).</summary>
     public string? SourceBook { get; set; }
 
+    /// <summary>Printed volume of <see cref="SourceBook"/> that holds the quote, when known.</summary>
+    public string? SourceVolume { get; set; }
+
+    /// <summary>Printed page of <see cref="SourceBook"/> that holds the quote, when known.</summary>
+    public int? SourcePage { get; set; }
+
     /// <summary>
     /// تصنيف الحكم — A categorical rating (e.g., ثقة، صدوق، ضعيف، متروك، كذاب).
     /// Used for color-coding in the UI and for structured querying.
