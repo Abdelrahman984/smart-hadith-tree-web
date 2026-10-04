@@ -73,6 +73,30 @@ def edge(student: int | None, shaykh: int | None) -> int:
     return (shaykh in shuyukh_of[student]) + (student in talamidh_of[shaykh])
 
 
+def named_pick(tied: list[int], seg: str, student: int | None, shaykh: int | None) -> int | None:
+    """The one tied candidate a neighbour names with the isnad's own form, where that neighbour lists
+    every tied candidate: al-A'mash's students include «أبو معاوية الضرير» and «هشيم بن بشير», so
+    «أبو معاوية» from al-A'mash is al-Darir, though Hushaym has the same kunya and is as well linked.
+    The neighbour must list them all: when it lists only one, the form says nothing about the others
+    («أبي بشر» went to بيان بن بشر, «أبي سلام» to the Kufan al-Aswad; 9 of 80 such picks were wrong).
+    Both neighbours must agree when both decide. Only for a kunya, a bare ism or a nisba: with a nasab
+    («ابن عون», «يحيى بن سعيد») the lists give every candidate those words, and a difference is spelling."""
+    want = set(tokens(seg))
+    if not want or re.search(r'(?:^|\s)(?:بن|ابن|بنت)(?:\s|$)', seg):
+        return None
+    picks = set()
+    for nb, key in ((student, 'shuyukh'), (shaykh, 'talamidh')):
+        if nb is None:
+            continue
+        items = {x: [it for it in entries[nb][key] if x in candidates(it['name'])] for x in tied}
+        if not all(items.values()):
+            continue
+        named = [x for x in tied if any(want <= set(tokens(it['name'])) for it in items[x])]
+        if len(named) == 1:
+            picks.add(named[0])
+    return picks.pop() if len(picks) == 1 else None
+
+
 def prior(j: int) -> float:
     return 0.01 * math.log1p(fame[j])        # tie-breaker only; never outweighs one edge
 
@@ -179,6 +203,11 @@ def resolve(segs: list[str], start: int | None) -> list[tuple[str, int | None, s
             # the compiler's own shaykh named by kunya: al-Hakim's "أبو بكر بن إسحاق" is Ahmad b.
             # Ishaq al-Faqih, not the far more cited Ibn Khuzayma (who died before al-Hakim was born).
             out.append((seg, f, 'chain_fame'))
+        elif (j is not None and local(j) > 0
+              and (f := named_pick([x for x in c if local(x) == local(j)], seg, left, right)) is not None):
+            # Equally linked, but a neighbour names only one of them with this very form. Phase 3: ties
+            # such as «أبو معاوية» (al-Darir / Hushaym) hid tadlis findings.
+            out.append((seg, f, 'chain_named'))
         elif (FULL_KUNYA_NAME.match(seg) and all(local(x) == 0 for x in c)
               and (f := fame_pick(set(c))) is not None):
             # No context at all: "أبو العباس محمد بن يعقوب" is al-Asamm (18 students listed),

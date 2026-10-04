@@ -44,10 +44,22 @@ def lists(prefix: str):
 
 LISTS = {'new': lists(''), 'seed': lists('seed_')}
 
+
+def severity(m: dict) -> str:
+    """The books' own weight of the ikhtilat: harmful, light or disputed (any book says so), or unstated."""
+    values = {s['value'] for s in m.get('severity') or [] if isinstance(s, dict) and s.get('value')}
+    if values & {'light', 'disputed'}:
+        return 'light/disputed'
+    return 'harmful' if 'harmful' in values else 'unstated'
+
+
 per_book = defaultdict(Counter)
 examples = defaultdict(list)
 hidden = Counter()
+hidden_kind = Counter()
 hidden_names = Counter()
+by_severity = Counter()
+by_mukhtalit = Counter()
 for f in sorted(os.listdir(RUN)):
     if not f.endswith('.json') or f == 'summary.json':
         continue
@@ -67,16 +79,21 @@ for f in sorted(os.listdir(RUN)):
                     timing = hear.get((nxt['id'], o['id']), 'unknown')
                     per_book[book][f'{tag} ikhtilat'] += 1
                     per_book[book][f'{tag} ikhtilat {timing}'] += 1
+                    if tag == 'new':
+                        by_severity[severity(mukh[nxt['id']]), timing] += 1
+                        by_mukhtalit[mukh[nxt['id']]['name'][:40], severity(mukh[nxt['id']])] += 1
                     if tag == 'new' and nxt['id'] not in LISTS['seed'][1]:
                         examples['ikhtilat'].append((book, o['name'], nxt['name'], timing, h['isnad'][:120]))
             # Ties that may hide a finding (new lists only).
             mud, mukh, _ = LISTS['new']
             if o.get('ties'):
                 prev = ours[i - 1] if i else None
-                hides = [t for t in o['ties'] if (t in mud and form == 'ambiguous' and nxt) or (t in mukh and prev)]
-                if hides:
+                kinds = {'tadlis' for t in o['ties'] if t in mud and form == 'ambiguous' and nxt}
+                kinds |= {'ikhtilat' for t in o['ties'] if t in mukh and prev}
+                if kinds:
                     hidden[book] += 1
-                    hidden_names[o['name'], tuple(sorted(hides))] += 1
+                    hidden_kind.update(kinds)
+                    hidden_names[o['name'], tuple(sorted(t for t in o['ties'] if t in mud or t in mukh))] += 1
 
 tot = Counter()
 print(f'{"book":24} {"isnads":>6} | tadlis new/seed | ikhtilat new/seed | new ikhtilat: before after both unknown | hidden')
@@ -87,8 +104,15 @@ for book, c in per_book.items():
 tot_hidden = sum(hidden.values())
 print(f'{"TOTAL":24} {tot["isnads"]:6} | {tot["new tadlis"]:6} {tot["seed tadlis"]:6} | {tot["new ikhtilat"]:6} {tot["seed ikhtilat"]:6} | '
       f'{tot["new ikhtilat before"]:6} {tot["new ikhtilat after"]:5} {tot["new ikhtilat both"]:4} {tot["new ikhtilat unknown"]:7} | {tot_hidden:4}')
+print('\nnew ikhtilat findings by the books\' severity and the hearing table:')
+for sev in ('harmful', 'unstated', 'light/disputed'):
+    row = {t: by_severity[sev, t] for t in ('before', 'after', 'both', 'conflict', 'unknown')}
+    print(f'  {sev:15} {sum(row.values()):6}  ' + '  '.join(f'{t} {n}' for t, n in row.items()))
+print('  most frequent mukhtalitun:', ', '.join(f'{n} {name} ({s})' for (name, s), n in by_mukhtalit.most_common(10)))
 findings = tot['new tadlis'] + tot['new ikhtilat']
-print(f'\nhidden by ties: {tot_hidden} of {findings} findings ({tot_hidden / max(1, findings):.2%}); threshold 1%')
+print(f'\nhidden by ties: {tot_hidden} of {findings} findings ({tot_hidden / max(1, findings):.2%}); threshold 1%; '
+      f'by kind: tadlis {hidden_kind["tadlis"]} of {tot["new tadlis"]} ({hidden_kind["tadlis"] / max(1, tot["new tadlis"]):.2%}), '
+      f'ikhtilat {hidden_kind["ikhtilat"]} of {tot["new ikhtilat"]} ({hidden_kind["ikhtilat"] / max(1, tot["new ikhtilat"]):.2%})')
 print('top tied names hiding a finding:')
 for (name, hides), n in hidden_names.most_common(12):
     print(f'  {n:4}  {name}  {hides}')
