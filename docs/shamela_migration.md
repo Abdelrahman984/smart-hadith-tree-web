@@ -33,7 +33,7 @@ All data comes from the local Shamela 4 installation, read-only. No network acce
 | Location | Contents |
 |---|---|
 | `database\master.db` (SQLite) | Book catalogue (`book_id`, `book_name`, ...) |
-| `database\book\<id%1000>\<id>.db` (SQLite) | Book structure (`page`, `title`). The file exists only for books downloaded in the Shamela app. |
+| `database\book\<id%1000, 3 digits>\<id>.db` (SQLite) | Book structure (`page`, `title`). The folder is zero-padded (`book\037\13037.db`). The file exists only for books downloaded in the Shamela app; `master.db`'s `book.major_ondisk` says the same without the path. |
 | `database\store\page`, `database\store\title` (Lucene 10.4) | **The Arabic text itself** |
 
 Text is dumped with `scripts/shamela4-extractor/ShamelaLuceneDumper.java` using Shamela's bundled JRE and Lucene jars. Book IDs are passed as the third argument:
@@ -348,7 +348,7 @@ Other findings:
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** Phase 4 (hadith texts). Before it starts, the user must download الشمائل المحمدية in the Shamela app (the only one of the 12 primary books not downloaded). Phase 3 is complete; the bare «سفيان» / «حماد» / «عطاء» ties (§6.4) are deferred until after Phase 7 (user decision). Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction, hand-reading and first-pass reviews, writing only to the scratchpad, `data/shamela_rijal/review/` or `rijal_pilot/review_drafts/`, and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
+**Next task:** Phase 4 (hadith texts). Phase 3 is complete; the bare «سفيان» / «حماد» / «عطاء» ties (§6.4) are deferred until after Phase 7 (user decision). Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction, hand-reading and first-pass reviews, writing only to the scratchpad, `data/shamela_rijal/review/` or `rijal_pilot/review_drafts/`, and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
 
 **Working rules** (from Phase 3; follow them in every later phase):
 1. **Every sub-agent review gets a second check.** The main session checks every item not judged "right", plus a random sample of the "right" ones. In Phase 3 a reviewer once "corrected" a right reading (Ibn Jurayj's father taken for Ibn Jurayj).
@@ -456,7 +456,7 @@ For Phase 5 (from what Phase 3 found):
 
 - [x] Detect shifted record boundaries in the existing extraction (`check_record_boundaries.py`, `1741406`)
 - [ ] Re-split al-Mustadrak, al-Sunan al-Kubra, Shu'ab al-Iman and al-Bazzar on the hadith-number markers, so each record holds its own isnad and matn (§6.1)
-- [ ] Choose a Shamela edition for each of the 12 primary books. All are downloaded except الشمائل المحمدية, which the user must download in Shamela.
+- [ ] Choose a Shamela edition for each of the 12 primary books. All are downloaded (الشمائل المحمدية: 13037 ت الجليمي and 23647 ط إحياء التراث, downloaded 2026-10-04; it is filed under السيرة النبوية, not the hadith books).
 - [ ] Extract them with footnotes (`foot`) for takhrij and editors' grades (`ShamelaLuceneDumper` already writes `<id>_foot.tsv` since `75ae047`)
 - [ ] Separate the compiler's own remarks from the matn, and keep volume and page references
 - [ ] Move all 31 books to `data/shamela/` in one format
