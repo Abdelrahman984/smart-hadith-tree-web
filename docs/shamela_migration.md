@@ -384,7 +384,7 @@ Remaining resolver gaps:
 - [x] Segmentation fixes from the review: the «ب» trailer bug, «- وهو ابن Y -», «يعني X», «X وأبي Y» (`a5a6751`)
 - [x] Kunyas glued in the edition («أبوالتياح», «أبويحيى», ~170 headers) were not read, so «أبي التياح» found only a bare stub from تعجيل المنفعة instead of يزيد بن حميد: split in `norm` / `soft_norm` (not «أبوه», «أبواب», «أبوين»). +1 point in 6 books; «أبي البختري» is now سعيد بن فيروز, not a later namesake (`4453885`)
 - [ ] Still from the review: later namesakes winning by chain («أبى هريرة» → الكلابي, «أبو الوليد الفقيه» → ابن عرق)
-- [x] Re-measure on 500 names with the sub-agent first pass: **97.0%** (95% CI 95.5–98.5) (`COMMIT`)
+- [x] Re-measure on 500 names with the sub-agent first pass: **97.0%** (95% CI 95.5–98.5) (`afcfbee`)
 - [ ] Fix the 500-name review's error classes: Latin-digit footnote marks, «هذا» / «بعض», «يعنون», speaker tags («قال ابن المثنى»), «ابن علية» alias, kunya words in the grandfather rule
 
 Housekeeping:
