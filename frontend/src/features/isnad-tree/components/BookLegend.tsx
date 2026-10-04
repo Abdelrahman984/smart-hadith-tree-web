@@ -207,7 +207,7 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
                 <div className="w-6 h-0.5 bg-blue-600 rounded shrink-0"></div>
                 <div>
                   <span className="text-slate-700 font-medium block leading-tight">مسار كتاب منفرد</span>
-                  <span className="text-slate-400 text-[10px]">مصبوغ بلون المصدر</span>
+                  <span className="text-slate-500 text-[10px]">مصبوغ بلون المصدر</span>
                 </div>
               </div>
 
@@ -215,7 +215,7 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
                 <div className="w-6 h-1 bg-slate-600 rounded shrink-0"></div>
                 <div>
                   <span className="text-slate-700 font-medium block leading-tight">مسار مشترك (جامع)</span>
-                  <span className="text-slate-400 text-[10px]">تلتقي فيه أسانيد عدة كتب</span>
+                  <span className="text-slate-500 text-[10px]">تلتقي فيه أسانيد عدة كتب</span>
                 </div>
               </div>
 
@@ -226,7 +226,7 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
                     <span>انقطاع في السند</span>
                     <AlertTriangle className="w-3 h-3 text-red-500" />
                   </span>
-                  <span className="text-slate-400 text-[10px]">سقط تاريخي أو عدم ثبوت معاصرة</span>
+                  <span className="text-slate-500 text-[10px]">سقط تاريخي أو عدم ثبوت معاصرة</span>
                 </div>
               </div>
 
@@ -237,7 +237,7 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
                     <span>اختلاف باللفظ</span>
                     <FileDiff className="w-3 h-3 text-amber-500" />
                   </span>
-                  <span className="text-slate-400 text-[10px]">تباين في المتن بين الروايات</span>
+                  <span className="text-slate-500 text-[10px]">تباين في المتن بين الروايات</span>
                 </div>
               </div>
             </div>

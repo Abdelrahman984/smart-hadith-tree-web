@@ -89,7 +89,7 @@ const ReferenceNode = ({ data, selected }: { data: ReferenceNodeData; selected?:
       </div>
 
       {data.generationTier && (
-        <div className="text-[11px] text-slate-400 mt-1.5 pt-1 border-t border-slate-200/50">
+        <div className="text-[11px] text-slate-500 mt-1.5 pt-1 border-t border-slate-200/50">
           {data.generationTier}
         </div>
       )}

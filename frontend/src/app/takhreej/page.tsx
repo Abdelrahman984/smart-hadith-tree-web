@@ -99,9 +99,9 @@ function TakhreejContent() {
 
       <div className="flex-1 flex overflow-hidden relative">
         {/* Main Canvas Area */}
-        <div className="flex-1 relative h-full">
+        <main id="main-content" className="flex-1 relative h-full">
           <ComparativeTreeCanvas treeData={data} />
-        </div>
+        </main>
 
         {/* Sidebar for Matn texts */}
         <div className={`transition-all duration-300 ease-in-out border-r border-slate-200 bg-white z-10 flex flex-col overflow-hidden ${isSidebarOpen ? 'w-96' : 'w-0 border-r-0'}`}>

@@ -50,7 +50,7 @@ export default async function TreePage({
       </header>
 
       {/* Tree Canvas */}
-      <main className="flex-1 relative bg-slate-50">
+      <main id="main-content" className="flex-1 relative bg-slate-50">
         <TreeCanvas treeData={treeData} />
         
         {/* Drawer Component */}

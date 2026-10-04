@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { API_BASE, getNarratorDetails } from '@/lib/api';
 import { useNarratorDrawerStore } from '../store/useNarratorDrawerStore';
 import { X, Sparkles, AlertCircle } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AiNotice from '@/components/AiNotice';
 import GlossaryTerm from '@/features/glossary/GlossaryTerm';
 
@@ -89,6 +89,16 @@ export default function NarratorDrawer() {
     closeDrawer();
   };
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleClose only calls stable store/state setters
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -103,11 +113,14 @@ export default function NarratorDrawer() {
       <div 
         className="absolute top-0 bottom-0 start-0 w-96 bg-white shadow-2xl z-50 flex flex-col transform transition-transform duration-300"
         dir="rtl"
+        role="dialog"
+        aria-label="تفاصيل الراوي"
       >
         <div className="flex items-center justify-between p-4 border-b border-slate-200">
           <h2 className="text-xl font-bold text-slate-800">تفاصيل الراوي</h2>
           <button 
             onClick={handleClose}
+            aria-label="إغلاق تفاصيل الراوي"
             className="p-1 rounded-full hover:bg-slate-100 text-slate-500"
           >
             <X size={20} />

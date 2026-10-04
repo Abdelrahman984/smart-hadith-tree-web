@@ -53,7 +53,7 @@ export default function SearchEmptyState({
             <div className="w-9 h-9 rounded-xl bg-brand-blue/10 text-brand-blue flex items-center justify-center">
               <Search className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-slate-800 text-sm">البحث بالمتن والألفاظ</h3>
+            <h2 className="font-bold text-slate-800 text-sm">البحث بالمتن والألفاظ</h2>
             <p className="text-slate-500 text-xs leading-relaxed">
               ابحث بأي جملة أو عبارة من متن الحديث مع معالجة ذكية للتطبيع الإملائي والهمزات.
             </p>
@@ -63,7 +63,7 @@ export default function SearchEmptyState({
             <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
               <BookOpen className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-slate-800 text-sm">البحث في كتب السنة</h3>
+            <h2 className="font-bold text-slate-800 text-sm">البحث في كتب السنة</h2>
             <p className="text-slate-500 text-xs leading-relaxed">
               تصفح نتائج دقيقة تشمل صحيح البخاري، صحيح مسلم، السنن الأربعة، والمسانيد المعتمدة.
             </p>
@@ -73,7 +73,7 @@ export default function SearchEmptyState({
             <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
               <Network className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-slate-800 text-sm">شجرة الأسانيد والتخريج</h3>
+            <h2 className="font-bold text-slate-800 text-sm">شجرة الأسانيد والتخريج</h2>
             <p className="text-slate-500 text-xs leading-relaxed">
               انقر على أي حديث لعرض شجرة سنده كاملة، أو فعل وضع التخريج للمقارنة بين عدة أسانيد.
             </p>
@@ -90,9 +90,9 @@ export default function SearchEmptyState({
       </div>
 
       <div className="space-y-2">
-        <h3 className="text-lg font-bold text-slate-800">
+        <h2 className="text-lg font-bold text-slate-800">
           لم يتم العثور على نتائج مطابقة
-        </h3>
+        </h2>
         <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
           لم نجد أي أحاديث أو رواة يطابقون عبارة البحث: <span className="font-semibold text-slate-700">«{query}»</span>
         </p>

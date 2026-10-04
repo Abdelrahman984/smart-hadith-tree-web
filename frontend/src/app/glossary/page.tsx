@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function GlossaryPage() {
   return (
-    <div className="mx-auto max-w-3xl p-6 pt-12">
+    <main id="main-content" className="mx-auto max-w-3xl p-6 pt-12">
       <Link href="/" className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-brand-dark">
         <Home className="h-4 w-4" /> الرئيسية
       </Link>
@@ -33,6 +33,6 @@ export default function GlossaryPage() {
           </div>
         ))}
       </dl>
-    </div>
+    </main>
   );
 }

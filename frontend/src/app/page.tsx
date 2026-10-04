@@ -103,7 +103,7 @@ export default function Home() {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Top Navbar */}
       <header className="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 min-h-16 py-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-brand-blue text-white flex items-center justify-center shadow-sm">
               <Network className="w-5 h-5 text-brand-teal" />
@@ -116,31 +116,33 @@ export default function Home() {
             </div>
           </div>
 
-          <nav className="flex items-center gap-3">
+          <nav className="flex items-center gap-1 sm:gap-3" aria-label="التنقل الرئيسي">
             <Link
               href="/books"
-              className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2"
+              className="px-2 sm:px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2"
             >
               <BookOpen className="w-4 h-4 text-brand-teal" />
-              <span>فهرس الدواوين (31)</span>
+              <span className="hidden sm:inline">فهرس الدواوين (31)</span>
+              <span className="sm:hidden">الدواوين</span>
             </Link>
             <Link
               href="/search"
-              className="px-4 py-2 rounded-xl text-sm font-bold bg-brand-blue text-white hover:bg-brand-dark transition-colors flex items-center gap-2 shadow-sm"
+              className="px-3 sm:px-4 py-2 rounded-xl text-sm font-bold bg-brand-blue text-white hover:bg-brand-dark transition-colors flex items-center gap-2 shadow-sm"
             >
               <Search className="w-4 h-4" />
               <span>البحث والتخريج</span>
             </Link>
             <Link
               href="/glossary"
-              className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+              className="px-2 sm:px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
             >
-              قاموس المصطلحات
+              المصطلحات
             </Link>
           </nav>
         </div>
       </header>
 
+      <main id="main-content">
       {/* Hero Section */}
       <section className="relative overflow-hidden pt-14 pb-16 px-6 bg-gradient-to-b from-white via-slate-50 to-slate-100/70 border-b border-slate-200/70">
         <div className="max-w-5xl mx-auto text-center space-y-7">
@@ -170,6 +172,7 @@ export default function Home() {
               <input
                 type="text"
                 name="q"
+                aria-label="ابحث في الأحاديث والأسانيد"
                 placeholder="ابحث بطرف الحديث، أو اسم الراوي، أو سلسلة الإسناد (مثال: الزهري عن سالم)..."
                 className="w-full py-3 px-2 text-base sm:text-lg text-slate-800 placeholder:text-slate-400 focus:outline-none bg-transparent"
               />
@@ -389,6 +392,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      </main>
 
       {/* Footer */}
       <footer className="mt-auto py-8 px-6 bg-brand-dark text-slate-300 text-sm border-t border-slate-800">

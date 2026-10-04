@@ -80,7 +80,13 @@ export default function IlalPanel({ report }: IlalPanelProps) {
                 role="button"
                 tabIndex={0}
                 onClick={() => selectFinding(isActive ? null : index)}
-                onKeyDown={(e) => e.key === "Enter" && selectFinding(isActive ? null : index)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    selectFinding(isActive ? null : index);
+                  }
+                }}
+                aria-pressed={isActive}
                 className={`cursor-pointer rounded-xl border p-3 transition-shadow ${style.card} ${isActive ? "ring-2 ring-brand-blue shadow-md" : "hover:shadow-sm"}`}
               >
                 <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -122,7 +128,7 @@ export default function IlalPanel({ report }: IlalPanelProps) {
 
       {report.findings.length > 0 && <IlalAiExplanation report={report} />}
 
-      <p className="text-[10px] leading-relaxed text-slate-400">
+      <p className="text-[10px] leading-relaxed text-slate-500">
         نتائج آلية مبنية على قواعد المحدثين في التدليس والاختلاط واللقاء والمخالفة، تُعين المحقق ولا تغني عن نظره في كتب العلل.
       </p>
     </div>
