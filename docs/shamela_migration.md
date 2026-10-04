@@ -105,6 +105,7 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`, plus `<id>_foot.tsv` 
 | `gap_test.py` | Isnad segmentation and clean-up, plus a per-depth coverage report. Its helpers are reused by the other scripts. |
 | `gap_books.py` | Which rijal books would cover the missing narrators. |
 | `../build_shamela_books.py` | **Phase 4 builder**: `data/shamela/dump/` → `data/shamela/<slug>/` in the Phase 4 format, records cut at the edition's in-text hadith numbers. `python scripts/shamela4-extractor/build_shamela_books.py [out] [slug ...]`. |
+| `../split_parts.py` | Phase 4: fills each record's `parts` (isnad / matn / remark / note / text) in place; `--eval [--part held] [--mode blind]` measures it on Shamela's matn groups. |
 | `decode_s1.py` | Decodes Shamela's narrator encyclopedia (`service\S1.db`, a per-byte substitution) to `data/shamela/narrators.json`. |
 | `links/` | Precision against Shamela's own narrator links: `map_s1.py` (S1 id → registry id, independent evidence), `run_links.py` (resolve 2,000 records of each linked book), `eval_links.py` (align and compare; writes `data/shamela_rijal/review/links/links_eval.json`). |
 | `map_records.py` | Pairs Phase 4 records with the current hadiths (by text, and by number where reliable) for `bench.py --texts shamela`. |
@@ -352,7 +353,7 @@ Other findings:
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** Phase 4 (hadith texts). Phase 3 is complete; the bare «سفيان» / «حماد» / «عطاء» ties (§6.4) are deferred until after Phase 7 (user decision). Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction, hand-reading and first-pass reviews, writing only to the scratchpad, `data/shamela_rijal/review/` or `rijal_pilot/review_drafts/`, and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
+**Next task:** Phase 4b (resolver fixes from Shamela's links; measure each with `links/eval_links.py` on held-out records). Phase 4 is complete; Phase 3 is complete; the bare «سفيان» / «حماد» / «عطاء» ties (§6.4) are deferred until after Phase 7 (user decision). Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction, hand-reading and first-pass reviews, writing only to the scratchpad, `data/shamela_rijal/review/` or `rijal_pilot/review_drafts/`, and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
 
 **Working rules** (from Phase 3; follow them in every later phase):
 1. **Every sub-agent review gets a second check.** The main session checks every item not judged "right", plus a random sample of the "right" ones. In Phase 3 a reviewer once "corrected" a right reading (Ibn Jurayj's father taken for Ibn Jurayj).
@@ -368,7 +369,7 @@ Update the checkboxes whenever a task is finished, and record the commit next to
 | 1. Pilot (Tahdhib + Taqrib, name linking, isnad test) | ✅ Done |
 | 2. Full narrator registry from Shamela | ✅ Done (ties deferred) |
 | 3. Ilal data (mudallisin, mukhtalitun) | ✅ Done (bare-name ties deferred) |
-| 4. All hadith texts from Shamela | 🔄 In progress |
+| 4. All hadith texts from Shamela | ✅ Done |
 | 4b. Resolver fixes from Shamela's links | ⬜ Not started |
 | 5. Code changes (Domain, ETL, disambiguation, tests) | ⬜ Not started (largest phase) |
 | 6. Build a separate database and compare with v2 | ⬜ Not started |
@@ -457,7 +458,7 @@ For Phase 5 (from what Phase 3 found):
 - `IlalSeedService` reads `ilal.json` by registry id instead of the seeds; `MudallisTier` from Ibn Hajar's tiers (the appendix has no tier).
 - `MukhtalitHearing.Timing` needs `Both` and `Conflict` besides `Before` / `After`, and the narrator needs the books' severity: most ikhtilat findings are from narrators the books call light or disputed, and most have no timing. Group rules («أهل البصرة قبل») and "nobody heard after" are in the data and not yet used by any rule.
 
-### Phase 4 — Hadith texts ⬜
+### Phase 4 — Hadith texts ✅
 
 User decisions at the start (2026-10-04):
 - **Arabic only.** Itqan's English translations and grades are not carried over.
@@ -490,7 +491,7 @@ A record:
 }
 ```
 
-`arabic` keeps the field name the ETL and the bench already read; `parts` may hold several isnads (tahwil, «وحدثنا … بهذا الإسناد»), and a `remark` is the compiler's own comment («هذا حديث صحيح …», «قال أبو عيسى …»). Records are cut at the edition's in-text hadith numbers («٣٨٠ - حدثنا»), never at Shamela's page boundaries (the cause of §6.1); pages before the first numbered hadith (editor's introduction) are skipped.
+`arabic` keeps the field name the ETL and the bench already read; `parts` may hold several isnads (tahwil, «وحدثنا … بهذا الإسناد»), a `remark` is the compiler's own comment («هذا حديث صحيح …», «قال أبو عيسى …», «لم يروه عن … إلا …»), and a `note` is the editor's text inside the record (al-Darimi's «[ب ١٢٩٧، د ١٣٦٢ …] تحفة …، إتحاف …», «[حكم حسين سليم أسد]»); a `kind: "text"` record has one part `{"type": "text"}`. Records are cut at the edition's in-text hadith numbers («٣٨٠ - حدثنا»), never at Shamela's page boundaries (the cause of §6.1); pages before the first numbered hadith (editor's introduction) are skipped.
 
 - [x] Detect shifted record boundaries in the existing extraction (`check_record_boundaries.py`, `1741406`)
 - [x] Re-split al-Mustadrak, al-Sunan al-Kubra, Shu'ab al-Iman and al-Bazzar on the hadith-number markers, so each record holds its own isnad and matn (§6.1). New builder `scripts/shamela4-extractor/build_shamela_books.py` (first draft by a sub-agent): one text stream per book, cut at the in-text numbers (`380 -`, `[3936]`, `4100 م-`, `6769/1-`, `1/ 830`; sequence-aware, so takhrij numbers, verses and years are not cut), footnotes matched by mark per page, printed page from `page.page` and `⦗N⦘`. All 19 books: **0 shifted** by `check_record_boundaries.py` (al-Mustadrak 19.3% → 0, al-Sunan al-Kubra 29.8% → 0, Shu'ab 34.5% → 0, al-Bazzar 0.6% → 0, and their prefix tails 54% / 45% / 24% / 10% → 0); 16 random records of these four checked by hand, all right; the "no marker" records open with «نا» or «عبد الرزاق، عن» (checked).
@@ -518,8 +519,8 @@ A record:
 - [x] Segmentation for the new editions: al-A'zami's Muwatta puts «؛» after names («مالك ؛ أنه», «أبيه ؛ أنه») and «عائشة زوج النبي» without a comma; «؛» now ends a name like «،», and «زوج (النبي)» like an honorific. Itqan texts: every book's figures unchanged (the names gained and lost are the same narrators without the «؛»). New texts (run `p4links3`): the Muwatta 62% → 71%, agreement 87% → 89%. On the new texts the linked books read Bukhari 90%, Muslim 87%, Abu Dawud 88%, al-Tirmidhi 93%, al-Nasa'i 89% (+1 to +3 over the Itqan texts), agreement level or up. Found on the way, left for the link measurement: «أم سلمة» is matched to men named Salama (Salama b. Sakhr, b. Kuhayl: ~30 names) and «أم حبيبة» to حبيبة بنت عبيد الله — «أم» is not read as a kunya.
 - [x] Measure our resolver against Shamela's narrator links (sub-agent, reviewed; scripts in `rijal_pilot/links/`). `map_s1.py` maps S1 ids to registry ids from independent evidence only (the Tahdhib al-Kamal volume/page cited in S1, nasab, death, tabaqa, Ibn Hajar's verdict, kunya, nisba; never from our resolutions): of the 6,375 ids in the 7 books 5,060 exact, 584 probable, 731 none (93% of occurrences exact). `run_links.py` resolves 2,000 records per book (the Muwatta and al-Tayalisi: all), `eval_links.py` aligns our names with Shamela's spans (92%) and compares. **Precision 97.55% on 54,411 names** (98.04% counting a registry duplicate of the same narrator as right), in line with the 97.0% hand review of §6; by book 96.9% (Abu Dawud) to 98.4% (the Muwatta); by method `chain` 97.9%, `unique` 97.6%, `default` 99.6%, `chain_named` 98.3%, `chain_fame` 93.3%, `father` («أبيه») 93.4%. We resolve 92.6% of the linked names. A hand-classified random 60 of the 1,069 disagreements (`links/sample60_classified.json`, second-checked: all 15 non-"ours" and 6 of the 45 "ours" re-read): 45 our error, 8 registry duplicates, 5 Shamela's link wrong (Bukhari's «الفزاري» from Muhammad b. Salam is Marwan b. Mu'awiya; Muslim's «ابن نمير، حدثنا محمد بن بشر» is Muhammad b. Abdullah b. Numayr), 1 edition typo, 1 alignment. Error classes over all 1,069: a bare ism / kunya / nisba resolved to another bearer 467; a shaykh-book entry chosen over the Tahdhib narrator 204 («طاوس» → `tuhfa:2179` ~100, «علي» → `rayy:260`); a full name resolved to another person 190 («عبد العزيز بن أبي سلمة» → not al-Majishun, 27); «أبيه» 91; «ابن X» / «يعني ابن X» cut 45; segmentation 38; «أم X» → a man 34.
   - **Bare-name ties** (deferred in Phase 3): Shamela's narrator is always among our tied candidates, and it links the tied «سفيان» to al-Thawri 117 / Ibn Uyayna 8, «حماد» to Ibn Salama 44 / Ibn Zayd 15 (Abu Dawud: Ibn Salama 42 of 49), «عبد الله» to Ibn Mas'ud 72 / Ibn Umar 21 (al-Tayalisi: Ibn Mas'ud 41 of 41), «هشام» al-Dastuwa'i 15 / Ibn Urwa 13; picking the most-cited «سفيان» would agree only 8 times in 125.
-- [ ] Separate the compiler's own remarks from the matn, and keep volume and page references
-- [ ] Move all 31 books to `data/shamela/` in one format
+- [x] Separate the compiler's own remarks from the matn, and keep volume and page references: `scripts/shamela4-extractor/split_parts.py` (first draft by a sub-agent, two rounds of review) fills `parts` in place after the builder. Grammar only (no registry): it walks the chain (verbs, «عن», tahwil, speaker tags, asides such as «شك X» / «أو أحدهما» / «يحدث … أنه سمع X» / «يعني»), then a second isnad at a sentence start, a remark from the book's own openers (`REMARKS` table: «قال أبو عيسى», «هذا حديث صحيح …», «لم يرو هذا الحديث عن … إلا …», «وهذا الحديث لا نعلمه …»), and the editor's `note`s (al-Darimi's takhrij lines, Abu Ya'la's «[حكم حسين سليم أسد]», al-Adab al-Mufrad's grades, Ibn Khuzaymah's «قال الألباني / الأعظمي»). Measured on Shamela's matn groups (`--eval --part held`, records with id % 5 == 0 held out; matn start within ±3 words): with the editions' quotation marks (used in the six linked hadith books) Bukhari 97.7%, Muslim 94.4%, Abu Dawud 94.9%, al-Tirmidhi 98.5%, al-Nasa'i 98.2%, al-Tayalisi 99.8%; blind (no quotes, the estimate for the other books) 88.9 / 82.1 / 85.3 / 91.5 / 90.0 / 91.9%, the Muwatta 84.6% — part of the blind gap is Shamela's own convention (the matn starts after «X قال:» in ~80% of records and at the frame in ~20%). The first round's hand check (58 / 60) was lenient; the main session's own check found ~9 / 13 and sent back four failure classes (asides ending the isnad early, a dialogue's «قال:» taken for a remark, missed «ولم يرو …» / variant notes, editor's takhrij in the matn); after the fix, a fresh sample of 14 records from 7 books not used in tuning: 13 right, 1 with a follow-up isnad and an editor's line left in the matn (Ibn Khuzaymah ٢٥٠٤). Left: al-Bayhaqi's chains for critics' statements (Ibn Adi, Ahmad) are marked as a second isnad + matn; ~1,730 chain-less records in Ibn Abi Shayba are mostly sayings without an isnad, a few are narrator lines from its appendix.
+- [x] Move all 31 books to `data/shamela/` in one format (279,198 records; `build_shamela_books.py`, then `split_parts.py --write data/shamela <slugs>`)
 
 ### Phase 4b — Resolver fixes from Shamela's links ⬜
 
@@ -616,6 +617,7 @@ The Phase 4 texts (from the repo root; the dump command of §3 with `data\shamel
 
 ```bash
 python scripts/shamela4-extractor/build_shamela_books.py            # all books in BOOKS -> data/shamela/<slug>/
+python scripts/shamela4-extractor/split_parts.py --write data/shamela <slug ...>   # adds parts in place
 python scripts/shamela4-extractor/rijal_pilot/check_record_boundaries.py data/shamela
 ```
 
