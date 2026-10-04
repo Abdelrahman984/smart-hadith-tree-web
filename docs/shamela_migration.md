@@ -104,6 +104,7 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`, plus `<id>_foot.tsv` 
 | `chain_resolver.py` | **Joint isnad resolution** (Viterbi over candidate sets, scored by mutual teacher/student listing). Exec'd by `compare_current.py`. |
 | `gap_test.py` | Isnad segmentation and clean-up, plus a per-depth coverage report. Its helpers are reused by the other scripts. |
 | `gap_books.py` | Which rijal books would cover the missing narrators. |
+| `../build_shamela_books.py` | **Phase 4 builder**: `data/shamela/dump/` → `data/shamela/<slug>/` in the Phase 4 format, records cut at the edition's in-text hadith numbers. `python scripts/shamela4-extractor/build_shamela_books.py [out] [slug ...]`. |
 | `check_record_boundaries.py` | Classifies every record in `data/itqan/sunni` as clean, prefix tail, or **shifted** (the isnad belongs to the next hadith). See §6.1. |
 | `compare_current.py` | **Main benchmark**: our resolution versus the current DB chains on the same hadiths, plus the agreement rate. |
 | `bench.py` | **Runs `compare_current.py` on 4 or all 31 books** (in parallel), keeps each run in `data/shamela_rijal/results/<tag>/` (each name with its registry `id`, the `verbs` between it and the next name, and the tied candidates `ties` when undecided), and prints one line per book with the change since the previous run, the names gained and lost, and a sample of new disagreements to review. |
@@ -486,8 +487,25 @@ A record:
 `arabic` keeps the field name the ETL and the bench already read; `parts` may hold several isnads (tahwil, «وحدثنا … بهذا الإسناد»), and a `remark` is the compiler's own comment («هذا حديث صحيح …», «قال أبو عيسى …»). Records are cut at the edition's in-text hadith numbers («٣٨٠ - حدثنا»), never at Shamela's page boundaries (the cause of §6.1); pages before the first numbered hadith (editor's introduction) are skipped.
 
 - [x] Detect shifted record boundaries in the existing extraction (`check_record_boundaries.py`, `1741406`)
-- [ ] Re-split al-Mustadrak, al-Sunan al-Kubra, Shu'ab al-Iman and al-Bazzar on the hadith-number markers, so each record holds its own isnad and matn (§6.1)
-- [ ] Choose a Shamela edition for each of the 12 primary books. All are downloaded (الشمائل المحمدية: 13037 ت الجليمي and 23647 ط إحياء التراث, downloaded 2026-10-04; it is filed under السيرة النبوية, not the hadith books).
+- [x] Re-split al-Mustadrak, al-Sunan al-Kubra, Shu'ab al-Iman and al-Bazzar on the hadith-number markers, so each record holds its own isnad and matn (§6.1). New builder `scripts/shamela4-extractor/build_shamela_books.py` (first draft by a sub-agent): one text stream per book, cut at the in-text numbers (`380 -`, `[3936]`, `4100 م-`, `6769/1-`, `1/ 830`; sequence-aware, so takhrij numbers, verses and years are not cut), footnotes matched by mark per page, printed page from `page.page` and `⦗N⦘`. All 19 books: **0 shifted** by `check_record_boundaries.py` (al-Mustadrak 19.3% → 0, al-Sunan al-Kubra 29.8% → 0, Shu'ab 34.5% → 0, al-Bazzar 0.6% → 0, and their prefix tails 54% / 45% / 24% / 10% → 0); 16 random records of these four checked by hand, all right; the "no marker" records open with «نا» or «عبد الرزاق، عن» (checked).
+- [x] Choose a Shamela edition for each of the 12 primary books (survey by a sub-agent; user decision 2026-10-04). Where Shamela links the isnad's narrators (below), that edition is used even with fewer footnotes:
+
+  | Book | ID | Edition | Why |
+  |---|---|---|---|
+  | al-Bukhari | 1681 | ط السلطانية | narrator links |
+  | Muslim | 711 | ط التركية | narrator links, voweled |
+  | Abu Dawud | 654 | ط دهلي مع عون المعبود | narrator links |
+  | al-Tirmidhi | 7895 | ت بشار | narrator links, critical text (its appended Ilal is missing from the Lucene store) |
+  | al-Nasa'i | 829 | ط المصرية | narrator links, voweled |
+  | al-Muwatta (Yahya) | 28107 | ت الأعظمي | narrator links; numbers every narration (3,676) |
+  | Ibn Majah | 98138 | ت الأرنؤوط | takhrij and grades |
+  | Ahmad | 25794 | ط الرسالة | the only complete edition, takhrij |
+  | al-Darimi | 36114 | ت الزهراني | the only one with takhrij (~313 numbers not at a line start: to check) |
+  | al-Adab al-Mufrad | 12991 | ت عبد الباقي | |
+  | al-Shama'il | 13037 | ت الجليمي | |
+  | Ibn Abi Shayba | 333 | ت الشثري | most complete (40,754 numbers), unvoweled |
+
+- **Finding: Shamela links narrators.** Seven editions (the six above with links, and al-Tayalisi 1456, already one of the 19) wrap each isnad narrator as `<a href="inr://man-N">` (~200,000 names: Bukhari 37,109, Muslim 48,270, Abu Dawud 31,629, al-Nasa'i 35,128, al-Tirmidhi 24,493, al-Tayalisi 15,226, al-Muwatta 7,189) and each matn as `<hadeeth-M>`. N is an id in Shamela's narrator encyclopedia, `database\service\S1.db` table `b` (18,989 narrators: short and full name, death year, the critics' quotes with their books, and kunya, nasab, residence, travels, Taqrib tabaqa, Ibn Hajar's and al-Dhahabi's verdicts). Its text is a simple byte substitution, decodable from the linked names. `service\hadeeth.db` groups the same hadith across 9 books (`key_id` → book, page). **User decision:** keep the ids in the records and use them to measure our resolver now; whether to merge the encyclopedia into the registry is decided after the measurement.
 - [ ] Extract them with footnotes (`foot`) for takhrij and editors' grades (`ShamelaLuceneDumper` already writes `<id>_foot.tsv` since `75ae047`)
 - [ ] Separate the compiler's own remarks from the matn, and keep volume and page references
 - [ ] Move all 31 books to `data/shamela/` in one format
@@ -570,6 +588,13 @@ python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.j
 # musannaf_ibnabi_shaybah "عبد الله بن محمد بن إبراهيم بن عثمان"
 python ../../scripts/shamela4-extractor/rijal_pilot/compare_current.py tahdhib.json ../itqan/sunni/muslim current_chains_muslim.json "مسلم بن الحجاج بن مسلم" 500 0
 cd ../.. && python scripts/shamela4-extractor/rijal_pilot/check_record_boundaries.py data/itqan/sunni
+```
+
+The Phase 4 texts (from the repo root; the dump command of §3 with `data\shamela\dump` as output and the book IDs of `BOOKS` comes first):
+
+```bash
+python scripts/shamela4-extractor/build_shamela_books.py            # all books in BOOKS -> data/shamela/<slug>/
+python scripts/shamela4-extractor/rijal_pilot/check_record_boundaries.py data/shamela
 ```
 
 `compare_current.py` options (environment variables):
