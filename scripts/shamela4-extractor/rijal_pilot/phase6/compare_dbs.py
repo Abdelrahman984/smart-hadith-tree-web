@@ -85,6 +85,7 @@ def chain_ids(h, side):
 
 POS = 4
 DIFFS = []
+PAIRS = {}
 v2, sh = load('v2'), load('shamela')
 report, examples = {}, {}
 tot = Counter()
@@ -142,6 +143,7 @@ for book in sorted(set(v2) | set(sh)):
                            'only_shamela': [n for r, n in cb if r in sb - sa]})
     # Position-aligned comparison of the first POS narrators after the compiler (both lists start at the
     # compiler), so a second isnad that v2 appends to the same chain does not count.
+    PAIRS[book] = [(a[i]['id'], b[j]['id']) for i, j in pairs]
     pos = Counter()
     pos_diff = []
     for i, j in pairs:
@@ -184,4 +186,5 @@ for book in sorted(set(v2) | set(sh)):
           f"only-shamela {only_sh}, only-v2 {only_v2}", flush=True)
 
 json.dump({'report': report, 'examples': examples, 'position_diffs': DIFFS},open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+json.dump(PAIRS, open(OUT.replace('compare.json', 'pairs.json'), 'w', encoding='utf-8'), ensure_ascii=False)
 print('written', OUT)
