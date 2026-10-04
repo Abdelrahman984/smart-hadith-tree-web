@@ -454,6 +454,37 @@ For Phase 5 (from what Phase 3 found):
 
 ### Phase 4 — Hadith texts ⬜
 
+User decisions at the start (2026-10-04):
+- **Arabic only.** Itqan's English translations and grades are not carried over.
+- **Each edition's own numbering.** Itqan's hadith numbers are mostly wrong, so editions are chosen for quality (a reliable editor, footnotes, complete text), not to match them. Old records are mapped to new ones by text, not by number.
+- **Shifted records are fixed only in the new data** (`data/shamela/`); `data/itqan/sunni` and the live database stay as they are.
+
+**Output format** (`data/shamela/`, git-ignored, rebuilt by script from `data/shamela/dump/`):
+
+```
+data/shamela/<slug>/book.json   {"slug", "title", "shamela_id", "edition", "compiler", "records", "numbered"}
+data/shamela/<slug>/index.json  [{"chapter", "file", "name_ar", "count"}]   (same shape as Itqan's)
+data/shamela/<slug>/<n>.json    [record, ...]   one file per top-level title (كتاب)
+```
+
+A record:
+
+```json
+{
+  "id": 412,                       // 1..N in book order, stable for a given edition and builder
+  "number": 380, "number_label": "٣٨٠",   // the edition's own number (null when the book has none)
+  "kind": "hadith",                // "hadith", or "text" (the compiler's prose with no isnad)
+  "bab": "…",                      // nearest sub-title above the record, if any
+  "vol": "1", "page": 478, "page_end": 479,   // printed volume and pages (Shamela page.part / page.page)
+  "arabic": "حدثناه أبو عبد الله …",    // full cleaned text, harakat kept, footnote marks and page marks removed
+  "parts": [{"type": "isnad", "start": 0, "end": 210}, {"type": "matn", "start": 210, "end": 400},
+            {"type": "remark", "start": 401, "end": 470}],   // spans of "arabic" (task 4.5)
+  "footnotes": [{"at": 209, "text": "إسناده صحيح …"}]          // the editor's note, anchored at its mark's offset
+}
+```
+
+`arabic` keeps the field name the ETL and the bench already read; `parts` may hold several isnads (tahwil, «وحدثنا … بهذا الإسناد»), and a `remark` is the compiler's own comment («هذا حديث صحيح …», «قال أبو عيسى …»). Records are cut at the edition's in-text hadith numbers («٣٨٠ - حدثنا»), never at Shamela's page boundaries (the cause of §6.1); pages before the first numbered hadith (editor's introduction) are skipped.
+
 - [x] Detect shifted record boundaries in the existing extraction (`check_record_boundaries.py`, `1741406`)
 - [ ] Re-split al-Mustadrak, al-Sunan al-Kubra, Shu'ab al-Iman and al-Bazzar on the hadith-number markers, so each record holds its own isnad and matn (§6.1)
 - [ ] Choose a Shamela edition for each of the 12 primary books. All are downloaded (الشمائل المحمدية: 13037 ت الجليمي and 23647 ط إحياء التراث, downloaded 2026-10-04; it is filed under السيرة النبوية, not the hadith books).
