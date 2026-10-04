@@ -353,7 +353,7 @@ Other findings:
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** Phase 5 (code). Phase 4b is deferred (user decision); Phase 4 is complete; Phase 3 is complete; the bare «سفيان» / «حماد» / «عطاء» ties (§6.4) are deferred until after Phase 7 (user decision). Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction, hand-reading and first-pass reviews, writing only to the scratchpad, `data/shamela_rijal/review/` or `rijal_pilot/review_drafts/`, and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
+**Next task:** Phase 5 (code), option B: the resolver stays in Python and C# loads its output; the C# port is Phase 5b, later (user decision, 2026-10-04). Phase 4b is deferred (user decision); Phase 4 is complete; Phase 3 is complete; the bare «سفيان» / «حماد» / «عطاء» ties (§6.4) are deferred until after Phase 7 (user decision). Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction, hand-reading and first-pass reviews, writing only to the scratchpad, `data/shamela_rijal/review/` or `rijal_pilot/review_drafts/`, and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
 
 **Working rules** (from Phase 3; follow them in every later phase):
 1. **Every sub-agent review gets a second check.** The main session checks every item not judged "right", plus a random sample of the "right" ones. In Phase 3 a reviewer once "corrected" a right reading (Ibn Jurayj's father taken for Ibn Jurayj).
@@ -371,7 +371,8 @@ Update the checkboxes whenever a task is finished, and record the commit next to
 | 3. Ilal data (mudallisin, mukhtalitun) | ✅ Done (bare-name ties deferred) |
 | 4. All hadith texts from Shamela | ✅ Done |
 | 4b. Resolver fixes from Shamela's links | ⏸ Deferred (user decision) |
-| 5. Code changes (Domain, ETL, disambiguation, tests) | ⬜ Not started (largest phase) |
+| 5. Code changes (Domain, loaders, Ilal, tests); resolver stays in Python (option B) | ⬜ Not started |
+| 5b. Port the resolver to C# (option A) | ⏸ Later (after Phase 6, if switching) |
 | 6. Build a separate database and compare with v2 | ⬜ Not started |
 | 7. Remove Itqan and update docs | ⬜ Not started |
 
@@ -537,12 +538,33 @@ User decisions (2026-10-04): after Phase 4, fix the largest error classes found 
 
 ### Phase 5 — Code ⬜
 
-- [ ] Domain: `ItqanId` / `ItqanGrade` → a source reference and `Grade`; `ScholarEvaluation` with critic and book; EF migration
-- [ ] ETL: a new parser in place of `ItqanDatasetParser`, and a name index built from the registry instead of `by_name.json`
-- [ ] Chain building: the joint resolver ported into `ChainReprocessingService` / `ContextualDisambiguator`, starting each chain after the compiler's own name (§6.2: the Muwatta's «يحيى» loop)
-- [ ] In the 7 Shamela-linked books, use Shamela's narrator id (`narrators` spans, mapped by `links/map_s1.py`) when it is one of the resolver's tied candidates (user decision 2026-10-04; moved here from Phase 4b)
-- [ ] `NarratorGradeScale` from Ibn Hajr's ranks; `IlalSeedService` from the Phase 3 data
-- [ ] Update the unit tests (`ContextualDisambiguatorTests`, `IlalAnalysisServiceDbTests`, ...)
+**User decision (2026-10-04): Option B.** The resolver **stays in Python**. Python writes the finished data (registry, resolved chains, Ilal data) as files and the C# ETL only **loads** them into the database. Estimated 3–5 working sessions. Option A (porting the resolver to C#) is recorded below as **Phase 5b** and is done later, if at all.
+
+| | Option B (chosen) | Option A (Phase 5b, later) |
+|---|---|---|
+| Resolver | Python (`chain_resolver.py`, `link_tahdhib.py`, `gap_test.py`) | Ported to C# |
+| C# ETL | Reads `registry.json` + a chains file | Runs the resolver itself |
+| Rebuild needs | Python + the Shamela install | Only the data files |
+| Risk of different results | Almost none | Medium; needs a parity test |
+| Estimate | 3–5 sessions | 8–12 sessions |
+
+Tasks (option B):
+
+- [ ] **5.1 Domain:** `ItqanId` → `SourceKey` (registry id, e.g. `tk3438s`) plus optional `ShamelaManId`; `ItqanGrade` → `IbnHajarRank` (T1–T12) and `Verdict`; `ScholarEvaluation` gets critic, book, volume and page; `MukhtalitHearing.Timing` gets `Both` and `Conflict`; narrator-level ikhtilat severity and group rules; EF migration (applied only to the Phase 6 database)
+- [ ] **5.2 Chains file:** a Python step (extends `bench.py` / `compare_current.py`, or a new `export_chains_shamela.py`) that resolves **every** hadith of the 31 books from `data/shamela/` and writes one file per book: record id, number, per-name registry id, verbs, ties, method. Each chain starts after the compiler's own name (§6.2: the Muwatta's «يحيى» loop). In the 7 linked books, Shamela's narrator id settles a tie when it is one of the tied candidates (user decision 2026-10-04; moved here from Phase 4b; `links/map_s1.py`)
+- [ ] **5.3 ETL loaders** (new, in `Etl/Parsers/Shamela` and `Etl/Services`; the Itqan code stays untouched until Phase 7): registry (narrators, ranks, tabaqa, death, kunyas, quotes as `ScholarEvaluation`), Shamela hadith records (`parts`, footnotes), and the chains file as `Transmission`s
+- [ ] **5.4 Grading and Ilal:** `NarratorGradeScale` from Ibn Hajar's ranks; `IlalSeedService` reads `ilal.json` by registry id instead of the hand seeds; `MudallisTier` from the five tiers; `TadlisRule` / `IkhtilatRule` use severity, group rules and timing (§6.4), not every link
+- [ ] **5.5 Tests:** update `ContextualDisambiguatorTests`, `IlalAnalysisServiceDbTests`, `ShamelaSqliteParserTests`; add loader tests (counts match `registry_stats.json` and the 279,198 records) and Ilal rule tests
+- [ ] **5.6 Check:** loading into a scratch database gives the expected counts, and the Ilal findings match `ilal_bench.py` (3,243 tadlis; ikhtilat weighted)
+
+### Phase 5b — Port the resolver to C# (option A) ⏸ Later
+
+Not needed for Phase 6. Do it **only if Phase 6 says to switch** and the user wants the ETL to rebuild without Python (it also serves Phase 7's goal of removing the old pipeline). The Python output is the test oracle.
+
+- [ ] Port name normalization, `link_tahdhib` matching rules (§5), isnad segmentation and clean-up (`gap_test.py`), and the joint resolver with its tie-breaks (fame, named, father, default fallback, compiler start)
+- [ ] Replace `ChainReprocessingService` and `ContextualDisambiguator`; drop the chains file from the ETL
+- [ ] **Parity test:** C# against the saved Python runs (`data/shamela_rijal/results/<tag>/`): 0 differences on a golden subset (4 books first, then all 31), every difference explained
+- [ ] Unit tests with golden cases from §5 («ابن عمر», «أبي بن كعب», «أم سلمة», the grandfather rule)
 
 ### Phase 6 — Build and compare ⬜
 
