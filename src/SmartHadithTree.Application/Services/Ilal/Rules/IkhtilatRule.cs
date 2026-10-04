@@ -10,12 +10,16 @@ namespace SmartHadithTree.Application.Services.Ilal.Rules;
 /// The books rate the ikhtilat itself (<see cref="IkhtilatSeverity"/>): most mukhtalitun are only «خفيف» or
 /// «مختلف فيه», and flagging every link to them buries the real findings (3,082 of 4,325 on the 31 books).
 /// So the severity decides what a link is worth: a harmful ikhtilat is flagged even when the timing is unknown;
-/// a disputed one only as a low-confidence note; a light one only when the books say the student heard after it.
+/// a disputed one only as a low-confidence note, and only for a narrator graded صدوق يهم (rank 5) or weaker; a light one only
+/// when the books say the student heard after it.
 /// Narrators without a severity (data from before the Shamela books) are treated as harmful, as they were.
 /// </para>
 /// </summary>
 public sealed class IkhtilatRule : IIlalRule
 {
+    /// <summary>Ibn Hajar's rank (صدوق يهم) from which a disputed ikhtilat with unknown timing is still worth a note.</summary>
+    public const int MinTierForDisputedNote = 5;
+
     public IEnumerable<IlalFindingDto> Evaluate(IlalContext context)
     {
         var occurrences = context.Chains
@@ -67,6 +71,9 @@ public sealed class IkhtilatRule : IIlalRule
 
                 default:    // timing unknown
                     if (allSahihayn || severity == IkhtilatSeverity.Light) continue;   // the Sahihs only include what was heard before
+                    // A disputed ikhtilat of a narrator the books grade ثقة or صدوق (Ibn Uyayna, Hisham b. Urwa, Jarir) is not
+                    // worth a note on every link: 48,689 of the 60,487 notes on the 31 books came from such narrators.
+                    if (severity == IkhtilatSeverity.Disputed && mukhtalit.Tier < MinTierForDisputedNote) continue;
                     illah = IllahSeverity.Tanbih;
                     confidence = severity == IkhtilatSeverity.Harmful ? 0.45 : 0.3;
                     evidence = $"{baseEvidence}، ولم يتبين أسمع منه قبل الاختلاط أم بعده." + GroupRuleHint(context, mukhtalitId);

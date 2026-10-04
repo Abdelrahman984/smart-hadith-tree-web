@@ -113,12 +113,12 @@ public class ShamelaGradingTests
     }
 
     [Fact]
-    public async Task AnalyzeAsync_LoadsGroupRulesAndStaysQuietForALightIkhtilat()
+    public async Task AnalyzeAsync_LoadsGroupRulesIntoTheEvidenceOfAWeakerMukhtalit()
     {
         await using var db = NewDb();
         var compiler = Shamela("أحمد", 3);
         var jarir = Shamela("جرير", 3);
-        var mukhtalit = Shamela("المختلط", 4, n => { n.HasMukhtalit = true; n.IkhtilatSeverity = IkhtilatSeverity.Disputed; });
+        var mukhtalit = Shamela("المختلط", 5, n => { n.HasMukhtalit = true; n.IkhtilatSeverity = IkhtilatSeverity.Disputed; });
         var father = Shamela("أبوه", 1);
         var hadith = Hadith();
         db.Narrators.AddRange(compiler, jarir, mukhtalit, father);
@@ -136,6 +136,25 @@ public class ShamelaGradingTests
         var finding = report.Findings.Should().ContainSingle(f => f.Type == IllahType.Ikhtilat).Subject;
         finding.Severity.Should().Be(IllahSeverity.Tanbih);
         finding.EvidenceAr.Should().Contain("فمن سمع منه قديما فصحيح").And.Contain("واختُلف في اختلاطه");
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_ADisputedIkhtilatOfAThiqah_WithUnknownTiming_IsNotFlagged()
+    {
+        await using var db = NewDb();
+        var compiler = Shamela("أحمد", 3);
+        var jarir = Shamela("جرير", 3);
+        var mukhtalit = Shamela("ابن عيينة", 2, n => { n.HasMukhtalit = true; n.IkhtilatSeverity = IkhtilatSeverity.Disputed; });
+        var father = Shamela("أبوه", 1);
+        var hadith = Hadith();
+        db.Narrators.AddRange(compiler, jarir, mukhtalit, father);
+        db.Hadiths.Add(hadith);
+        db.Transmissions.AddRange(Link(hadith, 1, compiler, jarir, "حدثنا"), Link(hadith, 2, jarir, mukhtalit, "عن"), Link(hadith, 3, mukhtalit, father, "عن"));
+        await db.SaveChangesAsync();
+
+        var report = await new IlalAnalysisService(db).AnalyzeAsync([hadith.Id]);
+
+        report.Findings.Should().NotContain(f => f.Type == IllahType.Ikhtilat);
     }
 
     [Fact]

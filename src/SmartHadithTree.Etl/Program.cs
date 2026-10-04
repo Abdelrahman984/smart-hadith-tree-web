@@ -14,7 +14,9 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Configuration
     .SetBasePath(AppContext.BaseDirectory)
     .AddJsonFile("appsettings.json", optional: false)
-    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true);
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
+    // Last, so that ConnectionStrings__DefaultConnection overrides the file (a scratch database for a test load).
+    .AddEnvironmentVariables();
 
 // ── Register Services ──────────────────────────────────────────────
 builder.Services.AddDbContext<HadithTreeDbContext>(options =>
@@ -53,6 +55,9 @@ logger.LogInformation("║   Smart Hadith Tree — ETL Data Pipeline     ║");
 logger.LogInformation("║   شجرة الأسانيد الذكية — خط أنابيب البيانات ║");
 logger.LogInformation("╚══════════════════════════════════════════════╝");
 logger.LogInformation("Source: {Source}", source);
+var target = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(
+    builder.Configuration.GetConnectionString("DefaultConnection"));
+logger.LogInformation("Database: {Server} / {Database}", target.DataSource, target.InitialCatalog);
 
 try
 {

@@ -112,6 +112,15 @@ public class ShamelaLoaderTests(ITestOutputHelper output)
             (c, a, 1, null), (a, b, 2, "حدثنا"), (b, d, 3, "عن"));
     }
 
+    [Theory]
+    [InlineData(new[] { "حدثنا", "عن" }, "حدثنا")]        // an explicit verb wins over a later «عن»
+    [InlineData(new[] { "قال", "ثنا" }, "ثنا")]            // the abbreviation counts
+    [InlineData(new[] { "عن" }, "عن")]
+    [InlineData(new[] { "قال", "عن" }, "عن")]              // none explicit: the last verb
+    [InlineData(new string[0], null)]
+    public void TermOf_PrefersAnExplicitHearingVerb(string[] verbs, string? expected) =>
+        ShamelaChainBuilder.TermOf(verbs).Should().Be(expected);
+
     [Fact]
     public void ChainBuilder_DoesNotBridgeAnUndecidedName()
     {

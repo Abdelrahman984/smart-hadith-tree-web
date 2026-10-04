@@ -7,10 +7,10 @@ namespace SmartHadithTree.Tests.Application.Ilal;
 /// <summary>The ikhtilat rule weighs the books' severity, the student's timing and what the books say about the group.</summary>
 public class IkhtilatSeverityTests
 {
-    private static IlalTestBuilder Fixture(IkhtilatSeverity? severity, bool noHearingAfter = false, string book = "مسند أحمد")
+    private static IlalTestBuilder Fixture(IkhtilatSeverity? severity, bool noHearingAfter = false, string book = "مسند أحمد", int? rank = null)
     {
         var b = new IlalTestBuilder().Narrator("أحمد").Narrator("جرير").Narrator("أبوه")
-            .Narrator("ابن عيينة", mukhtalit: true, severity: severity, noHearingAfter: noHearingAfter);
+            .Narrator("ابن عيينة", mukhtalit: true, severity: severity, noHearingAfter: noHearingAfter, rank: rank);
         b.Chain("x", book, "أحمد", "حدثنا", "جرير", "عن", "ابن عيينة", "عن", "أبوه");
         return b;
     }
@@ -27,15 +27,24 @@ public class IkhtilatSeverityTests
     }
 
     [Theory]
-    [InlineData(IkhtilatSeverity.Harmful, 0.45)]
-    [InlineData(IkhtilatSeverity.Disputed, 0.3)]
-    public void UnknownTiming_IsANote_OnlyForHarmfulOrDisputed(IkhtilatSeverity severity, double confidence)
+    [InlineData(IkhtilatSeverity.Harmful, 2, 0.45)]     // harmful: a note whatever the grade
+    [InlineData(IkhtilatSeverity.Harmful, 5, 0.45)]
+    [InlineData(IkhtilatSeverity.Disputed, 5, 0.3)]     // disputed: only for صدوق يهم or weaker
+    [InlineData(IkhtilatSeverity.Disputed, 8, 0.3)]
+    public void UnknownTiming_IsANote_ForHarmful_AndForDisputedOfAWeakerNarrator(IkhtilatSeverity severity, int rank, double confidence)
     {
-        var finding = new IkhtilatRule().Evaluate(Fixture(severity).Build()).Single();
+        var finding = new IkhtilatRule().Evaluate(Fixture(severity, rank: rank).Build()).Single();
 
         finding.Severity.Should().Be(IllahSeverity.Tanbih);
         finding.Confidence.Should().Be(confidence);
     }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void UnknownTiming_OfADisputedIkhtilat_OfAThiqahOrSaduq_IsNotFlagged(int rank) =>
+        new IkhtilatRule().Evaluate(Fixture(IkhtilatSeverity.Disputed, rank: rank).Build()).Should().BeEmpty();
 
     [Fact]
     public void UnknownTiming_OfALightIkhtilat_IsNotFlagged() =>

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using SmartHadithTree.Application.Services.Ilal;
 using SmartHadithTree.Domain.Entities;
 using SmartHadithTree.Domain.Utilities;
 
@@ -128,11 +129,16 @@ public static class ShamelaHadithMapper
 /// <summary>A resolved isnad → <see cref="Transmission"/>s.</summary>
 public static class ShamelaChainBuilder
 {
+    /// <summary>The verb that stands for the link: the last explicit-hearing one if any, else the last verb.</summary>
+    public static string? TermOf(IReadOnlyList<string>? verbs) =>
+        verbs is { Count: > 0 } ? verbs.LastOrDefault(TransmissionTerms.IsExplicitHearing) ?? verbs[^1] : null;
+
     /// <summary>
     /// Links the compiler to the first narrator and each narrator to the next (student ← sheikh), step 1 upwards.
     /// A name the resolver left undecided (<c>Id</c> null) is a gap: no link is made across it, because
     /// «A ← ? ← C» must not become «A ← C». A narrator repeated twice in a row makes no link either.
-    /// The term of a link is the last transmission verb after the student's name (null for the compiler's link).
+    /// The term of a link is the transmission verb after the student's name; when several come before the next name
+    /// («حدثنا … عن …») an explicit-hearing one wins, as in the Python bench (null for the compiler's link).
     /// </summary>
     public static List<Transmission> Build(
         Guid hadithId, Guid? compiler, IReadOnlyList<ChainName> names, IReadOnlyDictionary<string, Guid> narratorBySourceKey)
@@ -162,7 +168,7 @@ public static class ShamelaChainBuilder
                 });
             }
             student = sheikh;
-            term = name.Verbs is { Count: > 0 } v ? v[^1] : null;
+            term = TermOf(name.Verbs);
         }
         return result;
     }

@@ -75,9 +75,6 @@ public class NarratorConfiguration : IEntityTypeConfiguration<Narrator>
             .HasMaxLength(500)
             .UseCollation("Arabic_100_CI_AI");
 
-        builder.Property(n => n.IkhtilatSeverity)
-            .HasConversion<int>();
-
         // Filtered so that rows without a registry id (legacy Itqan rows) do not collide.
         builder.HasIndex(n => n.SourceKey)
             .IsUnique()
