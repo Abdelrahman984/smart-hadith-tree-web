@@ -348,7 +348,7 @@ Other findings:
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** Phase 4 (hadith texts). Phase 3 is complete; the bare «سفيان» / «حماد» / «عطاء» ties (§6.4) are deferred until after Phase 7 (user decision). Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction and first-pass reviews, writing only to the scratchpad or `data/shamela_rijal/review/` and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
+**Next task:** Phase 4 (hadith texts). Before it starts, the user must download الشمائل المحمدية in the Shamela app (the only one of the 12 primary books not downloaded). Phase 3 is complete; the bare «سفيان» / «حماد» / «عطاء» ties (§6.4) are deferred until after Phase 7 (user decision). Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction, hand-reading and first-pass reviews, writing only to the scratchpad, `data/shamela_rijal/review/` or `rijal_pilot/review_drafts/`, and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
 
 **Working rules** (from Phase 3; follow them in every later phase):
 1. **Every sub-agent review gets a second check.** The main session checks every item not judged "right", plus a random sample of the "right" ones. In Phase 3 a reviewer once "corrected" a right reading (Ibn Jurayj's father taken for Ibn Jurayj).
@@ -457,7 +457,7 @@ For Phase 5 (from what Phase 3 found):
 - [x] Detect shifted record boundaries in the existing extraction (`check_record_boundaries.py`, `1741406`)
 - [ ] Re-split al-Mustadrak, al-Sunan al-Kubra, Shu'ab al-Iman and al-Bazzar on the hadith-number markers, so each record holds its own isnad and matn (§6.1)
 - [ ] Choose a Shamela edition for each of the 12 primary books. All are downloaded except الشمائل المحمدية, which the user must download in Shamela.
-- [ ] Extract them with footnotes (`foot`) for takhrij and editors' grades
+- [ ] Extract them with footnotes (`foot`) for takhrij and editors' grades (`ShamelaLuceneDumper` already writes `<id>_foot.tsv` since `75ae047`)
 - [ ] Separate the compiler's own remarks from the matn, and keep volume and page references
 - [ ] Move all 31 books to `data/shamela/` in one format
 
