@@ -310,7 +310,7 @@ In the live database, **1,296 of Muslim's 7,368 hadiths (18%)** have a first cha
 ## 7. The plan we are following: phases and tasks
 
 Update the checkboxes whenever a task is finished, and record the commit next to it.
-**Next task:** fix what the precision review found (Phase 2, resolver gaps). The record-boundary fix (§6.1) stays in Phase 4 unless the user asks for it earlier.
+**Next task:** Phase 3 (Ilal data). Phase 2 is complete apart from the deferred ties (Phase 2, resolver gaps). Work split used since late Phase 2: Sonnet sub-agents draft parsers, do mechanical extraction and first-pass reviews, writing only to the scratchpad or `data/shamela_rijal/review/` and never touching the resolver, the registry files or the cache; the main session reviews, links, measures with `bench.py` and commits.
 
 ### Overview
 
@@ -318,7 +318,7 @@ Update the checkboxes whenever a task is finished, and record the commit next to
 |---|---|
 | 0. Preparation and backups | ✅ Done |
 | 1. Pilot (Tahdhib + Taqrib, name linking, isnad test) | ✅ Done |
-| 2. Full narrator registry from Shamela | 🔶 In progress |
+| 2. Full narrator registry from Shamela | ✅ Done (ties deferred) |
 | 3. Ilal data (mudallisin, mukhtalitun) | ⬜ Not started |
 | 4. All hadith texts from Shamela | ⬜ Not started |
 | 5. Code changes (Domain, ETL, disambiguation, tests) | ⬜ Not started (largest phase) |
@@ -340,7 +340,7 @@ Update the checkboxes whenever a task is finished, and record the commit next to
 - [x] Parse Taqrib, align it with Tahdhib, map verdicts to Ibn Hajr's 12 ranks (`46b4035`)
 - [x] Write the handoff document and point `AGENTS.md` to it (`c8e95fa`)
 
-### Phase 2 — Full narrator registry 🔶
+### Phase 2 — Full narrator registry ✅
 
 Measurement tools:
 - [x] Gap measurement per isnad depth, and which books cover the gap (`1f51a2b`)
@@ -374,7 +374,7 @@ Remaining resolver gaps:
 - [x] Isnad clean-up: «رضى الله عنه» with ى, accusative «أبا هريرة» / «جابرا», «قالا» after a name, «أبي، ح»; agreement no longer counts names past the end of the current chain (`afaef5c`)
 - [x] Al-Baghawi as «ابن منيع»: tried and not kept. A maternal-grandfather candidate («ابن بنت أحمد بن منيع» → «ابن منيع») fixed 3 al-Daraqutni names but broke 2 real ties («ابن نمير» → سوادة بن علي, «ابن حرب» → الحسن بن عثمان); 73 headers say «ابن بنت X» and most are not called «ابن X». Worth a dedicated alias only if the precision review finds more
 - [x] Companions and common names when context is weak: Tahdhib lists repaired (women, line breaks, separators, «N:» heads), fame tie-break for equally linked candidates, «ابن عمر» / «أبو سلمة بن عبد الرحمن» / «أبي بن كعب» / «ذكوان أبو صالح» matching (`b15bcd2`)
-- [ ] Real ties left undecided: «أبو إسحاق» (al-Sabi'i / al-Shaybani), «أبو معاوية» (al-Darir / Hushaym), «عبد الله» bare
+- [ ] **Deferred until after Phase 7 (user decision):** real ties left undecided — «عبد الله» bare (146 names on the 31-book bench), «أبو معاوية» al-Darir / Hushaym (103), «أبو إسحاق» al-Sabi'i / al-Shaybani (31); about 0.3% of names, left unresolved rather than guessed. Condition: Phase 3 measures how often such a tie hides a mudallis / mukhtalit (Hushaym is a mudallis); if that is significant, fix them in Phase 3
 - [x] The compiler's own shaykh list as context for the first link: already in the resolver; al-Hakim was not found as the compiler, fixed (Mustadrak 78% → 79%) (`56105f6`)
 - [x] «عن أبيه» (diagnosed by a sub-agent: 410 unresolved with a known son): the father may be the one registry entry whose nasab continues the son's (father + grandfather), even when unlisted, but only when the son is certain; it also breaks ties between listed shaykhs; «أبيه» must be the father of the son chosen on the path (it had paired «أبو بردة» with another candidate's father). Tahdhib heads with symbols and no colon («ر ٤ شعيب بن محمد», ~280 incl. «تمييز») fixed, so عمرو بن شعيب's father is found. 145 «أبيه» gained, 29 changed (mostly corrections: al-Baqir → علي بن الحسين), 2 lost. A rule rejecting a listed father whose own father differs from the grandfather was tried and dropped (it lost «سلمة بن عمرو بن الأكوع», «بريدة») (`0e4d8b1`)
 - [x] Teacher lists missing from the Tahdhib parse: «روى عن ك سالم» (عمرو بن شعيب's typo'd colon; his «عن أبيه» now resolves, 65 names) and «روى عن X» with no colon at a line start (27 narrators: أحمد بن بشير، يعلى بن الحارث، العرزمي، أبي بن كعب), used only when no «روى عن:» exists and before the students. Full bench after the «عن أبيه» step: 455 narrators gained, 168 lost (39 had agreed; mostly header changes from the symbol fix); table updated (`bda1dcc`)
