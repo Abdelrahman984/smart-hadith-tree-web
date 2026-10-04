@@ -271,6 +271,10 @@ Fixing them added ~5,600 list items. Complete lists also make real namesakes tie
 
 **Correction to the earlier disagreement reviews:** Itqan's «نافع بن همام», «عكرمة بن منصور» and «محمد بن أبي عمرة» are naming errors for the right narrator, not identification errors. With the id mapping in the metric, agreement rose 1–4 points in most books and 9 in the Muwatta.
 
+**Precision review, 500 names (run `rules`, after the segmentation, glued-kunya and rules fixes).** Same method on a new sample (`review/p500/`: `precision_sample.py rules 500 2027`, 50 names from each of 10 books): Sonnet first pass, then every "wrong" / "unsure" and 48 random "right" checked by hand — all confirmed. **485 right, 13 wrong, 2 unsure: precision 97.0%** (95% CI 95.5–98.5), up from 94% (90–98) on 150 names before those fixes.
+- By method: `unique` 200/204, `chain` 271/280, `chain_fame` 11/13, `default` 3/3. By the current system: where it agrees 367/368, where it differs 60/67, past its chain 58/65.
+- The errors, by cause: segmentation (a footnote mark with Latin digits «(1)» cut «ابن أبي أنيس» out, so «الزهري» became his nephew; «هذا» and «بعض» taken as names; «يعنون ابن جعفر» not read); «قال ابن المثنى», a speaker tag in Muslim repeating the previous narrator, read as a new link (2); «ابن علية» → his son Hammad (the Taqrib alias is used only when nothing else matches); «مالك بن يحيى» → مالك بن دينار أبو يحيى (the grandfather rule accepts a kunya word); chain errors («هشام» → Ibn Urwa instead of al-Dastuwa'i, «محمد بن جعفر» → al-Warkani instead of Ghundar, «الزهري» → سعد بن إبراهيم); al-Hakim's «أبو بكر» in a quoted isnad.
+
 A manual review of 12 Ibn Hibban chains (~70 names) found 1 likely error: "أبي جعفر" from يحيى بن أبي كثير → al-Baqir, probably al-Ansari al-Mu'adhdhin.
 
 ### 6.1 Data finding: shifted hadith records (affects the live app today)
@@ -380,7 +384,8 @@ Remaining resolver gaps:
 - [x] Segmentation fixes from the review: the «ب» trailer bug, «- وهو ابن Y -», «يعني X», «X وأبي Y» (`a5a6751`)
 - [x] Kunyas glued in the edition («أبوالتياح», «أبويحيى», ~170 headers) were not read, so «أبي التياح» found only a bare stub from تعجيل المنفعة instead of يزيد بن حميد: split in `norm` / `soft_norm` (not «أبوه», «أبواب», «أبوين»). +1 point in 6 books; «أبي البختري» is now سعيد بن فيروز, not a later namesake (`4453885`)
 - [ ] Still from the review: later namesakes winning by chain («أبى هريرة» → الكلابي, «أبو الوليد الفقيه» → ابن عرق)
-- [ ] Re-measure on 500 names with the sub-agent first pass, reviewing only flagged cases and a random 10%
+- [x] Re-measure on 500 names with the sub-agent first pass: **97.0%** (95% CI 95.5–98.5) (`COMMIT`)
+- [ ] Fix the 500-name review's error classes: Latin-digit footnote marks, «هذا» / «بعض», «يعنون», speaker tags («قال ابن المثنى»), «ابن علية» alias, kunya words in the grandfather rule
 
 Housekeeping:
 - [x] Delete the superseded `parse_hakim_books.py` and `isnad_test.py` (user approved)
