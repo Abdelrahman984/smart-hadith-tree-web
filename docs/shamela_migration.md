@@ -80,7 +80,8 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 | 1893 | تعجيل المنفعة بزوائد رجال الأئمة الأربعة | Narrators of Ahmad, Malik, al-Shafi'i and Abu Hanifa who are not in Tahdhib (1,113 kept) |
 | 241 | فوائد المستخرجات من خلال مسند أبي عوانة | Checked only: a study of the Mustakhraj's benefits, no biographies. Abu Awanah has no dedicated rijal book in Shamela. |
 | 736 | تاريخ بغداد | 7,800 biographies: ~4,900 later narrators added, ~1,100 merged into narrators already in the shaykh books (`khatib` layout) |
-| 10906, 96165, 36357 | السير، الثقات ممن لم يقع في الستة، لسان الميزان | Gap measurement only (not parsed yet) |
+| 10906, 96165 | السير، الثقات ممن لم يقع في الستة | Gap measurement only (not parsed; see §7) |
+| 36357 | لسان الميزان | Parsed (`parse_lisan.py`), not merged into the resolver (§7) |
 
 ## 5. Scripts (`scripts/shamela4-extractor/rijal_pilot/`)
 
@@ -89,7 +90,8 @@ Each book produces `<id>_pages.tsv` and `<id>_titles.tsv`. The page bodies conta
 | `parse_tahdhib.py` | Splits Tahdhib into entries: book symbols, shuyukh/talamidh, attributed quotes, cross-references. Copes with typo'd, repeated or missing entry numbers (longest increasing subsequence + recovery; a repeated "٣٤٩١" had dropped Abu Musa al-Ash'ari, Ibn Mas'ud and three other Companions) and heads without a dash ("١٠٢٥: الحارث الأعور"). Lists: women's «روت عن» / «روى عنها»; a list goes on over a line break unless the line ends with a full stop or the next line is a remark; items are also split at a Latin comma or after a symbols bracket. |
 | `parse_taqrib.py` | Ibn Hajr's verdict (full phrase), tabaqa, death, symbols, redirects. |
 | `align_taqrib.py` | Unique-name anchors, then an in-order fill between anchors. |
-| `build_registry.py` | Merges Tahdhib + Taqrib and maps verdicts to ranks T1–T12. Output is not consumed yet. |
+| `build_registry.py` | Ibn Hajar's ranks T1–T12 from a Taqrib verdict (`rank()`, imported by `pipeline.py`); run alone it merges Tahdhib + Taqrib only. |
+| `pipeline.py` | **One command for the whole registry** (first draft by a sub-agent, reviewed): runs the five parsers, links the lists, writes `registry.json` (stable ids `tk<num>` / `<source>:<num>`, name, header, sources, verdict, rank, tabaqa, death, kunyas, aliases, strictly resolved shuyukh/talamidh ids plus the raw lists, quotes) and `registry_stats.json`. `--from N` restarts at step N. |
 | `parse_shaykh_books.py` | **Generic parser for compilers' shaykh / rijal books**. Configured by `BOOKS` (layouts: `bracket`, `paren`, `star`, `isnad`, `dash`, `runs`, `tajil`, `khatib`) and `COMPILERS`. Merges duplicates across books (see §6, تاريخ بغداد; `SHOW_MERGES=1` prints a sample of merged groups for review) and adds one compiler entry per compiler, whose shuyukh are that compiler's shaykh-book narrators. |
 | `link_tahdhib.py` | Name → entry matching (the core). Reports list-linking statistics when run directly. |
 | `chain_resolver.py` | **Joint isnad resolution** (Viterbi over candidate sets, scored by mutual teacher/student listing). Exec'd by `compare_current.py`. |
@@ -359,9 +361,9 @@ Compilers' shaykh books (via `parse_shaykh_books.py`):
 
 General rijal books for what remains (each needs its own parser):
 - [x] تاريخ بغداد (736): `khatib` layout, stricter Tahdhib skip, cross-book duplicate merge; al-Daraqutni 74% → 76% (`bcf95f2`)
-- [ ] سير أعلام النبلاء (10906)
+- [ ] سير أعلام النبلاء (10906): not planned for the resolver — Lisan showed that extra biography books add namesakes about as often as narrators; reconsider only if grading needs it
 - [x] لسان الميزان (36357): parsed (`parse_lisan.py` → `lisan.json`, 9,170 entries, 1,646 cross-references; first draft by a sub-agent) but **not merged** into the resolver. Even with namesakes of Tahdhib narrators skipped (same ism + father) and Tahdhib laqabs used as isms («بندار بن محمد») skipped, its 3,544 added narrators gained 182 names and lost 221 across the 31 books: criticised men rarely meant in these isnads, tying with «قتيبة», «علي بن المديني», «الحسن بن سفيان». Kept for narrator grading (Phase 3/5); the `lisan` layout in `parse_shaykh_books.py` is ready but commented out (`61d1618`)
-- [ ] الثقات ممن لم يقع في الكتب الستة (96165)
+- [ ] الثقات ممن لم يقع في الكتب الستة (96165): same as السير
 
 Remaining resolver gaps:
 - [x] Names by grandfather or by "ابن X" («عبد الله بن أحمد بن حنبل», «عثمان بن أبي شيبة», «علي بن المديني», «إسحاق بن راهويه», «إسماعيل ابن علية») (`afaef5c`)
@@ -382,7 +384,7 @@ Remaining resolver gaps:
 
 Housekeeping:
 - [x] Delete the superseded `parse_hakim_books.py` and `isnad_test.py` (user approved)
-- [ ] Turn the pilot scripts into one reproducible pipeline that writes the final registry (IDs, names, verdicts, ranks, lists, quotes, sources)
+- [x] One reproducible pipeline that writes the final registry (`pipeline.py`; first draft by a sub-agent; strict list links and Companion ranks added in review) (`COMMIT`)
 
 ### Phase 3 — Ilal data ⬜
 
@@ -429,7 +431,14 @@ python ../../scripts/shamela4-extractor/rijal_pilot/bench.py <tag> --books all  
 
 `--base <tag>` picks the run to compare with, `--review N` the number of new disagreements shown (default 12; use 20–25 before a commit). Each name in a saved run carries `vs_current` (`agree` / `differ` / `past`). Checked against the verified run: the same numbers on all 31 books, the same saved results, and `vs_current` reproduces the agreement figures; with no change it reports 0 gained / 0 lost, and with the grandfather rule switched off it lists exactly the lost names.
 
-The full pipeline:
+The whole registry in one command (from the repo root, after the dump step in §3; `<out>` gets the five intermediate files, the cache and `registry.json`):
+
+```bash
+cd data/shamela_rijal
+python ../../scripts/shamela4-extractor/rijal_pilot/pipeline.py dump <out>
+```
+
+Checked: the five intermediate files are byte-identical to the step-by-step commands below, and two runs give the same `registry.json`. In `registry.json`, a list name links to a narrator only when it has one candidate or exactly one candidate lists the narrator back (3.4 links per list against 4.8 names; the resolver itself keeps every candidate). Companions get rank 1 (Ibn Hajar gives them no verdict or tabaqa) when Taqrib says so, or when Taqrib has no verdict and the shaykh list opens with the Prophet; 870 Tahdhib narrators. Run alone, step by step:
 
 From the repo root, in Git Bash (the dump step in §3 comes first):
 
