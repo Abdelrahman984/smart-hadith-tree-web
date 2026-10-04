@@ -5,6 +5,7 @@ import { getNarratorDetails } from '@/lib/api';
 import { useNarratorDrawerStore } from '../store/useNarratorDrawerStore';
 import { X, Sparkles, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
+import AiNotice from '@/components/AiNotice';
 
 const VERDICT_AR: Record<string, string> = {
   reliable: "ثقة",
@@ -304,6 +305,7 @@ export default function NarratorDrawer() {
                           <p className="text-xs">{aiSummary.justification}</p>
                         </div>
                       )}
+                      <AiNotice />
                     </div>
                   )}
                 </div>
