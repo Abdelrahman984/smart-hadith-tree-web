@@ -371,7 +371,7 @@ Remaining resolver gaps:
 - [ ] Real ties left undecided: «أبو إسحاق» (al-Sabi'i / al-Shaybani), «أبو معاوية» (al-Darir / Hushaym), «عبد الله» bare
 - [x] The compiler's own shaykh list as context for the first link: already in the resolver; al-Hakim was not found as the compiler, fixed (Mustadrak 78% → 79%) (`56105f6`)
 - [ ] "عن أبيه" after an unresolved narrator
-- [x] Port `ContextualDisambiguator`: rules listed and Itqan ids mapped (sub-agent), 28 unconditional rules our evidence confirms used as a fallback; the agreement metric uses the id mapping (`COMMIT`)
+- [x] Port `ContextualDisambiguator`: rules listed and Itqan ids mapped (sub-agent), 28 unconditional rules our evidence confirms used as a fallback; the agreement metric uses the id mapping (`59df440`)
 - [ ] Map every Itqan id used in the current chains to the registry (sub-agent task): exact agreement for the whole bench, and needed for Phase 6
 - [ ] Known residual: later namesakes chosen by chain (a handful: «أبو هريرة» → الكلابي, «أبو الوليد الفقيه» → ابن عرق); needs generation data
 - [x] Measure precision on a systematic sample: 150 names, 94% (`369fd56`)
