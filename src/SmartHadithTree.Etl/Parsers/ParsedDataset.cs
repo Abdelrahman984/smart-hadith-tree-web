@@ -14,7 +14,10 @@ public class ParsedDataset
     public List<Transmission> Transmissions { get; set; } = [];
     public List<ScholarEvaluation> ScholarEvaluations { get; set; } = [];
 
+    /// <summary>Teacher/student relations known from the rijal books (the Shamela parser fills them).</summary>
+    public List<NarratorRelation> NarratorRelations { get; set; } = [];
+
     /// <summary>Total entity count across all collections.</summary>
     public int TotalRecords =>
-        Narrators.Count + Hadiths.Count + Transmissions.Count + ScholarEvaluations.Count;
+        Narrators.Count + Hadiths.Count + Transmissions.Count + ScholarEvaluations.Count + NarratorRelations.Count;
 }

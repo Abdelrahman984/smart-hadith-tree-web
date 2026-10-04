@@ -23,6 +23,7 @@ builder.Services.AddDbContext<HadithTreeDbContext>(options =>
         sql => sql.CommandTimeout(600))); // 10 minutes for bulk operations
 
 // Parsers (pluggable — add new parsers here)
+builder.Services.AddTransient<IDataSourceParser, SmartHadithTree.Etl.Parsers.Shamela.ShamelaDatasetParser>();
 builder.Services.AddTransient<IDataSourceParser, SmartHadithTree.Etl.Parsers.Itqan.ItqanDatasetParser>();
 builder.Services.AddTransient<IDataSourceParser, SmartHadithTree.Etl.Parsers.Shamela.ShamelaSqliteParser>();
 builder.Services.AddTransient<IDataSourceParser, SmartHadithTree.Etl.Parsers.Shamela.ShamelaJsonParser>();
