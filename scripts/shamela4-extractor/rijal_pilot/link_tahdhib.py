@@ -63,9 +63,14 @@ def cached(tag: str, compute):
 STOP = {'بن', 'ابن', 'بنت', 'ويقال', 'يقال', 'وهو', 'مولي', 'مولاهم', 'نزيل', 'صاحب', 'والد', 'اخو', 'ام', 'ثم'}
 
 
+GLUED_ABU = re.compile(r'\bابو(?!(?:ه|ها|هم|هما|اب|ا|اه|ين|ي)\b)(?=\S)')
+
+
 def norm(s: str) -> str:
     s = re.sub(r'[ً-ْٰـ]', '', s)
     s = re.sub('[أإآ]', 'ا', s).replace('ى', 'ي').replace('ة', 'ه')
+    # Kunyas glued in the edition: "أبوالتياح", "أبويحيى" (not "أبوه", "أبواب", "أبوين").
+    s = GLUED_ABU.sub('ابو ', s)
     # Genitive kunya in lists: "عن أبي مسلم". "أبي بن كعب" is a name (Ubayy), not a kunya.
     s = re.sub(r'\bابي\b(?!\s+بن\b)', 'ابو', s)
     s = re.sub(r'\bزكرياء\b', 'زكريا', s)       # both spellings occur in isnads and headers
@@ -93,6 +98,7 @@ def soft_norm(s: str) -> str:
     """Like norm() but keeps the comma, so kunya positions can be read."""
     s = re.sub(r'[ً-ْٰـ]', '', s)
     s = re.sub('[أإآ]', 'ا', s).replace('ى', 'ي').replace('ة', 'ه')
+    s = GLUED_ABU.sub('ابو ', s)
     s = re.sub(r'\bابي\b(?!\s+بن\b)', 'ابو', s)
     s = re.sub(r'\bزكرياء\b', 'زكريا', s)
     s = re.sub(r'\bعبيد\s+الله\b', 'عبيد_الله', s)

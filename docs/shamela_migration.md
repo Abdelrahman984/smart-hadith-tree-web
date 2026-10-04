@@ -370,7 +370,8 @@ Remaining resolver gaps:
 - [ ] Port the contextual overrides of `ContextualDisambiguator` (e.g. Sufyan / Hammad by student) to the new IDs
 - [x] Measure precision on a systematic sample: 150 names, 94% (`369fd56`)
 - [x] Segmentation fixes from the review: the «ب» trailer bug, «- وهو ابن Y -», «يعني X», «X وأبي Y» (`a5a6751`)
-- [ ] Still from the review: kunya stub entries («أبو التياح» instead of يزيد بن حميد), later namesakes winning by chain («أبى هريرة» → الكلابي, «أبو الوليد الفقيه» → ابن عرق)
+- [x] Kunyas glued in the edition («أبوالتياح», «أبويحيى», ~170 headers) were not read, so «أبي التياح» found only a bare stub from تعجيل المنفعة instead of يزيد بن حميد: split in `norm` / `soft_norm` (not «أبوه», «أبواب», «أبوين»). +1 point in 6 books; «أبي البختري» is now سعيد بن فيروز, not a later namesake (`COMMIT`)
+- [ ] Still from the review: later namesakes winning by chain («أبى هريرة» → الكلابي, «أبو الوليد الفقيه» → ابن عرق)
 - [ ] Re-measure on 500 names with the sub-agent first pass, reviewing only flagged cases and a random 10%
 
 Housekeeping:
