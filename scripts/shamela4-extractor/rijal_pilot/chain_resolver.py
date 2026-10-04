@@ -132,6 +132,27 @@ def father_of(p: int, unlisted: bool = True) -> set[int]:
     return listed
 
 
+# «أبيه» / «أبي» (the speaker's own father: «حدثني أبي»), «والده» / «والدي»; «جده» / «جدي».
+_HONORIFIC_AFTER = r'(?:\s+(?:رحمه الله|رحمهما الله|رضي الله عنه|رضي الله عنهما|رحمة الله عليه))?'
+KIN_FATHER = re.compile(r'(?:أبيه|ابيه|أبي|أبى|ابي|والده|والدي|أبوه)' + _HONORIFIC_AFTER)
+KIN_GRAND = re.compile(r'(?:جده|جدي|جدّه)' + _HONORIFIC_AFTER)
+
+
+def kin_form(seg: str) -> str | None:
+    """'أبيه' for a bare reference to the previous narrator's father, 'جده' for his grandfather, else None."""
+    s = HARAKAT_RE.sub('', seg).strip(' ،:.')
+    if KIN_FATHER.fullmatch(s):
+        return 'أبيه'
+    if KIN_GRAND.fullmatch(s):
+        return 'جده'
+    return None
+
+
+def grandfather_of(p: int, unlisted: bool = True) -> set[int]:
+    """Entries that can be p's grandfather ("عن جده" right after p): the father of p's father."""
+    return set().union(*(father_of(f, unlisted) for f in father_of(p, unlisted))) if father_of(p, unlisted) else set()
+
+
 def resolve(segs: list[str], start: int | None) -> list[tuple[str, int | None, str]]:
     # Candidate sets; "أبيه" depends on the previous position's candidates.
     cands: list[list[int]] = []
@@ -142,6 +163,24 @@ def resolve(segs: list[str], start: int | None) -> list[tuple[str, int | None, s
             prev_c = cands[-1] if cands else ([start] if start is not None else [])
             # An unlisted father only when the son is certain (see father_of).
             fathers[i] = {p: father_of(p, len(prev_c) == 1) for p in prev_c}
+            c = set().union(*fathers[i].values()) if prev_c else set()
+        elif seg.strip() == 'جده':
+            prev_c = cands[-1] if cands else ([start] if start is not None else [])
+            # «عمرو بن شعيب، عن أبيه، عن جده»: right after «أبيه» the grandfather is the father of that father;
+            # otherwise it is the father of the previous narrator's father.
+            after_father = i > 0 and segs[i - 1].strip() in ('أبيه', 'ابيه')
+            # «عمرو بن شعيب، عن أبيه، عن جده»: the books disagree whether «جده» is Muhammad (Shu'ayb's father) or
+            # the Companion Abdullah b. Amr, so after «أبيه» the grandfather's father is a candidate too and the
+            # chain context (or nothing, when it is a tie) decides.
+            step = (lambda p, u: father_of(p, u) | grandfather_of(p, u)) if after_father else grandfather_of
+            fathers[i] = {p: step(p, len(prev_c) == 1) for p in prev_c}
+            if after_father:
+                # «عمرو بن شعيب، عن أبيه، عن جده»: Tahdhib al-Kamal takes «جده» to be the Companion عبد الله بن عمرو
+                # (who is not among Muhammad's listed shaykhs), not Muhammad b. Abdullah, Shu'ayb's own father.
+                companion = set(candidates('عبد الله بن عمرو بن العاص'))
+                for p in prev_c:
+                    if nasab[p][:3] == ['شعيب', 'محمد', 'عبد_له'] and companion:
+                        fathers[i][p] = set(companion)
             c = set().union(*fathers[i].values()) if prev_c else set()
         else:
             c = set(lookup(seg, None))
@@ -174,6 +213,18 @@ def resolve(segs: list[str], start: int | None) -> list[tuple[str, int | None, s
         path.append(j)
         k = back
     path.reverse()
+    # A father or grandfather equal to a neighbour on the chain means the son was resolved wrongly
+    # («حدثنا جدي، حدثنا إبراهيم بن المنذر» gave the grandfather «إبراهيم بن المنذر»): leave it undecided.
+    # Likewise the narrator after «أبيه» is not the son again (Bakkar ← his father ← «أبي بكرة» chose Bakkar).
+    for i, f in enumerate(fathers):
+        if f is None:
+            continue
+        before = path[i - 1] if i else start
+        after = path[i + 1] if i + 1 < len(path) else None
+        if path[i] is not None and path[i] in (before, after):
+            path[i] = None
+        if after is not None and after == before:
+            path[i + 1] = None
 
     out = []
     last_ties.clear()
@@ -188,10 +239,17 @@ def resolve(segs: list[str], start: int | None) -> list[tuple[str, int | None, s
         def local(x: int) -> int:
             return edge(left, x) + edge(x, right)
 
-        if fathers[i] is not None:
+        if fathers[i] is not None and seg.strip() == 'جده' and j is not None and any(
+                local(x) == local(j) for x in fathers[i].get(left, ()) if x != j):
+            # «عن أبيه، عن جده» where the father's father and his own father are equally linked
+            # (Muhammad and Abdullah b. Amr for عمرو بن شعيب): the books differ, so it stays undecided.
+            out.append((seg, None, 'ambiguous'))
+            last_ties[i] = sorted(fathers[i][left], key=lambda x: -fame[x])[:TIES_KEPT]
+        elif fathers[i] is not None:
             # "أبيه" follows the son chosen on the path: a single father in the union of all the son's
             # candidates may belong to another of them.
-            out.append((seg, j, 'father') if j is not None else (seg, None, 'ambiguous'))
+            out.append((seg, j, 'father' if seg.strip() != 'جده' else 'grandfather') if j is not None
+                       else (seg, None, 'ambiguous'))
         elif len(c) == 1:
             out.append((seg, c[0], 'unique'))
         elif j is not None and local(j) > 0 and all(local(x) < local(j) for x in c if x != j):

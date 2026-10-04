@@ -53,7 +53,13 @@ ties_of: dict[str, dict[int, list[int]]] = {}  # text -> position -> tied candid
 def our_chain(text: str) -> list[tuple[str, int | None, str]]:
     pairs: list[tuple[str, list[str]]] = []
     for s, verbs in chain_segments_verbs(text):
-        if is_name(s):
+        # «حدثني أبي» (the speaker's own father; is_name rejects the bare kunya), «عن أبيه», «عن جده».
+        kin = kin_form(s) if JOINT else None
+        if kin and not pairs:
+            continue                        # no narrator before it (a long name was dropped): nobody's father
+        if kin:
+            s = kin
+        if kin or is_name(s):
             pairs.append((s, list(verbs)))
         elif pairs:                         # a segment that is not a name: its verbs go on from the last name
             pairs[-1][1].extend(verbs)
@@ -67,6 +73,14 @@ def our_chain(text: str) -> list[tuple[str, int | None, str]]:
         for i, s in enumerate(segs[:2]):
             c = candidates(s)
             if compiler in c and (max(c, key=lambda j: fame[j]) == compiler or s in openers):
+                segs, pairs = segs[i + 1:], pairs[i + 1:]
+                break
+    # «حدثنا عبد الله، حدثني أبي، حدثنا X» (Musnad Ahmad's Zawa'id): the son is the book's transmitter and
+    # «أبي» is the compiler himself, so the chain starts after the pair.
+    if compiler is not None and JOINT:
+        for i, s in enumerate(segs[:3]):
+            if (s == 'أبيه' and i > 0 and segs[i - 1] in openers
+                    and any(compiler in father_of(j, True) for j in candidates(segs[i - 1]))):
                 segs, pairs = segs[i + 1:], pairs[i + 1:]
                 break
     segs = segs[:8]
