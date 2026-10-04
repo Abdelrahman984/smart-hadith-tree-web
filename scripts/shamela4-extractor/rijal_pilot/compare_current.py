@@ -180,10 +180,8 @@ print(f'our resolved narrators found in the current chain: {agree} agree, {disag
 if os.environ.get('SAVE'):
     # Registry ids as pipeline.py writes them (tk<num> for Tahdhib, <source>:<num> for the other books).
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from pipeline import unique_ids
-    _n_tahdhib = sum(1 for e in json.load(open(TAHDHIB, encoding='utf-8')) if e.get('kind') == 'entry')
-    reg_id = unique_ids([f'tk{e["num"]}' + ('s' if e['num_suspect'] else '') if i < _n_tahdhib
-                         else f'{(e.get("source") or "extra").split("+")[0]}:{e["num"]}' for i, e in enumerate(entries)])
+    from pipeline import registry_ids
+    reg_id = registry_ids(entries, sum(1 for e in json.load(open(TAHDHIB, encoding='utf-8')) if e.get('kind') == 'entry'))
 
     def _ties(text, pos):
         return [reg_id[x] for x in ties_of.get(text, {}).get(pos, [])] or None

@@ -49,6 +49,12 @@ def unique_ids(ids):
     return out
 
 
+def registry_ids(entries, n_tahdhib):
+    """Stable ids: tk<num> (s when the number is suspect) for the first n_tahdhib entries, <source>:<num> after."""
+    return unique_ids([f'tk{e["num"]}' + ('s' if e['num_suspect'] else '') if i < n_tahdhib
+                       else f'{(e.get("source") or "extra").split("+")[0]}:{e["num"]}' for i, e in enumerate(entries)])
+
+
 def load_linker(scripts, out_dir, book_dir):
     """Exec link_tahdhib.py, gap_test.py (up to 'MAX_DEPTH = 8') and chain_resolver.py like compare_current.py."""
     sys.argv = ['compare_current.py', os.path.join(out_dir, 'tahdhib.json'), book_dir, '1']
@@ -69,15 +75,8 @@ def build_registry(ns, out_dir):
     taqrib = json.load(open(os.path.join(out_dir, 'taqrib.json'), encoding='utf-8'))['entries']
     by_tahdhib = {p['tahdhib']: p['taqrib'] for p in json.load(open(os.path.join(out_dir, 'align.json'), encoding='utf-8'))}
 
-    raw_ids, sources = [], []
-    for i, e in enumerate(entries):
-        src = 'tahdhib' if i < n_tahdhib else (e.get('source') or 'extra')
-        sources.append(src)
-        if i < n_tahdhib:
-            raw_ids.append(f'tk{e["num"]}' + ('s' if e['num_suspect'] else ''))
-        else:
-            raw_ids.append(f'{src.split("+")[0]}:{e["num"]}')
-    ids = unique_ids(raw_ids)
+    sources = ['tahdhib' if i < n_tahdhib else (e.get('source') or 'extra') for i, e in enumerate(entries)]
+    ids = registry_ids(entries, n_tahdhib)
 
     candidates, symbol_filter = ns['candidates'], ns['symbol_filter']
 

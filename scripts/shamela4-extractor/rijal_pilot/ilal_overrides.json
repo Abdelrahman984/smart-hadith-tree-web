@@ -1,0 +1,22 @@
+{
+ "_comment": "Links of the Ilal data decided by hand (link_ilal.py). mudallisin: by entry number in طبقات المدلسين; mukhtalitun: by the merged record's name. id null = not in the registry. From the review of all 174 mudallisin links (review/mudallisin_review.json, Sonnet first pass, checked by hand).",
+ "mudallisin": {
+  "14": {"id": "tk2958", "note": "طاووس in Tahdhib"},
+  "24": {"id": "khatib:1426", "note": "al-Marzubani, محمد بن عمران بن موسى بن عبيد الكاتب"},
+  "26": {"id": null, "note": "Ibn Masdi, 7th-century Andalusi; not al-Firyabi"},
+  "45": {"id": "tk1483", "note": "Tahdhib header typo «أبي سلميان»"},
+  "87": {"id": null, "note": "عثمان بن عمر الحنفي, from Ibn Jurayj; not al-Taymi (tk3849)"},
+  "94": {"id": null, "note": "محمد بن الحسين البخاري, from Waki'; not the later Abu Nasr"},
+  "100": {"id": "irshad:996", "note": "al-Baghandi; rayy:418 is the same man (not merged), khatib:1526 his brother"},
+  "113": {"id": "tk7336", "note": "Abu Khalid al-Dalani (kunya entry); tk7022 is Ibn Abi Malik (#114)"},
+  "130": {"id": "tk438s", "note": "Abu Isra'il al-Mula'i, إسماعيل بن خليفة in Tahdhib"},
+  "142": {"id": null, "note": "Abu Qatada al-Harrani (ت): no entry of his own in Shamela's Tahdhib text, only in lists"},
+  "146": {"id": "tk3838", "note": "al-Tara'ifi is عثمان بن عبد الرحمن بن مسلم الحراني; tk3841 is a bare stub"},
+  "148": {"id": "rijal_hakim:1092", "note": "tuhfa:3207 is the same bare name"},
+  "149": {"id": null, "note": "Malik b. Sulayman al-Harawi; not al-Alhani"},
+  "159": {"id": "tk3020", "note": "the book's «عاصم بن عمرو بن قتادة» is عاصم بن عمر بن قتادة"},
+  "162": {"id": "tk3438s", "note": "عبد العزيز بن جريج, Ibn Jurayj's father (Taqrib: لم يسمع من عائشة); «جريح» is a typo"},
+  "166": {"id": "tk3944", "note": "عطاء بن نافع الكيخاراني, «ويقال عطاء بن يعقوب»; tk3947 says he is not al-Kaykharani"}
+ },
+ "mukhtalitun": {}
+}
