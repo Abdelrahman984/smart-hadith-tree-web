@@ -47,20 +47,25 @@ public static class RelevanceScorer
         var tokenStarts = Words.Matches(normalizedMatn).Select(m => m.Index).ToArray();
         if (tokenStarts.Length == 0) return null;
 
-        // Occurrences of every term, as (word index, term index, length in words).
+        // A word the user repeated ("الحلال بين الحرام بين") must also occur that many times: the term list is
+        // reduced to distinct terms with a multiplicity, and coverage counts min(occurrences, multiplicity).
+        var unique = terms.Distinct().ToList();
+        var mult = unique.Select(u => terms.Count(x => x == u)).ToArray();
+
+        // Occurrences of every distinct term, as (word index, term index, length in words).
         var events = new List<(int Word, int Term, int Len)>();
-        var termWords = new int[terms.Count];
-        var found = new bool[terms.Count];
-        for (var t = 0; t < terms.Count; t++)
+        var termWords = new int[unique.Count];
+        var found = new bool[unique.Count];
+        var occurrences = new int[unique.Count];
+        for (var t = 0; t < unique.Count; t++)
         {
-            termWords[t] = Math.Max(1, Words.Matches(terms[t]).Count);
+            termWords[t] = Math.Max(1, Words.Matches(unique[t]).Count);
             var from = 0;
-            var count = 0;
             // "الجنه" must also be found in "للجنه" (a prefix before the stem): fall back to the stem without "ال".
-            var needle = terms[t];
+            var needle = unique[t];
             if (needle.StartsWith("ال", StringComparison.Ordinal) && needle.Length >= 5 && !normalizedMatn.Contains(needle, StringComparison.Ordinal))
                 needle = needle[2..];
-            while (count < MaxOccurrencesPerTerm)
+            while (occurrences[t] < MaxOccurrencesPerTerm)
             {
                 var idx = normalizedMatn.IndexOf(needle, from, StringComparison.Ordinal);
                 if (idx < 0) break;
@@ -69,29 +74,30 @@ public static class RelevanceScorer
                 if (word < 0) word = Math.Max(0, ~word - 1);
                 events.Add((word, t, termWords[t]));
                 from = idx + Math.Max(1, needle.Length);
-                count++;
+                occurrences[t]++;
             }
         }
 
         var foundCount = found.Count(f => f);
         if (foundCount == 0) return null;
-        var coverage = (double)foundCount / terms.Count;
+        var coveredUnits = Enumerable.Range(0, unique.Count).Sum(t => Math.Min(occurrences[t], mult[t]));
+        var coverage = (double)coveredUnits / terms.Count;
 
         events.Sort((a, b) => a.Word != b.Word ? a.Word.CompareTo(b.Word) : a.Term.CompareTo(b.Term));
         var (bestStart, bestSpan, inOrder) = SmallestWindow(events, found, foundCount);
 
-        var foundWords = Enumerable.Range(0, terms.Count).Where(t => found[t]).Sum(t => termWords[t]);
+        var foundWords = Enumerable.Range(0, unique.Count).Where(t => found[t]).Sum(t => termWords[t]);
         var ideal = foundWords + (foundCount - 1);
         var proximity = foundCount == 1 ? 1.0 : Math.Min(1.0, (double)ideal / Math.Max(1, bestSpan));
 
         var phrase = !string.IsNullOrEmpty(exactPhrase) && exactPhrase.Contains(' ')
                      && normalizedMatn.Contains(exactPhrase, StringComparison.Ordinal);
-        var orderFactor = terms.Count == 1 ? 1.0 : phrase ? 1.0 : inOrder ? 0.5 : 0.0;
+        var orderFactor = unique.Count == 1 ? 1.0 : phrase ? 1.0 : inOrder ? 0.5 : 0.0;
 
         var percent = (int)Math.Round(100 * coverage * (0.25 + 0.5 * proximity + 0.25 * orderFactor));
         percent = Math.Clamp(percent, 0, 100);
 
-        return new RelevanceResult(percent, Reason(terms.Count, foundCount, bestSpan, ideal, phrase, inOrder), tokenStarts[Math.Min(bestStart, tokenStarts.Length - 1)]);
+        return new RelevanceResult(percent, Reason(terms.Count, coveredUnits, bestSpan, ideal, phrase, inOrder), tokenStarts[Math.Min(bestStart, tokenStarts.Length - 1)]);
     }
 
     /// <summary>Smallest run of words (in the sorted events) that contains every found term, with its start and order.</summary>

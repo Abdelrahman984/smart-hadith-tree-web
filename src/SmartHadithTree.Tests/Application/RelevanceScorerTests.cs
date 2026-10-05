@@ -85,4 +85,16 @@ public class RelevanceScorerTests
         withPrefix.Percent.Should().BeGreaterThan(70);
         withPrefix.ReasonAr.Should().NotContain("وُجد");
     }
+
+    [Fact]
+    public void Score_ShouldRequireARepeatedQueryWordToRepeat()
+    {
+        // Query "الحلال بين الحرام بين": the hadith of Nu'man has "بين" twice, the hadith about the duff only once.
+        string[] terms = ["الحلال", "بين", "الحرام", "بين"];
+        var nuaman = RelevanceScorer.Score("ان الحلال بين وان الحرام بين وبينهما امور مشتبهات", terms)!;
+        var duff = RelevanceScorer.Score("فصل ما بين الحلال والحرام الصوت يعني الضرب بالدف", terms)!;
+
+        nuaman.Percent.Should().BeGreaterThan(duff.Percent);
+        duff.ReasonAr.Should().Contain("3 من 4");
+    }
 }

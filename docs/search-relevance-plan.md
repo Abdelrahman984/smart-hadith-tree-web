@@ -119,3 +119,15 @@ Read the numbers with the usual care: the targets were written from memory (chec
 ### Review packs (for an outside reviewer)
 
 `python scripts/eval_search.py --judge --review-pack search_review.md` and `python scripts/eval_verify.py --review-pack verify_review.md` write a Markdown file with, for each case, the query, the top results with their relevance score, the AI label, the AI reason and quote, the matn, and an empty line for the reviewer's verdict. Hand the file to a human reviewer (preferably a specialist) and, if you want a second opinion from the assistant, upload it to the session. The assistant's reading of the matn is a check on the AI's labels, not ground truth: authenticity and rulings are outside what it judges, and a model checking a model shares blind spots, so disagreements should go to the human reviewer.
+
+### Findings of the first real runs (2026-10-05, owner's machine)
+
+Full run of `eval_search.py --judge` (18 queries, AI check on the top 10, 3 cases in parallel, 108 s):
+
+- Search order: hit@1 15/18, hit@3 16/18, hit@10 16/18, MRR 0.865. Misses: S02 (rank 2), S03 (rank 20), S11 (rank 47).
+- **S03 is mostly a benchmark artifact:** the top results are other narrations of the same hadith ("من سلم المسلمون من لسانه ويده") and the target is one specific wording written from memory.
+- **S11 is a real miss of the score:** "الحلال بين الحرام بين" put the hadith "فصل ما بين الحلال والحرام الصوت" (the duff) first. The scorer treated the repeated word "بين" as one. Fixed: a repeated query word must occur that many times (test with both texts). The AI check timed out on this query, so the case that would show whether the AI separates different hadiths on the same words has not been observed yet.
+- AI check: 146 labels, **all "match"** (no partial, no scattered); 26 results not judged, 25 of them from 3 timeouts at 30 s (S11, S14, S17), 1 because the answer failed verification (S02.1, a commentary that does not state the phrase). The rank gain after the AI (MRR 0.865 to 0.893) comes only from that one result being demoted as not judged, not from a "scattered" verdict.
+- Borderline labels read by the assistant: S03.8 (Hajj hadith where the phrase is a condition) and S09.7 (al-Bazzar's comment about the routes of the hadith) are "partial" at best. The prompt now defines the levels more strictly (match = the passage is the hadith that states the meaning; partial = part of a longer or different context, or mentioned in a comment; scattered = words present, other subject) and asks for a short reason. To be re-measured.
+- Model latency: 7-27 s per call of 10 results (median about 17 s). Too slow for a button users wait on; a faster non-reasoning model is the main lever.
+- Open: the AI never produced "partial" or "scattered" on this set, so its ability to catch wrong results is still unproven. Add decoy cases (`decoys_contains`) such as S11's duff hadith and re-run.
