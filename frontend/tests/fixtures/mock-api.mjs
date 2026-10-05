@@ -66,11 +66,11 @@ function takhreejFor(ids) {
   return { sources: wanted, nodes: nodes.filter((n) => !n.parentNodeId || ids2.has(n.parentNodeId)), calculatedGrade: 'صحيح', taqwiyahDetails: 'تقوّى بتعدد الطرق إلى المدار.', ilalReport: ILAL_REPORT };
 }
 
-// `ids=big`: more than 12 links, so the edge labels become markers.
-function bigTakhreej() {
+// `ids=big`: more than 12 links, so the edge labels become markers. `ids=huge`: 35 narrators, so cards go compact.
+function bigTakhreej(branches = 4) {
   const base = takhreejFor([]);
   const extra = [];
-  for (let k = 1; k <= 4; k += 1) {
+  for (let k = 1; k <= branches; k += 1) {
     extra.push(
       cn(`kc${k}`, `K${k}`, `مصنف إضافي ${k}`, 0, null, ['h2'], [MUSLIM], { gradeEn: 'reliable', generationTier: 'الحادية عشرة' }),
       cn(`kn${k}`, `M${k}`, `راو إضافي ${k}`, 1, `kc${k}`, ['h2'], [MUSLIM], { gradeEn: 'reliable', generationTier: 'العاشرة' }),
@@ -101,7 +101,7 @@ const routes = [
   [/^\/api\/Tree\/[^/]+$/, () => [200, { hadithId: 'h1', bookName: BUKHARI, hadithNumber: 1, matnArabic: LONG, nodes: SINGLE }]],
   [/^\/api\/Takhreej\/related\/h2$/, () => [200, []]],
   [/^\/api\/Takhreej\/related\//, () => [200, [hadith(2), hadith(3)]]],
-  [/^\/api\/Takhreej$/, (u) => { const ids = (u.searchParams.get('ids') ?? '').split(',').filter(Boolean); return [200, ids.includes('big') ? bigTakhreej() : takhreejFor(ids)]; }],
+  [/^\/api\/Takhreej$/, (u) => { const ids = (u.searchParams.get('ids') ?? '').split(',').filter(Boolean); return [200, ids.includes('huge') ? bigTakhreej(14) : ids.includes('big') ? bigTakhreej() : takhreejFor(ids)]; }],
   [/^\/api\/Ilal\/explain$/, () => [200, { explanationAr: 'شرح تجريبي.', caveats: [] }]],
   [/^\/api\/Ilal(\/[^/]+)?$/, () => [200, ILAL_REPORT]],
   [/^\/api\/Narrators\/N3$/, () => [200, { id: 'N3', fullName: 'راو متروك للاختبار', knownAs: null, kunyah: null, generationTier: 'السادسة', birthYearHijri: null, deathYearHijri: 150, biography: null, gradeEn: 'fabricator', evaluations: [{ scholarName: 'يحيى بن معين', evaluationText: 'كذاب', sourceBook: 'تهذيب الكمال', verdictRating: 'fabricator' }] }]],

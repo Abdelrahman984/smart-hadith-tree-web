@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useMediaQuery } from "@/components/useMediaQuery";
+import { useLegendOpen } from "../hooks/useLegendOpen";
 import { useGraphViewStore } from "../store/useGraphViewStore";
 import { GRADE_STYLE, UNRATED_STYLE } from "@/features/narrator-details/utils/gradeStyle";
 import { Panel } from "@xyflow/react";
 import {
-  ChevronDown,
+ 
   ChevronUp,
   Layers,
   BookOpen,
@@ -45,11 +45,9 @@ interface BookLegendProps {
 }
 
 export default function BookLegend({ activeBooks, focusBook, onFocusBook }: BookLegendProps) {
-  // Open by default where there is room; on phones the open legend would cover the graph.
-  const isWideScreen = useMediaQuery("(min-width: 768px)", true);
-  const userOpen = useGraphViewStore((s) => s.legendOpen);
+  // Opened and closed from the toolbar (and its own close button); see useLegendOpen.
+  const isOpen = useLegendOpen();
   const setIsOpen = useGraphViewStore((s) => s.setLegendOpen);
-  const isOpen = userOpen ?? isWideScreen;
   const [activeTab, setActiveTab] = useState<LegendTab>("all");
   const [showAllBooks, setShowAllBooks] = useState(false);
 
@@ -61,21 +59,7 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
     return uniqueNames.map((name) => getBookMeta(name));
   }, [activeTab, showAllBooks, activeBooks]);
 
-  if (!isOpen) {
-    return (
-      <Panel position="top-right" className="m-2" dir="rtl">
-        <button
-          onClick={() => setIsOpen(true)}
-          className="flex items-center gap-2 bg-surface/95 backdrop-blur-md px-3.5 py-2 rounded-xl shadow-md border border-line text-slate-700 hover:bg-surface-muted hover:text-slate-900 transition-all text-xs font-bold cursor-pointer"
-          title="فتح مفتاح الرموز"
-        >
-          <Layers className="w-4 h-4 text-brand-blue" />
-          <span>مفتاح الرموز</span>
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-        </button>
-      </Panel>
-    );
-  }
+  if (!isOpen) return null;
 
   return (
     <Panel

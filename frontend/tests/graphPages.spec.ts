@@ -223,6 +223,113 @@ test.describe('the legend and a big graph', () => {
   });
 });
 
+test.describe('the toolbar', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/takhreej?ids=h1,h2,h3');
+    await graphReady(page);
+  });
+
+  const toolbar = (page: Page) => page.getByRole('toolbar', { name: 'أدوات الشجرة' });
+
+  test('has every tool in one place', async ({ page }) => {
+    for (const name of ['بحث عن راوٍ', 'إبراز الضعفاء', 'عرض مضغوط للرواة', 'خريطة الشجرة', 'مفتاح الرموز', 'تكبير', 'تصغير', 'ملاءمة الشجرة للشاشة', 'تصدير صورة']) {
+      await expect(toolbar(page).getByRole('button', { name })).toBeVisible();
+    }
+  });
+
+  test('the legend button opens and closes the legend', async ({ page }) => {
+    const legendButton = toolbar(page).getByRole('button', { name: 'مفتاح الرموز' });
+    await expect(legendButton).toHaveAttribute('aria-pressed', 'true'); // open beside the graph on a wide screen
+    await legendButton.click();
+    await expect(page.getByText('مفتاح الرموز والمصطلحات')).toBeHidden();
+    await legendButton.click();
+    await expect(page.getByText('مفتاح الرموز والمصطلحات')).toBeVisible();
+  });
+
+  test('zoom buttons change the view and fit brings it back', async ({ page }) => {
+    const viewport = page.locator('.react-flow__viewport');
+    const fitted = await viewport.getAttribute('style');
+    await toolbar(page).getByRole('button', { name: 'تكبير' }).click();
+    await expect.poll(() => viewport.getAttribute('style')).not.toBe(fitted);
+    await toolbar(page).getByRole('button', { name: 'ملاءمة الشجرة للشاشة' }).click();
+    await expect.poll(() => viewport.getAttribute('style')).toBe(fitted);
+  });
+
+  test('find a narrator: type part of the name, press Enter, and the card is selected', async ({ page }) => {
+    await toolbar(page).getByRole('button', { name: 'بحث عن راوٍ' }).click();
+    const box = page.getByRole('combobox', { name: 'ابحث عن راوٍ في الشجرة' });
+    await expect(box).toBeFocused();
+
+    await box.fill('قتيبه'); // taa marbuta typed as haa still finds «قتيبة»
+    const option = page.getByRole('option', { name: /قتيبة بن سعيد/ });
+    await expect(option).toBeVisible();
+    await box.press('Enter');
+
+    await expect(card(page, 'قتيبة بن سعيد').locator('> div')).toHaveClass(/ring-brand-blue/);
+    await expect(box).toBeHidden();
+  });
+
+  test('find says so when nobody matches, and Escape closes it', async ({ page }) => {
+    await toolbar(page).getByRole('button', { name: 'بحث عن راوٍ' }).click();
+    const box = page.getByRole('combobox', { name: 'ابحث عن راوٍ في الشجرة' });
+    await box.fill('زيد');
+    await expect(page.getByText('لا راوٍ بهذا الاسم في هذه الشجرة.')).toBeVisible();
+    await box.press('Escape');
+    await expect(box).toBeHidden();
+  });
+
+  test('card detail: compact shows the name and grade only, detailed brings the rest back', async ({ page }) => {
+    const sufyan = card(page, 'سفيان بن عيينة');
+    await expect(sufyan).toContainText('الثامنة'); // detailed by default on a small graph
+    await expect(sufyan).toContainText('مدلس');
+
+    await toolbar(page).getByRole('button', { name: 'عرض مضغوط للرواة' }).click();
+    await expect(sufyan).not.toContainText('الثامنة');
+    await expect(sufyan).toContainText('صدوق'); // the grade stays
+    await expect(page.locator('div.absolute.inset-0.bg-surface-muted')).toHaveClass(/opacity-100/); // no blink-out
+
+    await toolbar(page).getByRole('button', { name: 'عرض مفصّل للرواة' }).click();
+    await expect(sufyan).toContainText('الثامنة');
+  });
+});
+
+test.describe('a very large graph', () => {
+  test('starts compact with the minimap on, and both can be switched', async ({ page }) => {
+    await page.goto('/takhreej?ids=huge,h1');
+    await graphReady(page);
+
+    const toolbar = page.getByRole('toolbar', { name: 'أدوات الشجرة' });
+    await expect(page.locator('.react-flow__node')).toHaveCount(35);
+    await expect(card(page, 'سفيان بن عيينة')).not.toContainText('الثامنة'); // compact by default
+    await expect(page.locator('.react-flow__minimap')).toBeVisible();
+
+    // The minimap does not sit on the legend.
+    const [map, legend] = await Promise.all([
+      page.locator('.react-flow__minimap').boundingBox(),
+      page.locator('.react-flow__panel.top.right').boundingBox(),
+    ]);
+    const overlap = map!.x < legend!.x + legend!.width && map!.x + map!.width > legend!.x && map!.y < legend!.y + legend!.height && map!.y + map!.height > legend!.y;
+    expect(overlap).toBe(false);
+
+    await toolbar.getByRole('button', { name: 'خريطة الشجرة' }).click();
+    await expect(page.locator('.react-flow__minimap')).toHaveCount(0);
+
+    await toolbar.getByRole('button', { name: 'عرض مفصّل للرواة' }).click();
+    await expect(card(page, 'سفيان بن عيينة')).toContainText('الثامنة');
+  });
+
+  test.describe('on a phone', () => {
+    test.use({ viewport: { width: 375, height: 812 } });
+
+    test('has no minimap by default', async ({ page }) => {
+      await page.goto('/takhreej?ids=huge,h1');
+      await graphReady(page);
+      await expect(page.locator('.react-flow__minimap')).toHaveCount(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+    });
+  });
+});
+
 test.describe('the takhreej summary', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/takhreej?ids=h1,h2,h3');

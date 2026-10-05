@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-05: Tree and takhreej pages, step 4a: one toolbar
+
+- **`GraphToolbar`** replaces the weak-highlight/export panel, the React Flow zoom controls and the legend's own collapsed button: find, «إبراز الضعفاء», card detail, minimap, legend, zoom in/out/fit and export are one bar (icon buttons with labels for screen readers and tooltips, scrolling sideways on a phone).
+- **Find a narrator**: a combobox over the graph's narrators. It ignores diacritics, hamza and taa marbuta (`قتيبه` finds `قتيبة`), ranks the phrase as typed first, and Enter selects the card and brings it into view.
+- **Card detail**: «مضغوط/مفصّل». Compact cards show the name and grade only; the choice is automatic above 25 narrators. Changing it lays the graph out again with the new card sizes without the graph blinking out.
+- **Minimap**: on by default on a wide screen when the graph has more than 25 narrators; switchable from the toolbar; bottom-left, so it never covers the legend.
+- **Dynamic title** for takhreej («تخريج صحيح البخاري 1 و2 روايات أخرى»), built from book and number because a stored matn can still begin with the isnad.
+- **Resizable side panel**: drag its edge (or use arrow keys, Home/End) between 320 and 640px; the width and the last tab are remembered.
+- **Tree header**: the book name links to its chapters, and on a phone the ruling note collapses behind a «تفاصيل» button (a first version wrapped the evidence badge in a button, which nested buttons and caused a hydration error).
+- **Tests**: 111 in all, including 12 for the toolbar, search, density and minimap, and a fixture graph of 35 narrators (`ids=huge`).
+
+---
+
 ## 2026-10-05: Tree and takhreej pages, step 3: one workspace
 
 - **`HadithWorkspace`** is the page both screens share: site header, a header block, an optional summary strip, the graph, and a side panel of real ARIA tabs (`role=tablist/tab/tabpanel`). `TreeWorkspace` and the takhreej page only say what goes in each slot. The takhreej sidebar became the «المتون» and «العلل» tabs; panel and tab state live in `useWorkspaceStore`, so the summary strip, chips and findings open tabs without prop plumbing.

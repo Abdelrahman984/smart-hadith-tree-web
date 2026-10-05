@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 import { buildComparativeGraph, buildSingleGraph } from '../src/features/isnad-tree/utils/buildIsnadGraph';
 import { decorateEdgeWithIlal } from '../src/features/isnad-tree/utils/edgeStyle';
 import { getIlalEdgeDecorations } from '../src/features/ilal/utils/ilalLabels';
+import { normalizeArabic, searchNarrators } from '../src/features/isnad-tree/utils/narratorSearch';
+import { COMPACT_NODES_MIN, isCompactDensity } from '../src/features/isnad-tree/store/useGraphViewStore';
 import { takhreejTitle } from '../src/features/isnad-tree/utils/takhreejTitle';
 import { isUnrated } from '../src/features/narrator-details/utils/gradeStyle';
 import type { ComparativeIsnadNodeDto, ComparativeTreeResponseDto, IlalReportDto, IsnadNodeDto } from '../src/types/api';
@@ -205,5 +207,41 @@ test.describe('takhreejTitle', () => {
   });
   test('has a fallback for no sources', () => {
     expect(takhreejTitle([])).toBe('شجرة التخريج المقارنة');
+  });
+});
+
+test.describe('narrator search', () => {
+  const items = [
+    { id: '1', name: 'سفيان بن عيينة' },
+    { id: '2', name: 'سفيان الثوري' },
+    { id: '3', name: 'عبد الله بن سفيان' },
+    { id: '4', name: 'أبو هريرة', shortName: 'أبو هريرة' },
+  ];
+
+  test('ignores diacritics, hamza and taa marbuta', () => {
+    expect(normalizeArabic('أَبُو هُرَيْرَة')).toBe(normalizeArabic('ابو هريره'));
+    expect(searchNarrators(items, 'ابو هريره').map((i) => i.id)).toEqual(['4']);
+  });
+
+  test('every word must match; names starting with the query come first', () => {
+    expect(searchNarrators(items, 'سفيان').map((i) => i.id)).toEqual(['1', '2', '3']);
+    expect(searchNarrators(items, 'سفيان عيينة').map((i) => i.id)).toEqual(['1']);
+    // The phrase as typed beats names that merely contain both words.
+    expect(searchNarrators(items, 'بن سفيان').map((i) => i.id)).toEqual(['3', '1']);
+  });
+
+  test('nothing for an empty query or no match; the limit holds', () => {
+    expect(searchNarrators(items, '  ')).toEqual([]);
+    expect(searchNarrators(items, 'زيد')).toEqual([]);
+    expect(searchNarrators(items, 'سفيان', 2)).toHaveLength(2);
+  });
+});
+
+test.describe('card density', () => {
+  test('automatic is compact only above the threshold; a choice always wins', () => {
+    expect(isCompactDensity('auto', COMPACT_NODES_MIN)).toBe(false);
+    expect(isCompactDensity('auto', COMPACT_NODES_MIN + 1)).toBe(true);
+    expect(isCompactDensity('compact', 3)).toBe(true);
+    expect(isCompactDensity('detailed', 500)).toBe(false);
   });
 });

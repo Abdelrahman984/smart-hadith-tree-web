@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   Background,
-  Controls,
+  MiniMap,
   Node,
   Panel,
   ReactFlow,
@@ -17,16 +17,19 @@ import { useMediaQuery } from "@/components/useMediaQuery";
 import { useNarratorDrawerStore } from "@/features/narrator-details/store/useNarratorDrawerStore";
 import { useIlalStore } from "@/features/ilal/store/useIlalStore";
 import { getIlalEdgeDecorations } from "@/features/ilal/utils/ilalLabels";
+import { useLegendOpen } from "../hooks/useLegendOpen";
 import { useMeasuredRelayout } from "../hooks/useMeasuredRelayout";
 import { useRefitOnResize } from "../hooks/useRefitOnResize";
-import { useGraphViewStore } from "../store/useGraphViewStore";
+import { COMPACT_NODES_MIN, isCompactDensity, useGraphViewStore } from "../store/useGraphViewStore";
+import { getNodeColors } from "@/features/narrator-details/utils/gradeStyle";
+import type { NarratorSearchItem } from "../utils/narratorSearch";
 import { COMPACT_LABELS_MIN_EDGES, decorateEdgeWithIlal } from "../utils/edgeStyle";
 import { getLayoutedElements } from "../utils/elkLayout";
 import { applyGraphFocus } from "../utils/graphFocus";
 import type { BuiltGraph } from "../utils/graphTypes";
 import BookLegend from "./BookLegend";
 import ElkEdge from "./ElkEdge";
-import GraphControls from "./GraphControls";
+import GraphToolbar from "./GraphToolbar";
 import NarratorNode from "./NarratorNode";
 import ReferenceNode from "./ReferenceNode";
 
@@ -64,19 +67,48 @@ export default function IsnadGraphCanvas({ graph, bookFocus = false }: IsnadGrap
   const containerRef = useRef<HTMLDivElement>(null);
   // While the legend is open beside the graph, fit the graph into the space it leaves, so no card hides under it.
   const isWide = useMediaQuery("(min-width: 768px)", true);
-  const legendOpenSetting = useGraphViewStore((s) => s.legendOpen);
-  const reserveLegend = (legendOpenSetting ?? isWide) && isWide;
+  const legendOn = useLegendOpen();
+  const reserveLegend = legendOn && isWide;
   const fitOptions = useMemo(
     () => ({ duration: 0, padding: reserveLegend ? { top: 0.1, bottom: 0.1, left: 0.1, right: `${LEGEND_RESERVE_PX}px` as const } : 0.1 }),
     [reserveLegend]
   );
   const refit = useCallback(() => flowRef.current?.fitView(fitOptions), [fitOptions]);
-  const { phase, setPhase } = useMeasuredRelayout({ nodes, edges, setNodes, setEdges, onRelaid: refit });
+  const { phase, visible, setPhase } = useMeasuredRelayout({ nodes, edges, setNodes, setEdges, onRelaid: refit });
   useRefitOnResize(containerRef, refit, phase === "ready");
   useEffect(() => {
     if (phase === "ready") refit(); // the legend was opened or closed
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reserveLegend]);
+
+  // The automatic choices (compact cards, minimap) depend on how many narrators the graph has.
+  const setNodeCount = useGraphViewStore((s) => s.setNodeCount);
+  useEffect(() => setNodeCount(graph.nodes.length), [graph.nodes.length, setNodeCount]);
+
+  // Compact and detailed cards differ in size: lay out again with the new measurements, after they have been measured.
+  const compactCards = useGraphViewStore((s) => isCompactDensity(s.density, s.nodeCount));
+  const lastCompact = useRef(compactCards);
+  useEffect(() => {
+    if (phase !== "ready" || compactCards === lastCompact.current) return;
+    lastCompact.current = compactCards;
+    const timer = setTimeout(() => setPhase("measure"), 150);
+    return () => clearTimeout(timer);
+  }, [compactCards, phase, setPhase]);
+
+  const isLarge = useMediaQuery("(min-width: 1024px)", true);
+  const minimapSetting = useGraphViewStore((s) => s.minimap);
+  const minimapOn = minimapSetting ?? (isLarge && graph.nodes.length > COMPACT_NODES_MIN);
+
+  // The graph's narrators, for the find box.
+  const narrators = useMemo<NarratorSearchItem[]>(
+    () =>
+      nodes.map((n) => {
+        const d = n.data as { narratorName?: string; famousName?: string; fullName?: string; generationTier?: string | null; gradeEn?: string };
+        const short = d.narratorName ?? d.famousName ?? "";
+        return { id: n.id, name: d.fullName || short, shortName: short, tier: d.generationTier };
+      }),
+    [nodes]
+  );
 
   // First layout pass, with estimated sizes; useMeasuredRelayout does the second one with the measured sizes.
   useEffect(() => {
@@ -190,7 +222,7 @@ export default function IsnadGraphCanvas({ graph, bookFocus = false }: IsnadGrap
   return (
     <div
       ref={containerRef}
-      className={`absolute inset-0 bg-surface-muted transition-opacity duration-150 ${phase === "ready" ? "opacity-100" : "opacity-0"}`}
+      className={`absolute inset-0 bg-surface-muted transition-opacity duration-150 ${visible ? "opacity-100" : "opacity-0"}`}
       dir="ltr"
       onKeyDown={onKeyDown}
     >
@@ -213,7 +245,7 @@ export default function IsnadGraphCanvas({ graph, bookFocus = false }: IsnadGrap
         attributionPosition="bottom-right"
         className="bg-surface-muted"
       >
-        <GraphControls />
+        <GraphToolbar narrators={narrators} onFit={refit} minimapOn={minimapOn} legendOn={legendOn} />
         {activeBook && (
           <Panel position="top-center" className="m-2" dir="rtl">
             <button
@@ -233,7 +265,17 @@ export default function IsnadGraphCanvas({ graph, bookFocus = false }: IsnadGrap
           onFocusBook={bookFocus ? setFocusBook : undefined}
         />
         <Background color="#cbd5e1" gap={16} />
-        <Controls />
+        {minimapOn && (
+          <MiniMap
+            position="bottom-left"
+            pannable
+            zoomable
+            ariaLabel="خريطة الشجرة"
+            nodeColor={(n) => getNodeColors((n.data as { gradeEn?: string })?.gradeEn).borderColor}
+            nodeStrokeWidth={2}
+            className="!bg-surface/90"
+          />
+        )}
       </ReactFlow>
     </div>
   );

@@ -3,7 +3,7 @@ import { memo } from "react";
 import { AlertTriangle, FileDiff, MapPin } from "lucide-react";
 import { useIlalStore } from "@/features/ilal/store/useIlalStore";
 import { getGradeStyle, getNodeColors, isUnrated, UNRATED_HINT, UNRATED_STYLE } from "@/features/narrator-details/utils/gradeStyle";
-import { useGraphViewStore } from "../store/useGraphViewStore";
+import { isCompactDensity, useGraphViewStore } from "../store/useGraphViewStore";
 import type { NarratorNodeData } from "../utils/graphTypes";
 import { NarratorBadges, SourceBookBadges } from "./NarratorBadges";
 
@@ -14,6 +14,7 @@ const NarratorNode = ({ id, data, selected }: { id: string; data: NarratorNodeDa
   const isIlalHighlighted = useIlalStore((s) => s.highlightedNarratorIds.includes(id));
   const isMadar = useIlalStore((s) => Boolean(s.report?.madars.some((m) => m.narratorId === id)));
   const showWeakOnly = useGraphViewStore((s) => s.showWeakOnly);
+  const compact = useGraphViewStore((s) => isCompactDensity(s.density, s.nodeCount));
 
   const { borderColor, bgColor } = getNodeColors(data.gradeEn);
   const grade = getGradeStyle(data.gradeEn);
@@ -33,7 +34,7 @@ const NarratorNode = ({ id, data, selected }: { id: string; data: NarratorNodeDa
   return (
     <div
       dir="rtl"
-      className={`px-4 py-3 shadow-md rounded-lg border-2 min-w-[200px] max-w-[250px] text-center transition-all break-words relative ${ringClass}`}
+      className={`${compact ? "px-3 py-2 min-w-[150px] max-w-[190px]" : "px-4 py-3 min-w-[200px] max-w-[250px]"} shadow-md rounded-lg border-2 text-center transition-all break-words relative ${ringClass}`}
       style={{
         backgroundColor: bgColor,
         borderColor: selected ? undefined : borderColor,
@@ -65,15 +66,15 @@ const NarratorNode = ({ id, data, selected }: { id: string; data: NarratorNodeDa
 
       <SourceBookBadges books={books} />
 
-      {data.transmissionTerm && (
+      {data.transmissionTerm && !compact && (
         <div className={`text-xs text-ink-subtle mb-1 border-b pb-1 ${books.length > 0 ? "mt-2" : ""}`}>{data.transmissionTerm}</div>
       )}
 
-      <div className="font-bold text-ink text-lg" title={data.fullName || data.narratorName}>
+      <div className={`font-bold text-ink ${compact ? "text-base" : "text-lg"}`} title={data.fullName || data.narratorName}>
         {data.narratorName}
       </div>
 
-      {data.generationTier && <div className="text-sm text-ink-subtle mt-1">{data.generationTier}</div>}
+      {data.generationTier && !compact && <div className="text-sm text-ink-subtle mt-1">{data.generationTier}</div>}
 
       {grade ? (
         <span className={`inline-block mt-1.5 px-2 py-0.5 text-[11px] font-bold rounded-full border ${grade.badgeClass}`}>
@@ -88,7 +89,7 @@ const NarratorNode = ({ id, data, selected }: { id: string; data: NarratorNodeDa
         </span>
       )}
 
-      <NarratorBadges data={data} />
+      {!compact && <NarratorBadges data={data} />}
 
       {/* Output to the student */}
       <Handle type="source" position={Position.Bottom} className={HANDLE} />
