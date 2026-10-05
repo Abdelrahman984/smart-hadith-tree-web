@@ -3,14 +3,12 @@
 import { useReactFlow, Panel } from "@xyflow/react";
 import { Download, EyeOff, Eye } from "lucide-react";
 import { toPng } from "html-to-image";
+import { useGraphViewStore } from "../store/useGraphViewStore";
 
-interface GraphControlsProps {
-  showWeakOnly: boolean;
-  setShowWeakOnly: (val: boolean) => void;
-}
-
-export default function GraphControls({ showWeakOnly, setShowWeakOnly }: GraphControlsProps) {
+export default function GraphControls() {
   const { getNodes } = useReactFlow();
+  const showWeakOnly = useGraphViewStore((s) => s.showWeakOnly);
+  const setShowWeakOnly = useGraphViewStore((s) => s.setShowWeakOnly);
 
   const handleDownload = () => {
     const nodesBounds = getNodes().reduce(

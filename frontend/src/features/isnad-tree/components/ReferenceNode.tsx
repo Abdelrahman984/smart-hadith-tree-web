@@ -2,19 +2,9 @@ import { Handle, Position } from "@xyflow/react";
 import { memo } from "react";
 import { BookOpen, Bookmark } from "lucide-react";
 import { getBookMeta } from "@/lib/bookTheme";
+import type { ReferenceNodeData } from "../utils/graphTypes";
 
-export type ReferenceNodeData = {
-  famousName: string;
-  fullName?: string;
-  twoPartName?: string;
-  bookName: string;
-  hadithNumber?: number | string;
-  generationTier?: string | null;
-  gradeSummary?: string;
-  gradeEn?: string;
-  sourceBooks?: string[];
-  isSelected?: boolean;
-};
+export type { ReferenceNodeData };
 
 const ReferenceNode = ({ data, selected }: { data: ReferenceNodeData; selected?: boolean }) => {
   const meta = getBookMeta(data.bookName);

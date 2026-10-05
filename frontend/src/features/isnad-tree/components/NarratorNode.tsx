@@ -1,92 +1,72 @@
-import { Handle, Position } from '@xyflow/react';
-import { memo } from 'react';
-import { AlertTriangle, MapPin } from 'lucide-react';
-import { useIlalStore } from '@/features/ilal/store/useIlalStore';
-import { getGradeStyle, getNodeColors } from '@/features/narrator-details/utils/gradeStyle';
+import { Handle, Position } from "@xyflow/react";
+import { memo } from "react";
+import { AlertTriangle, FileDiff, MapPin } from "lucide-react";
+import { useIlalStore } from "@/features/ilal/store/useIlalStore";
+import { getGradeStyle, getNodeColors } from "@/features/narrator-details/utils/gradeStyle";
+import { useGraphViewStore } from "../store/useGraphViewStore";
+import type { NarratorNodeData } from "../utils/graphTypes";
+import { NarratorBadges, SourceBookBadges } from "./NarratorBadges";
 
-type NarratorNodeData = {
-  narratorName: string;
-  fullName?: string;
-  generationTier: string | null;
-  transmissionTerm: string | null;
-  gradeSummary?: string;
-  gradeEn?: string;
-  isAnomaly?: boolean;
-  anomalyReason?: string;
-  travelNote?: string;
-  isSelected?: boolean;
-  showWeakOnly?: boolean;
-  isMudallis?: boolean;
-  hasMukhtalit?: boolean;
-  residencePlaces?: string | null;
-  deathPlace?: string | null;
-  gawamiRank?: string | null;
-  totalNarrationsCount?: number | null;
-  uniqueHadithCount?: number | null;
-};
+const HANDLE = "!w-2 !h-2 !bg-transparent !border-none opacity-0 pointer-events-none";
 
-const getPrimaryCity = (residence?: string | null, death?: string | null) => {
-  if (residence) {
-    const first = residence.split(/[،,-]/)[0]?.trim();
-    if (first) return first;
-  }
-  return death?.trim() || null;
-};
-
+/** A narrator card, used by the single tree and the comparative tree (which adds source-book badges and wording marks). */
 const NarratorNode = ({ id, data, selected }: { id: string; data: NarratorNodeData; selected?: boolean }) => {
   const isIlalHighlighted = useIlalStore((s) => s.highlightedNarratorIds.includes(id));
-  const primaryCity = getPrimaryCity(data.residencePlaces, data.deathPlace);
+  const isMadar = useIlalStore((s) => Boolean(s.report?.madars.some((m) => m.narratorId === id)));
+  const showWeakOnly = useGraphViewStore((s) => s.showWeakOnly);
+
   const { borderColor, bgColor } = getNodeColors(data.gradeEn);
   const grade = getGradeStyle(data.gradeEn);
-  const isReliable = grade?.isReliable ?? false;
-  const opacity = data.showWeakOnly && isReliable ? 0.3 : 1;
+  const opacity = showWeakOnly && (grade?.isReliable ?? false) ? 0.3 : 1;
+  const books = data.sourceBooks ?? [];
+
   const ringClass = selected
-    ? 'ring-2 ring-brand-blue border-brand-blue'
+    ? "ring-2 ring-brand-blue border-brand-blue"
     : isIlalHighlighted
-      ? 'ring-4 ring-rose-400 ring-offset-2 scale-105'
-      : '';
+      ? "ring-4 ring-rose-400 ring-offset-2 scale-105"
+      : isMadar
+        ? "ring-2 ring-amber-400 ring-offset-1"
+        : "";
 
   return (
-    <div 
-      dir="rtl" 
+    <div
+      dir="rtl"
       className={`px-4 py-3 shadow-md rounded-lg border-2 min-w-[200px] max-w-[250px] text-center transition-all break-words relative ${ringClass}`}
       style={{ backgroundColor: bgColor, borderColor: selected ? undefined : borderColor, opacity }}
     >
       {data.isAnomaly && (
-        <div 
-          className="absolute -top-3 -right-3 bg-surface rounded-full p-1 shadow border border-red-200" 
-          title={data.anomalyReason}
-        >
+        <div className="absolute -top-3 -right-3 bg-surface rounded-full p-1 shadow border border-red-200" title={data.anomalyReason}>
           <AlertTriangle className="w-5 h-5 text-red-500" />
         </div>
       )}
       {data.travelNote && (
-        <div
-          className="absolute -bottom-3 -right-3 bg-surface rounded-full p-1 shadow border border-sky-200"
-          title={data.travelNote}
-        >
+        <div className="absolute -bottom-3 -right-3 bg-surface rounded-full p-1 shadow border border-sky-200" title={data.travelNote}>
           <MapPin className="w-4 h-4 text-sky-500" />
         </div>
       )}
-
-      {/* Top Handle - Input from Sheikh */}
-      <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-transparent !border-none opacity-0 pointer-events-none" />
-      
-      {data.transmissionTerm && (
-        <div className="text-xs text-ink-subtle mb-1 border-b pb-1">
-          {data.transmissionTerm}
+      {data.hasMatnVariation && (
+        <div
+          className="absolute -bottom-3 -left-3 bg-surface rounded-full p-1 shadow border border-amber-200"
+          title={data.matnVariationSnippet || "اختلاف باللفظ"}
+        >
+          <FileDiff className="w-4 h-4 text-amber-500" />
         </div>
       )}
-      
+
+      {/* Input from the sheikh */}
+      <Handle type="target" position={Position.Top} className={HANDLE} />
+
+      <SourceBookBadges books={books} />
+
+      {data.transmissionTerm && (
+        <div className={`text-xs text-ink-subtle mb-1 border-b pb-1 ${books.length > 0 ? "mt-2" : ""}`}>{data.transmissionTerm}</div>
+      )}
+
       <div className="font-bold text-ink text-lg" title={data.fullName || data.narratorName}>
         {data.narratorName}
       </div>
-      
-      {data.generationTier && (
-        <div className="text-sm text-ink-subtle mt-1">
-          {data.generationTier}
-        </div>
-      )}
+
+      {data.generationTier && <div className="text-sm text-ink-subtle mt-1">{data.generationTier}</div>}
 
       {grade && (
         <span className={`inline-block mt-1.5 px-2 py-0.5 text-[11px] font-bold rounded-full border ${grade.badgeClass}`}>
@@ -94,45 +74,10 @@ const NarratorNode = ({ id, data, selected }: { id: string; data: NarratorNodeDa
         </span>
       )}
 
-      {(primaryCity || data.uniqueHadithCount != null || data.isMudallis || data.hasMukhtalit) && (
-        <div className="flex gap-1 justify-center mt-2 flex-wrap">
-          {primaryCity && (
-            <span
-              className="px-2 py-0.5 text-[10px] font-semibold text-slate-700 bg-slate-100 border border-line rounded-full"
-              title={`بلدان الإقامة: ${data.residencePlaces || 'غير محدد'}${data.deathPlace ? ` | الوفاة: ${data.deathPlace}` : ''}`}
-            >
-              📍 {primaryCity}
-            </span>
-          )}
-          {data.uniqueHadithCount != null && data.uniqueHadithCount > 0 && (
-            <span
-              className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${
-                data.uniqueHadithCount <= 5
-                  ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                  : data.uniqueHadithCount >= 500
-                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                    : 'bg-blue-50 text-blue-700 border border-blue-200'
-              }`}
-              title={`أطراف الأحاديث: ${data.uniqueHadithCount}${data.totalNarrationsCount ? ` | إجمالي الأسانيد: ${data.totalNarrationsCount}` : ''}`}
-            >
-              {data.uniqueHadithCount <= 5
-                ? `مقل (${data.uniqueHadithCount})`
-                : data.uniqueHadithCount >= 500
-                  ? `مكثر (${data.uniqueHadithCount})`
-                  : `${data.uniqueHadithCount} حديث`}
-            </span>
-          )}
-          {data.isMudallis && (
-            <span className="px-2 py-0.5 text-[10px] font-bold text-orange-900 bg-orange-100 border border-orange-300 rounded-full" title="موصوف بالتدليس">مدلس</span>
-          )}
-          {data.hasMukhtalit && (
-            <span className="px-2 py-0.5 text-[10px] font-bold text-yellow-900 bg-yellow-100 border border-yellow-300 rounded-full" title="اختلط في آخر عمره">اختلط</span>
-          )}
-        </div>
-      )}
-      
-      {/* Bottom Handle - Output to Student */}
-      <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-transparent !border-none opacity-0 pointer-events-none" />
+      <NarratorBadges data={data} />
+
+      {/* Output to the student */}
+      <Handle type="source" position={Position.Bottom} className={HANDLE} />
     </div>
   );
 };

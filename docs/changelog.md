@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-05: Tree and takhreej pages, step 1: one graph core
+
+- **One canvas, pure builders.** `IsnadGraphCanvas` now draws both the single tree and the takhreej tree; `TreeCanvas` and `ComparativeTreeCanvas` are 17-line wrappers. The transmissions-to-graph logic left the canvases for pure functions, `buildSingleGraph` and `buildComparativeGraph` (`utils/buildIsnadGraph.ts`), with the parent lookup now a `Map` instead of a scan per transmission. `ComparativeNarratorNode` was merged into `NarratorNode` (badges in `NarratorBadges.tsx`), so a madar ring now also shows on the single tree once its Ilal report is loaded.
+- **One edge rule table** (`utils/edgeStyle.ts`): انقطاع, then اختلاف باللفظ, then a link shared by several books, then one book's colour, then grey; Ilal findings are laid over that. A broken link now stays red and shows both labels instead of taking the finding's colour.
+- **Fix:** when the same narrator pair appeared in hadiths of different books, its edge kept the first book's colour; it is now drawn as a shared link, as the legend says.
+- **View state** (`store/useGraphViewStore.ts`): «إبراز الضعفاء», the hovered narrator and the focused book no longer rewrite every node's data; the legend takes its grade colours from `gradeStyle.ts`.
+- **Tests without the database**: `tests/fixtures/mock-api.mjs` is a fixture API (started by `playwright.config.ts` on :5147; the graph specs skip themselves when a real API answers there). New `graphBuilders.spec.ts` (11 unit tests) and `graphPages.spec.ts` (13 tests: both pages, the drawer, the Ilal overlay, book focus, the phone layout). Assertions now wait up to 15 s because `npm run dev` compiles pages on first request.
+
+---
+
 ## 2026-10-05: Logo, theme tokens and the sources page
 
 - **Logo**: the "logo" was a generic lucide icon. There is now an original mark, an isnad tree (a teal root branching into narrator nodes on a navy square): `components/Logo.tsx`, used in the header and footer, plus `app/icon.svg`, `apple-icon.png`, a multi-size `favicon.ico` (the default Next.js icon was replaced) and `viewport.themeColor`. The five unused create-next-app SVGs in `public/` were removed; `public/.gitkeep` stays because the Dockerfile copies `public/`.
