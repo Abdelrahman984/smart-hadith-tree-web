@@ -1,0 +1,19 @@
+{
+  "_note": "Test cases for POST /api/Verify. 'accept' lists the statuses that count as a pass. Positives are well-known matns of the Sahihayn and Sunan; negatives are invented, altered, or have no origin as a hadith. Confirm every expectation against your own corpus before quoting results (a text may exist in a book outside the 31). Add cases freely.",
+  "cases": [
+    { "id": "P01", "group": "positive-exact", "text": "إنما الأعمال بالنيات وإنما لكل امرئ ما نوى", "accept": ["exact"] },
+    { "id": "P02", "group": "positive-exact", "text": "إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ وَإِنَّمَا لِكُلِّ امْرِئٍ مَا نَوَى", "accept": ["exact"], "why": "diacritics must not matter" },
+    { "id": "P03", "group": "positive-exact", "text": "الطهور شطر الإيمان", "accept": ["exact"] },
+    { "id": "P04", "group": "positive-exact", "text": "من حسن إسلام المرء تركه ما لا يعنيه", "accept": ["exact"] },
+    { "id": "P05", "group": "positive-exact", "text": "الدين النصيحة قلنا لمن قال لله ولكتابه ولرسوله ولأئمة المسلمين وعامتهم", "accept": ["exact"] },
+    { "id": "P06", "group": "positive-exact", "text": "من غشنا فليس منا", "accept": ["exact"] },
+    { "id": "P07", "group": "positive-exact", "text": "المسلم من سلم المسلمون من لسانه ويده", "accept": ["exact"] },
+    { "id": "V01", "group": "positive-variant", "text": "إنما الأعمال بالنية وإنما لكل امرئ ما نوى", "accept": ["exact", "variant"], "why": "singular النية instead of النيات" },
+    { "id": "V02", "group": "positive-variant", "text": "لا يؤمن أحدكم حتى يحب لأخيه المسلم ما يحب لنفسه", "accept": ["exact", "variant"], "why": "extra word المسلم" },
+    { "id": "N01", "group": "negative", "text": "حب الوطن من الإيمان", "accept": ["not-found"], "why": "widely quoted, no origin as a hadith" },
+    { "id": "N02", "group": "negative", "text": "إنما الأعمال ليست بالنيات وإنما لكل امرئ ما نوى", "accept": ["not-found", "variant"], "why": "negation of a real hadith; must never be 'exact'", "reject": ["exact"] },
+    { "id": "N03", "group": "negative", "text": "من قال سبحان الله ثلاثين مرة بنى الله له قصرا من الياقوت الأحمر", "accept": ["not-found"], "why": "invented" },
+    { "id": "N04", "group": "negative", "text": "من صلى الفجر ثم قرأ هذه الآية وجبت له الجنة بغير حساب ولا عذاب", "accept": ["not-found"], "why": "invented" },
+    { "id": "I01", "group": "invalid", "text": "إنما الأعمال", "accept": ["invalid"], "why": "fewer than 3 words" }
+  ]
+}

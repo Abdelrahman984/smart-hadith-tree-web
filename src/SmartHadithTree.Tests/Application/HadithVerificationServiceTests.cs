@@ -95,6 +95,16 @@ public class HadithVerificationServiceTests
         result.Matches[0].HadithNumber.Should().Be(1, "the shorter of two equal matches comes first");
     }
 
+    [Fact]
+    public async Task Verify_ShouldNeverReportExact_ForNegatedRealHadith()
+    {
+        var service = Create(Hadith(Matn));
+
+        var result = await service.VerifyAsync("إنما الأعمال ليست بالنيات وإنما لكل امرئ ما نوى");
+
+        result.Status.Should().NotBe(HadithVerificationStatus.Exact);
+    }
+
     [Theory]
     [InlineData(1.0, HadithVerificationStatus.Exact)]
     [InlineData(0.7, HadithVerificationStatus.Variant)]
