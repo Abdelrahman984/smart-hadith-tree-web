@@ -379,6 +379,7 @@ Update the checkboxes whenever a task is finished, and record the commit next to
 | 5b. Port the resolver to C# (option A) | ⏸ Later (after Phase 6, if switching) |
 | 6. Build a separate database and compare with v2 | ✅ Done; **switched on 2026-10-05** (user decision) |
 | 7. Remove Itqan and update docs | ✅ Done (merge into `master` waiting for the user) |
+| 8. Review fixes found on `/takhreej` (2026-10-05): grade, compiler links, kin words, tahwil | ✅ Done; app switched to **`SmartHadithTree_ShamelaV5`**, the user verifies (§7 Phase 8) |
 
 ### Phase 0 — Preparation ✅
 
@@ -537,7 +538,7 @@ User decisions (2026-10-04): after Phase 4, fix the largest error classes found 
 - [ ] «أم X» read as a kunya, never matched to a man named X (34)
 - [ ] Full names resolved to another person (190; «عبد العزيز بن أبي سلمة» = al-Majishun)
 - [ ] Bare ism / kunya / nisba resolved to another bearer (467; review the largest names first)
-- [ ] «أبيه» (91), «ابن X» / «يعني ابن X» cut (45)
+- [ ] «أبيه» (91), «ابن X» / «يعني ابن X» cut (45). **Partly covered by Phase 8 (C3):** a first-person «أبي» and «جده» are now resolved, and the «عمرو بن شعيب» grandfather; the 91 «أبيه» that Shamela links to someone else and the «ابن X» cuts are not looked at
 - [ ] Bare-name ties in the linked books from Shamela's links
 
 ### Phase 5 — Code ⬜
@@ -569,20 +570,34 @@ Not needed for Phase 6. Do it **only if Phase 6 says to switch** and the user wa
 - [ ] Replace `ChainReprocessingService` and `ContextualDisambiguator`; drop the chains file from the ETL
 - [ ] **Parity test:** C# against the saved Python runs (`data/shamela_rijal/results/<tag>/`): 0 differences on a golden subset (4 books first, then all 31), every difference explained
 - [ ] Unit tests with golden cases from §5 («ابن عمر», «أبي بن كعب», «أم سلمة», the grandfather rule)
+- [ ] **Since Phase 8 the port also has to cover** `tahwil.py` (branches, `join_heads`), `kin_form` / `grandfather_of` in `chain_resolver.py`, `compiler_items.py` and the opener rules in `compare_current.py`; the parity test compares chains **with branches** (`chains/<book>.json` has `branches`)
 
 ### Phase 6 — Build and compare ⬜
 
 - [x] Build `SmartHadithTree_Shamela` separately, without touching `SmartHadithTree` (counts as in 5.6; report: `docs/shamela_phase6_comparison.md`)
 - [x] Compare with v2: chains 74% position agreement on 220,603 paired hadiths (Shamela right in 9 of 20 sampled disagreements, v2 in 5), Ilal 793 vs 275 tadlis and 341 vs 0 ikhtilat on 4,650 paired hadiths, grading coverage 93% vs 99% of links, no text lost, API runs on both
-- [ ] Not done: manual review of ~30 famous isnads, the frontend in a browser, the AI summary. Known regression: undecided names leave gaps in chains (§3 of the report)
+- [ ] Not done: manual review of ~30 famous isnads, the frontend in a browser, the AI summary. Known regression: undecided names leave gaps in chains (§3 of the report). **Phase 8 closed some gaps** (a father or grandfather named by «أبي» / «جده» no longer breaks the chain, the compilers' own links exist, tahwil chains keep their upper part) but an undecided name still leaves a gap
 - [x] Switch only if the new database is as good or better (user decision); take a v3 backup first: **v3 backup taken (`backups/SmartHadithTree_v3_2026-10-05.bak`) and the Api and Etl `appsettings.json` now point at `SmartHadithTree_Shamela`** (rollback steps in `backups/README.md`). The old `SmartHadithTree` database is left in place. Branch `feature/shamela-rijal` is not merged into `master`
 
 ### Phase 7 — Clean-up ⬜
 
 - [x] Remove `data/itqan/rijal`, the Itqan parser and the Itqan-only code: `ItqanDatasetParser`, `ContextualDisambiguator`, `ShamelaSqliteParser`, `IlalSeedService`, `ChainReprocessingService`, `Seeds/`, `download_itqan_data.ps1`, their tests (134 tests pass). **Kept on purpose:** `data/itqan/sunni/` (sample input of the Python benchmarks), `build_itqan_books.py`, the `ItqanId` / `ItqanGrade` columns (the grade fallback reads them; dropping them needs a migration on the live database), the legacy-grade test in `IlalAnalysisServiceDbTests`
 - [x] Update `AGENTS.md`, `docs/data_ingestion.md`, `README.md`, `docs/changelog.md` and `backups/README.md` (v4 backup of the Shamela database taken)
-- [ ] **The user runs the app on the branch against `SmartHadithTree_Shamela` and verifies it** before the merge (Api: `dotnet run --project src/SmartHadithTree.Api`; frontend: `npm run dev` in `frontend/`). Check: search, the tree and the comparative tree, the narrator pages (is Ibn Shihab al-Zuhri easy to find?), the Ilal panel (tadlis, ikhtilat), and the known chain gaps from undecided names (§3 of `docs/shamela_phase6_comparison.md`). Not yet tested by anyone: the frontend in a browser and the AI summary (needs the Gemini key)
+- [ ] **The user runs the app on the branch against `SmartHadithTree_ShamelaV5` (since Phase 8; `SmartHadithTree_Shamela` is v4) and verifies it** before the merge (Api: `dotnet run --project src/SmartHadithTree.Api`; frontend: `npm run dev` in `frontend/`). Check: search, the tree and the comparative tree, the narrator pages (is Ibn Shihab al-Zuhri easy to find?), the Ilal panel (tadlis, ikhtilat), and the known chain gaps from undecided names (§3 of `docs/shamela_phase6_comparison.md`). Not yet tested by anyone: the frontend in a browser and the AI summary (needs the Gemini key)
 - [ ] Merge `feature/shamela-rijal` into `master` (user decision, only after the step above)
+
+### Phase 8 — Review fixes from the `/takhreej` page ✅ (2026-10-05)
+
+Found by reviewing the comparative page of the Mughira hadith (11 routes). All general rules, measured on the 31 books; details in §9. Commits `95fdedc` … `e897569` on `feature/shamela-rijal`.
+
+- [x] **A1** the overall grade is computed from each route's weakest narrator above the compiler (it walked the wrong way and ignored the madar: صحيح → حسن)
+- [x] **A2–A5, A6, B1–B4** fewer false findings (the compiler's own link, matn start and framing words, medoid base for matn variation, requested hadith order), «تباين مكاني» became a travel note, and the page fixes (header badges, refit on resize, matn-variation and travel icons)
+- [x] **C2** the compilers named by bare words in student lists (al-Nasa'i 11 → 433 teachers, Ibn Majah 1 → 303, al-Tirmidhi 1 → 213)
+- [x] **C3** first-person «أبي» and «جده»
+- [x] **C1** tahwil: one hadith, several chains (24,113 hadiths); no schema change
+- [x] Rebuild: registry, chains, `SmartHadithTree_ShamelaV5`, **v5 backup**; the Api and Etl `appsettings.json` point at it
+- [ ] **The user** restarts the Api and checks the 11-route page (grade حسن, «لم يثبت اللقاء» 3), a branched tree (Mustadrak 493) and the single tree
+- [ ] Left open on purpose: «إبراهيم بن موسى» (Mustadrak 493's second chain), «وحدثنيه X» in Muslim, «كلهم عن X بهذا الإسناد» tails, heads whose last narrator is unresolved, more than 8 chains in a record, **B5** (collapse low-confidence findings), and dropping the scratch database `SmartHadithTree_ScratchC1` with `data/shamela_rijal_c1/`
 
 ## 8. How to re-run everything
 
