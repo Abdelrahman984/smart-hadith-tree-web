@@ -17,10 +17,12 @@ To get a BEFORE number, run the same command against an API built from the commi
 Standard library only.
 """
 import argparse
+import concurrent.futures
 import json
 import re
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -48,13 +50,23 @@ def load_cases():
 
 
 def http_json(url, body=None):
-    req = urllib.request.Request(
-        url, data=None if body is None else json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"}, method="GET" if body is None else "POST")
-    start = time.perf_counter()
-    with urllib.request.urlopen(req, timeout=120) as res:
-        data = json.load(res)
-    return data, (time.perf_counter() - start) * 1000
+    """GET (or POST with a JSON body). Waits and retries when the server's per-client rate limit answers 429."""
+    for attempt in range(8):
+        req = urllib.request.Request(
+            url, data=None if body is None else json.dumps(body).encode("utf-8"),
+            headers={"Content-Type": "application/json"}, method="GET" if body is None else "POST")
+        start = time.perf_counter()
+        try:
+            with urllib.request.urlopen(req, timeout=180) as res:
+                data = json.load(res)
+            return data, (time.perf_counter() - start) * 1000
+        except urllib.error.HTTPError as e:
+            if e.code != 429:
+                raise
+            wait = 8 * (attempt + 1)
+            print(f"      rate limited (429), waiting {wait}s (raise RateLimit__AiPermitPerMinute for evaluation runs)")
+            time.sleep(wait)
+    raise RuntimeError("still rate limited after several retries")
 
 
 def rank_of(results, needle):
@@ -92,59 +104,90 @@ def main():
     ap.add_argument("--api", default="http://localhost:5147/api")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--judge", action="store_true", help="also run the AI check and re-order by its labels")
+    ap.add_argument("--judge-top", type=int, default=10, help="how many of the top results the AI check receives (default 10, the size of the review pack)")
+    ap.add_argument("--only", help="comma-separated case ids to run, for example S01,S07")
+    ap.add_argument("--workers", type=int, default=3, help="cases processed in parallel (default 3)")
     ap.add_argument("--save")
     ap.add_argument("--compare")
     ap.add_argument("--review-pack", help="write a Markdown file with the top results, scores and AI labels for a reviewer (use with --judge)")
     args = ap.parse_args()
 
     cases = load_cases()
+    if args.only:
+        wanted = {x.strip() for x in args.only.split(",")}
+        cases = [c for c in cases if c["id"] in wanted]
     if args.dry_run:
         print(f"OK: {len(cases)} cases valid")
         return 0
 
     api = args.api.rstrip("/")
-    out, ranks, judged_ranks, latencies = {}, [], [], []
-    scattered_targets, model_status, decoy_above = [], {}, []
-    pack = []
 
-    for c in cases:
-        level, reasons, judge_info = {}, {}, ""
+    def run_case(c):
+        """Search (and optionally AI-check) one case. Returns everything the report needs."""
+        started = time.perf_counter()
+        level, reasons, judge_info, judged = {}, {}, "", None
         qs = urllib.parse.urlencode({"query": c["query"], "scope": c.get("scope", 1), "match": c.get("match", 0), "page": 1, "pageSize": 50})
         results, ms = http_json(f"{api}/Search?{qs}")
-        latencies.append(ms)
         rank = rank_of(results, c["target_contains"])
         entry = {"rank": rank, "results": len(results)}
         if rank:
             entry["relevance"] = results[rank - 1].get("relevancePercent")
         decoys = [rank_of(results, d) for d in c.get("decoys_contains", [])]
-        if rank and any(d and d < rank for d in decoys):
-            decoy_above.append(c["id"])
-        ranks.append(rank)
+        decoy_above = bool(rank and any(d and d < rank for d in decoys))
 
+        jr = None
         if args.judge and results:
-            judged, _ = http_json(f"{api}/Search/ai-judge", {"query": c["query"], "ids": [r["id"] for r in results]})
-            model_status[judged["status"]] = model_status.get(judged["status"], 0) + 1
+            sent = results[:args.judge_top]
+            judged, _ = http_json(f"{api}/Search/ai-judge", {"query": c["query"], "ids": [r["id"] for r in sent]})
             level = {i["id"]: i["level"] for i in judged["items"]}
             reasons = {i["id"]: (i.get("reason", ""), i.get("quote", "")) for i in judged["items"]}
             judge_info = f"AI check status: {judged['status']}; {judged.get('diagnostics')}"
-            reordered = sorted(results, key=lambda r: LEVEL_ORDER.get(level.get(r["id"], "not-judged"), 2))  # stable
+            # Only the results the AI saw are re-ordered; the rest keep their place after them.
+            reordered = sorted(sent, key=lambda r: LEVEL_ORDER.get(level.get(r["id"], "not-judged"), 2)) + results[args.judge_top:]
             jr = rank_of(reordered, c["target_contains"])
             entry["rank_after_ai"] = jr
             entry["ai_status"] = judged["status"]
             entry["ai_diagnostics"] = judged.get("diagnostics")
             if rank:
                 entry["target_level"] = level.get(results[rank - 1]["id"])
-                if entry["target_level"] == "scattered":
-                    scattered_targets.append(c["id"])
-            judged_ranks.append(jr)
-        
+        elapsed = time.perf_counter() - started
+        block = review_block(c, results, level, reasons, judge_info) if args.review_pack else ""
+        return {"case": c, "entry": entry, "ms": ms, "rank": rank, "jr": jr, "decoy_above": decoy_above,
+                "judged": judged, "block": block, "elapsed": elapsed}
+
+    print(f"{len(cases)} cases, {args.workers} in parallel" + (f", AI check on the top {args.judge_top}" if args.judge else ""))
+    done = {}
+    t0 = time.perf_counter()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.workers)) as pool:
+        futures = {pool.submit(run_case, c): c for c in cases}
+        for fut in concurrent.futures.as_completed(futures):
+            c = futures[fut]
+            r = fut.result()
+            done[c["id"]] = r
+            e = r["entry"]
+            print(f"[{len(done)}/{len(cases)}] {c['id']}  rank={r['rank']}  results={e['results']}  relevance={e.get('relevance')}"
+                  + (f"  after_ai={e.get('rank_after_ai')} level={e.get('target_level')} ai={e.get('ai_status')}" if args.judge else "")
+                  + f"  ({r['elapsed']:.1f}s)")
+            if args.judge and e.get("ai_status") not in (None, "reviewed"):
+                print(f"      {e.get('ai_diagnostics')}")
+    print(f"Done in {time.perf_counter() - t0:.0f}s")
+
+    out, ranks, judged_ranks, latencies = {}, [], [], []
+    scattered_targets, model_status, decoy_above, pack = [], {}, [], []
+    for c in cases:  # report in the order of the cases file
+        r = done[c["id"]]
+        out[c["id"]] = r["entry"]
+        ranks.append(r["rank"])
+        latencies.append(r["ms"])
+        if r["decoy_above"]:
+            decoy_above.append(c["id"])
+        if r["judged"] is not None:
+            model_status[r["judged"]["status"]] = model_status.get(r["judged"]["status"], 0) + 1
+            judged_ranks.append(r["jr"])
+            if r["entry"].get("target_level") == "scattered":
+                scattered_targets.append(c["id"])
         if args.review_pack:
-            pack.append(review_block(c, results, level, reasons, judge_info))
-        out[c["id"]] = entry
-        print(f"{c['id']}  rank={rank}  results={len(results)}  relevance={entry.get('relevance')}"
-              + (f"  after_ai={entry.get('rank_after_ai')} level={entry.get('target_level')} ai={entry.get('ai_status')}" if args.judge else ""))
-        if args.judge and entry.get("ai_status") not in (None, "reviewed"):
-            print(f"      {entry.get('ai_diagnostics')}")
+            pack.append(r["block"])
 
     def summary(label, rs):
         total = len(rs)
