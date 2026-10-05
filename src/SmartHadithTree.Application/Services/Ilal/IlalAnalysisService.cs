@@ -53,7 +53,7 @@ public class IlalAnalysisService(IHadithTreeDbContext context) : IIlalAnalysisSe
 
         return new IlalReportDto
         {
-            AnalyzedHadithIds = ilalContext.Chains.Select(c => c.HadithId).ToList(),
+            AnalyzedHadithIds = ilalContext.Chains.Select(c => c.HadithId).Distinct().ToList(),
             Turuq = ilalContext.Chains.Select(c =>
             {
                 // The compiler (index 0) is not part of the strength of the isnad, only the narrators above him.
@@ -99,16 +99,18 @@ public class IlalAnalysisService(IHadithTreeDbContext context) : IIlalAnalysisSe
 
         // Keep the caller's order: the database returns rows in no particular order, and the rules
         // (representative chain per branch, clustering, tie-breaks) must not depend on it.
+        // A tahwil isnad (several chains for one hadith) gives one chain per branch.
         var chains = hadiths
             .OrderBy(h => ids.IndexOf(h.Id))
-            .Select(h => new IlalChain
-            {
-                HadithId = h.Id,
-                BookName = h.BookName,
-                HadithNumber = h.HadithNumber,
-                MatnArabic = h.MatnArabic,
-                Links = BuildPath(linksByHadith.GetValueOrDefault(h.Id) ?? [])
-            })
+            .SelectMany(h => BuildPaths(linksByHadith.GetValueOrDefault(h.Id) ?? [])
+                .Select(path => new IlalChain
+                {
+                    HadithId = h.Id,
+                    BookName = h.BookName,
+                    HadithNumber = h.HadithNumber,
+                    MatnArabic = h.MatnArabic,
+                    Links = path
+                }))
             .Where(c => c.Links.Count > 0)
             .ToList();
 
@@ -192,27 +194,46 @@ public class IlalAnalysisService(IHadithTreeDbContext context) : IIlalAnalysisSe
         };
     }
 
-    /// <summary>
-    /// Builds a single path from the compiler upward. When a chain branches (several links at the
-    /// same step), the link whose student is the previous sheikh is followed.
-    /// </summary>
-    internal static List<IlalLink> BuildPath(IReadOnlyCollection<IlalLink> links)
-    {
-        var path = new List<IlalLink>();
-        var current = links.Where(l => l.StepOrder == 1).FirstOrDefault();
-        var visited = new HashSet<Guid>();
+    /// <summary>Most chains kept for one hadith (a tahwil isnad with many heads).</summary>
+    private const int MaxPathsPerHadith = 16;
 
-        while (current != null && visited.Add(current.SheikhId))
+    /// <summary>
+    /// Every chain of a hadith, each from the compiler upward. A tahwil isnad is stored as several chains that
+    /// each start at step 1 (the same student, several first sheikhs), so a path is followed from every step-1
+    /// link and splits wherever the next step has several links for the same student. Chains with the same
+    /// narrators are returned once. A hadith with one chain gives one path.
+    /// </summary>
+    internal static List<List<IlalLink>> BuildPaths(IReadOnlyCollection<IlalLink> links)
+    {
+        var paths = new List<List<IlalLink>>();
+        var seen = new HashSet<string>();
+
+        void Walk(IlalLink current, List<IlalLink> path, HashSet<Guid> visited)
         {
+            if (paths.Count >= MaxPathsPerHadith) return;
             path.Add(current);
-            var next = current;
-            current = links
-                .Where(l => l.StudentId == next.SheikhId && l.StepOrder > next.StepOrder)
-                .OrderBy(l => l.StepOrder)
-                .FirstOrDefault();
+            visited.Add(current.SheikhId);
+
+            // The next step; when the steps have a gap (older data) the nearest later step is used.
+            var candidates = links
+                .Where(l => l.StudentId == current.SheikhId && l.StepOrder > current.StepOrder && !visited.Contains(l.SheikhId))
+                .ToList();
+            if (candidates.Count > 0)
+            {
+                var step = candidates.Min(l => l.StepOrder);
+                foreach (var next in candidates.Where(l => l.StepOrder == step))
+                    Walk(next, [.. path], [.. visited]);
+            }
+            else if (seen.Add(string.Join('>', path.Select(l => l.SheikhId))))
+            {
+                paths.Add(path);
+            }
         }
 
-        return path;
+        foreach (var first in links.Where(l => l.StepOrder == 1))
+            Walk(first, [], []);
+
+        return paths;
     }
 
     private static string Summarize(IReadOnlyCollection<IlalFindingDto> findings, int chainCount)

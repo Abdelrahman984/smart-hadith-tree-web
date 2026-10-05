@@ -67,7 +67,7 @@ public sealed class TadlisRule : IIlalRule
                 TitleAr = "عنعنة مدلس",
                 EvidenceAr = evidence,
                 NarratorIds = [mudallisId, sheikhId],
-                HadithIds = chains.Select(c => c.HadithId).ToList(),
+                HadithIds = chains.Select(c => c.HadithId).Distinct().ToList(),
                 Confidence = confidence
             };
         }

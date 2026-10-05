@@ -87,7 +87,7 @@ public sealed class ShamelaDatasetParser(ILogger<ShamelaDatasetParser>? logger =
                 dataset.Hadiths.Add(hadith);
                 hadiths++;
                 if (!chainOf.TryGetValue(record.Id, out var chain)) continue;
-                var transmissions = ShamelaChainBuilder.Build(hadith.Id, compiler, chain.Names, bySourceKey);
+                var transmissions = ShamelaChainBuilder.BuildAll(hadith.Id, compiler, chain, bySourceKey);
                 if (transmissions.Count > 0) linked++;
                 dataset.Transmissions.AddRange(transmissions);
             }

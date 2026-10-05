@@ -51,10 +51,16 @@ public sealed record ChainName(
     [property: JsonPropertyName("how")] string? How,
     [property: JsonPropertyName("verbs")] List<string>? Verbs);
 
+/// <summary>
+/// One record's resolved isnad. <c>Names</c> is its first chain; <c>Branches</c> is present when the isnad has
+/// several chains (tahwil: «ح», «قالا», <c>tahwil.py</c>) and holds every chain, the first one included, each from
+/// the compiler upward.
+/// </summary>
 public sealed record RecordChain(
     [property: JsonPropertyName("id")] int Id,
     [property: JsonPropertyName("number")] int? Number,
-    [property: JsonPropertyName("names")] List<ChainName> Names);
+    [property: JsonPropertyName("names")] List<ChainName> Names,
+    [property: JsonPropertyName("branches")] List<List<ChainName>>? Branches = null);
 
 public sealed record BookChains(
     [property: JsonPropertyName("book")] string Book,

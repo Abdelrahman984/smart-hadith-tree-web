@@ -41,7 +41,7 @@ public sealed class HiddenInqitaRule : IIlalRule
                 TitleAr = "لم يثبت اللقاء",
                 EvidenceAr = evidence,
                 NarratorIds = [sheikhId, studentId],
-                HadithIds = chains.Select(c => c.HadithId).ToList(),
+                HadithIds = chains.Select(c => c.HadithId).Distinct().ToList(),
                 Confidence = statesHearing ? 0.25 : 0.45
             };
         }

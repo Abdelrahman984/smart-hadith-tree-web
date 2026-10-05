@@ -8,8 +8,10 @@ data/shamela_rijal/chains/<slug>.json:
                "names": [{"n": <name as segmented>, "id": <registry id or null>, "how": ..., "verbs": [...],
                           "ties": [<registry ids>] (only when undecided)}, ...]}, ...]}
 
-`names` is the first isnad of the record, the first 8 names, after the compiler's own name (the Muwatta's
-«يحيى» loop, §6.2): the same chain the bench measures. The chain's first link is compiler <- names[0].
+`names` is the first chain of the record, the first 8 names (14 when the isnad has several chains), after the
+compiler's own name (the Muwatta's «يحيى» loop, §6.2): the same chain the bench measures. The chain's first link
+is compiler <- names[0]. When the isnad has several chains (tahwil: «ح», «قالا», tahwil.py) the record also has
+"branches": [names, names, ...], every chain from the compiler upward, the first one included.
 Records of kind "text" (the compiler's prose) have no chain and are left out.
 
 In the 7 books whose Shamela edition links its narrators (`narrators` spans), an undecided name whose
@@ -32,7 +34,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..', '..'))
 RIJAL = os.path.join(ROOT, 'data', 'shamela_rijal')
 SHAMELA = os.path.join(ROOT, 'data', 'shamela')
-OUT = os.path.join(RIJAL, 'chains')
+OUT = os.environ.get('CHAINS_OUT') or os.path.join(RIJAL, 'chains')   # CHAINS_OUT: a scratch folder for checks
 LINKED = ['bukhari', 'muslim', 'abudawud', 'tirmidhi', 'nasai', 'malik', 'musnad_tayalisi']
 
 
@@ -76,20 +78,24 @@ def worker(slug: str, limit: int | None, link: bool) -> None:
                               encoding='utf-8'))
 
     recs = book_records(slug)[:limit]
-    chains, stats = [], {'names': 0, 'resolved': 0, 'ties': 0, 'shamela_link': 0}
+    chains, stats = [], {'names': 0, 'resolved': 0, 'ties': 0, 'shamela_link': 0, 'branched': 0}
     t0 = time.time()
-    for r in recs:
-        text = r['arabic']
-        ours = our_chain(text)
+    def name_dicts(chain, verbs, ties_at):
         names = []
-        for pos, (seg, j, how) in enumerate(ours):
-            verbs = g['verbs_of'].get(text, [])
-            ties = [reg_id[x] for x in g['ties_of'].get(text, {}).get(pos, [])]
+        for pos, (seg, j, how) in enumerate(chain):
+            ties = [reg_id[x] for x in ties_at.get(pos, [])]
             nm = {'n': seg, 'id': reg_id[j] if j is not None else None, 'how': how,
                   'verbs': verbs[pos] if pos < len(verbs) else []}
             if j is None and ties:
                 nm['ties'] = ties
             names.append(nm)
+        return names
+
+    for r in recs:
+        text = r['arabic']
+        branches = g['our_branches'](text)
+        names = name_dicts(branches[0]['chain'], branches[0]['verbs'], branches[0]['ties'])
+        others = [name_dicts(b['chain'], b['verbs'], b['ties']) for b in branches[1:]]
         if smap and any(nm['id'] is None and nm.get('ties') for nm in names):
             spans = sorted(r.get('narrators') or [], key=lambda s: s['start'])
             for s in spans:
@@ -105,10 +111,15 @@ def worker(slug: str, limit: int | None, link: bool) -> None:
         stats['names'] += len(names)
         stats['resolved'] += sum(nm['id'] is not None for nm in names)
         stats['ties'] += sum(bool(nm.get('ties')) for nm in names)
-        for nm in names:
+        for nm in names + [x for b in others for x in b]:
             if not nm.get('ties'):
                 nm.pop('ties', None)
-        chains.append({'id': r['id'], 'number': r.get('number'), 'names': names})
+        chain = {'id': r['id'], 'number': r.get('number'), 'names': names}
+        if others:
+            stats['branched'] += 1
+            # Every chain of a tahwil isnad, the first one included, each from the compiler upward.
+            chain['branches'] = [names] + others
+        chains.append(chain)
     out = {'book': slug, 'compiler': reg_id[g['compiler']] if g['compiler'] is not None else None,
            'records': len(chains), 'chains': chains}
     with open(os.path.join(OUT, f'{slug}.json'), 'w', encoding='utf-8') as f:

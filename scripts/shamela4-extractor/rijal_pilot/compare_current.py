@@ -48,11 +48,17 @@ openers = {s for s, n in _open.items() if n >= 0.2 * len(sample)}
 
 verbs_of: dict[str, list[list[str]]] = {}   # text -> the verbs after each name of our_chain(text), for SAVE
 ties_of: dict[str, dict[int, list[int]]] = {}  # text -> position -> tied candidates of an undecided name
+# CHAIN_BRANCHES=0 keeps one chain per record (the flattened isnad); the default splits tahwil (tahwil.py).
+BRANCHES = JOINT and os.environ.get('CHAIN_BRANCHES', '1') != '0'
+if BRANCHES:
+    exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tahwil.py'), encoding='utf-8').read())
+branch_data: dict[str, list[dict]] = {}     # text -> every branch: {'chain', 'verbs', 'ties', 'part', 'complete'}
+BRANCH_CAP = 14                             # names per branch when a record has several (head + shared tail)
 
 
-def our_chain(text: str) -> list[tuple[str, int | None, str]]:
+def _name_pairs(raw: list[tuple[str, list[str]]]) -> list[tuple[str, list[str]]]:
     pairs: list[tuple[str, list[str]]] = []
-    for s, verbs in chain_segments_verbs(text):
+    for s, verbs in raw:
         # «حدثني أبي» (the speaker's own father; is_name rejects the bare kunya), «عن أبيه», «عن جده».
         kin = kin_form(s) if JOINT else None
         if kin and not pairs:
@@ -63,6 +69,11 @@ def our_chain(text: str) -> list[tuple[str, int | None, str]]:
             pairs.append((s, list(verbs)))
         elif pairs:                         # a segment that is not a name: its verbs go on from the last name
             pairs[-1][1].extend(verbs)
+    return pairs
+
+
+def _resolve_pairs(pairs: list[tuple[str, list[str]]], cap: int = 8):
+    """(chain, verbs, ties) of one chain: the compiler's own name is dropped, then the names are resolved jointly."""
     segs = [s for s, _ in pairs]
     # The book's transmitter and the compiler himself open some chains: "حدثني يحيى، عن مالك،
     # عن نافع" (al-Muwatta), "حدثنا الحميدي، ثنا سفيان" (Musnad al-Humaydi). The chain starts
@@ -83,12 +94,87 @@ def our_chain(text: str) -> list[tuple[str, int | None, str]]:
                     and any(compiler in father_of(j, True) for j in candidates(segs[i - 1]))):
                 segs, pairs = segs[i + 1:], pairs[i + 1:]
                 break
+    segs = segs[:cap]
+    verbs = [v for _, v in pairs[:cap]]
+    out = resolve(segs, compiler)
+    return out, verbs, dict(last_ties)
+
+
+def join_heads(items: list[dict]) -> None:
+    """A head that stops short of the Prophet («ح وحدثنا ...») takes the tail of the next complete part, from the
+    narrator its last resolved narrator is listed with (edge > 0), so a wrong join is not made. Done in place."""
+    for it in items:
+        if it['complete']:
+            continue
+        chain = it['chain']
+        last = max((k for k, (_, j, _) in enumerate(chain) if j is not None), default=None)
+        if last is None:
+            continue
+        head = chain[last][1]
+        for other in items:
+            if not other['complete'] or other['part'] <= it['part']:
+                continue
+            tail = other['chain']
+            for k in range(1, len(tail)):
+                j = tail[k][1]
+                if j is None:
+                    continue
+                if j == head:
+                    start = k + 1
+                elif edge(head, j) >= 1:
+                    start = k
+                else:
+                    continue
+                shift = last + 1 - start
+                it['chain'] = chain[:last + 1] + tail[start:]
+                it['verbs'] = it['verbs'][:last + 1] + other['verbs'][start:]
+                it['ties'] = {**{p: v for p, v in it['ties'].items() if p <= last},
+                              **{p + shift: v for p, v in other['ties'].items() if p >= start}}
+                it['complete'] = True
+                break
+            if it['complete']:
+                break
+
+
+def our_branches(text: str) -> list[dict]:
+    """Every chain of the isnad, resolved: [{'chain', 'verbs', 'ties', 'part', 'complete'}, ...]."""
+    if text in branch_data:
+        return branch_data[text]
+    raws = chain_branches(text) if BRANCHES else [{'pairs': chain_segments_verbs(text), 'part': 0, 'complete': True}]
+    items = []
+    for raw in raws:
+        pairs = _name_pairs(raw['pairs'])
+        chain, verbs, ties = _resolve_pairs(pairs, BRANCH_CAP if len(raws) > 1 else 8)
+        items.append({'chain': chain, 'verbs': verbs, 'ties': ties, 'part': raw['part'], 'complete': raw['complete']})
+    if len(items) > 1:
+        join_heads(items)
+        # the same chain twice (a head joined to a tail another part already gave)
+        seen, unique = set(), []
+        for it in items:
+            k = tuple((s, j) for s, j, _ in it['chain'])
+            if k not in seen:
+                seen.add(k)
+                unique.append(it)
+        items = unique
+    branch_data[text] = items
+    verbs_of[text], ties_of[text] = items[0]['verbs'], items[0]['ties']
+    return items
+
+
+def our_chain(text: str) -> list[tuple[str, int | None, str]]:
+    """The first chain of the isnad (the one the benchmark measures)."""
+    if JOINT:
+        return our_branches(text)[0]['chain']
+    pairs = _name_pairs(chain_segments_verbs(text))
+    segs = [s for s, _ in pairs]
+    if compiler is not None:
+        for i, s in enumerate(segs[:2]):
+            c = candidates(s)
+            if compiler in c and (max(c, key=lambda j: fame[j]) == compiler or s in openers):
+                segs, pairs = segs[i + 1:], pairs[i + 1:]
+                break
     segs = segs[:8]
     verbs_of[text] = [v for _, v in pairs[:8]]
-    if JOINT:
-        out = resolve(segs, compiler)
-        ties_of[text] = dict(last_ties)
-        return out
     out, prev = [], compiler
     for depth, seg in enumerate(segs):
         c = lookup(seg, prev)

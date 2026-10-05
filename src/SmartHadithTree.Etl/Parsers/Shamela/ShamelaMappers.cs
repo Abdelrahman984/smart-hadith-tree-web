@@ -134,6 +134,26 @@ public static class ShamelaChainBuilder
         verbs is { Count: > 0 } ? verbs.LastOrDefault(TransmissionTerms.IsExplicitHearing) ?? verbs[^1] : null;
 
     /// <summary>
+    /// The transmissions of a record: one chain, or every chain of a tahwil isnad. Each chain is stored from step 1
+    /// upward on its own (a narrator two chains share may sit at different steps), and a link that two chains
+    /// share (the same student, sheikh and step) is stored once.
+    /// </summary>
+    public static List<Transmission> BuildAll(
+        Guid hadithId, Guid? compiler, RecordChain chain, IReadOnlyDictionary<string, Guid> narratorBySourceKey)
+    {
+        if (chain.Branches is not { Count: > 1 } branches)
+            return Build(hadithId, compiler, chain.Names, narratorBySourceKey);
+
+        var seen = new HashSet<(int Step, Guid Student, Guid Sheikh)>();
+        var result = new List<Transmission>();
+        foreach (var branch in branches)
+            foreach (var link in Build(hadithId, compiler, branch, narratorBySourceKey))
+                if (seen.Add((link.StepOrder, link.StudentId, link.SheikhId)))
+                    result.Add(link);
+        return result;
+    }
+
+    /// <summary>
     /// Links the compiler to the first narrator and each narrator to the next (student ← sheikh), step 1 upwards.
     /// A name the resolver left undecided (<c>Id</c> null) is a gap: no link is made across it, because
     /// «A ← ? ← C» must not become «A ← C». A narrator repeated twice in a row makes no link either.

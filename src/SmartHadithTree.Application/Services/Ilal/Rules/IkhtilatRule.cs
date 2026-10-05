@@ -87,7 +87,7 @@ public sealed class IkhtilatRule : IIlalRule
                 TitleAr = timing == HearingTiming.After ? "رواية بعد الاختلاط" : "رواية عن مختلط",
                 EvidenceAr = evidence,
                 NarratorIds = [mukhtalitId, studentId],
-                HadithIds = chains.Select(c => c.HadithId).ToList(),
+                HadithIds = chains.Select(c => c.HadithId).Distinct().ToList(),
                 Confidence = confidence
             };
         }

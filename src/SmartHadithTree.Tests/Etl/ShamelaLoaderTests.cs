@@ -133,6 +133,58 @@ public class ShamelaLoaderTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void ChainBuilder_StoresEveryChainOfATahwilIsnadFromStepOne()
+    {
+        // Mustadrak 493: قيس ← قتيبة and الصيدلاني ← ابن أيوب ← ابن موسى both reach إسماعيل, who is at step 3 on
+        // one chain and step 4 on the other.
+        var (c, qays, qutayba, sayduni, ayyub, musa, ismail, amr) = (
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid());
+        var map = new Dictionary<string, Guid>
+        {
+            ["c"] = c, ["qays"] = qays, ["qutayba"] = qutayba, ["sayduni"] = sayduni, ["ayyub"] = ayyub,
+            ["musa"] = musa, ["ismail"] = ismail, ["amr"] = amr
+        };
+        var first = new List<ChainName> { Name("qays"), Name("qutayba"), Name("ismail"), Name("amr") };
+        var second = new List<ChainName> { Name("sayduni"), Name("ayyub"), Name("musa"), Name("ismail"), Name("amr") };
+        var chain = new RecordChain(1, 493, first, [first, second]);
+
+        var links = ShamelaChainBuilder.BuildAll(Guid.NewGuid(), c, chain, map);
+
+        links.Select(l => (l.StudentId, l.SheikhId, l.StepOrder)).Should().BeEquivalentTo(new[]
+        {
+            (c, qays, 1), (qays, qutayba, 2), (qutayba, ismail, 3), (ismail, amr, 4),
+            (c, sayduni, 1), (sayduni, ayyub, 2), (ayyub, musa, 3), (musa, ismail, 4), (ismail, amr, 5)
+        });
+    }
+
+    [Fact]
+    public void ChainBuilder_StoresALinkTwoChainsShareOnce()
+    {
+        // Two chains that differ only at the end share their first links.
+        var (c, a, b, x, y) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var map = new Dictionary<string, Guid> { ["c"] = c, ["a"] = a, ["b"] = b, ["x"] = x, ["y"] = y };
+        var one = new List<ChainName> { Name("a"), Name("b"), Name("x") };
+        var two = new List<ChainName> { Name("a"), Name("b"), Name("y") };
+
+        var links = ShamelaChainBuilder.BuildAll(Guid.NewGuid(), c, new RecordChain(1, null, one, [one, two]), map);
+
+        links.Should().HaveCount(4);   // c←a, a←b once, b←x and b←y
+        links.Count(l => l.StudentId == a && l.SheikhId == b).Should().Be(1);
+    }
+
+    [Fact]
+    public void ChainBuilder_WithoutBranchesUsesTheNames()
+    {
+        var (c, a) = (Guid.NewGuid(), Guid.NewGuid());
+        var map = new Dictionary<string, Guid> { ["c"] = c, ["a"] = a };
+        var names = new List<ChainName> { Name("a") };
+
+        ShamelaChainBuilder.BuildAll(Guid.NewGuid(), c, new RecordChain(1, null, names), map).Should().ContainSingle();
+        ShamelaChainBuilder.BuildAll(Guid.NewGuid(), c, new RecordChain(1, null, names, [names]), map).Should().ContainSingle();
+    }
+
+    [Fact]
     public void ChainBuilder_IgnoresRepeatsAndUnknownIdsAndWorksWithoutCompiler()
     {
         var (a, b) = (Guid.NewGuid(), Guid.NewGuid());

@@ -21,7 +21,8 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
         var sql = @"
             WITH RecursiveChain AS (
                 -- Anchor: The Compiler (Student of Step 1)
-                SELECT 
+                -- DISTINCT: a tahwil isnad has several step-1 rows (one per chain) for the same compiler
+                SELECT DISTINCT
                     CAST('00000000-0000-0000-0000-000000000000' AS UNIQUEIDENTIFIER) AS Id,
                     t.StudentId AS NarratorId,
                     0 AS StepOrder,
@@ -65,7 +66,8 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                 n.TotalNarrationsCount,
                 n.UniqueHadithCount,
                 CAST(0 AS BIT) AS IsAnomaly,
-                CAST(NULL AS NVARCHAR(MAX)) AS AnomalyReason
+                CAST(NULL AS NVARCHAR(MAX)) AS AnomalyReason,
+                CAST(NULL AS NVARCHAR(MAX)) AS TravelNote
             FROM RecursiveChain rc
             INNER JOIN Narrators n ON rc.NarratorId = n.Id
             ORDER BY rc.StepOrder ASC;
