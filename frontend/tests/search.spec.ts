@@ -5,7 +5,7 @@ test('search page renders and accepts input', async ({ page }) => {
 
   // Verify the header
   const heading = page.locator('h1');
-  await expect(heading).toHaveText('ابحث في الأحاديث والأسانيد');
+  await expect(heading).toHaveText('ابحث وخرّج الأحاديث النبوية');
 
   // Find the search input
   const searchInput = page.getByPlaceholder('ابحث بمتن الحديث، اسم الراوي، أو المصدر...');

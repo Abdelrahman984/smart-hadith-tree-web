@@ -15,7 +15,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Smart Hadith Tree | شجرة الأسانيد الذكية",
+  title: {
+    default: "شجرة الأسانيد الذكية | Smart Hadith Tree",
+    template: "%s | شجرة الأسانيد الذكية",
+  },
   description: "A platform for digitizing and visualizing Hadith narrator chains (Isnad)",
 };
 

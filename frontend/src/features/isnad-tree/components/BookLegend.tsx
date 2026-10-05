@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useMediaQuery } from "@/components/useMediaQuery";
 import { Panel } from "@xyflow/react";
 import {
   ChevronDown,
@@ -40,7 +41,10 @@ interface BookLegendProps {
 }
 
 export default function BookLegend({ activeBooks, focusBook, onFocusBook }: BookLegendProps) {
-  const [isOpen, setIsOpen] = useState(true);
+  // Open by default where there is room; on phones the open legend would cover the graph.
+  const isWideScreen = useMediaQuery("(min-width: 768px)", true);
+  const [userOpen, setIsOpen] = useState<boolean | null>(null);
+  const isOpen = userOpen ?? isWideScreen;
   const [activeTab, setActiveTab] = useState<LegendTab>("all");
   const [showAllBooks, setShowAllBooks] = useState(false);
 
@@ -71,7 +75,7 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
   return (
     <Panel
       position="top-right"
-      className="m-2 bg-white/95 backdrop-blur-md w-80 rounded-2xl shadow-xl border border-slate-200/90 text-xs transition-all overflow-hidden"
+      className="m-2 bg-white/95 backdrop-blur-md w-80 max-w-[calc(100vw-1rem)] max-h-[70vh] overflow-y-auto rounded-2xl shadow-xl border border-slate-200/90 text-xs transition-all"
       dir="rtl"
     >
       {/* Header */}

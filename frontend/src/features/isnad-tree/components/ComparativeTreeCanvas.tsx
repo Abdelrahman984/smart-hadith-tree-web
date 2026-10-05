@@ -230,7 +230,8 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
   }, [treeData, narratorsTooltips, setNodes, setEdges, setPhase]);
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    openDrawer(node.id);
+    const data = node.data as { anomalyReason?: string | null; travelNote?: string | null };
+    openDrawer(node.id, { anomalyReason: data.anomalyReason, travelNote: data.travelNote });
   }, [openDrawer]);
 
   useEffect(() => {

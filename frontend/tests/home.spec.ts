@@ -1,23 +1,25 @@
 import { test, expect } from '@playwright/test';
 
-test('homepage has correct title and elements', async ({ page }) => {
+test('homepage has the main heading and the search form', async ({ page }) => {
   await page.goto('/');
 
-  // Check the title or main heading
-  const heading = page.locator('h1');
-  await expect(heading).toContainText('شجرة الأسانيد الذكية');
-
-  // Check if the call to action button is visible
-  const startButton = page.locator('text=ابدأ البحث في الأحاديث');
-  await expect(startButton).toBeVisible();
+  await expect(page.locator('h1')).toContainText('شجرة الأسانيد الذكية');
+  await expect(page.getByRole('textbox', { name: 'ابحث في الأحاديث والأسانيد' })).toBeVisible();
 });
 
-test('can navigate to search page from homepage', async ({ page }) => {
+test('the home search form opens the search page with the query', async ({ page }) => {
   await page.goto('/');
-  
-  const startButton = page.locator('text=ابدأ البحث في الأحاديث');
-  await startButton.click();
 
-  // URL should contain /search
-  await expect(page).toHaveURL(/.*\/search/);
+  await page.getByRole('textbox', { name: 'ابحث في الأحاديث والأسانيد' }).fill('إنما الأعمال بالنيات');
+  await page.getByRole('button', { name: 'بحث' }).click();
+
+  await expect(page).toHaveURL(/\/search\?q=/);
+});
+
+test('the header link opens the search page', async ({ page }) => {
+  await page.goto('/');
+
+  await page.getByRole('navigation', { name: 'التنقل الرئيسي' }).getByRole('link', { name: /البحث/ }).click();
+
+  await expect(page).toHaveURL(/\/search$/);
 });

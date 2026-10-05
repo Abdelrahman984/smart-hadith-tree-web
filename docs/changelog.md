@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-10-05: Frontend layout and UI/UX fixes
+
+- **Broken flows**: on `/verify`, «التخريج والعلل» sent a single id to `/takhreej`, which needs two; it now gathers the related narrations first, the same way as «تخريج فوري» on search (`useAutoTakhreej`), and opens the single tree when there are none. The narrator drawer's grade badge was always green, even for كذاب/متروك. One map, `features/narrator-details/utils/gradeStyle.ts`, now colours the drawer, both node types and the legend's grades. On search, the book filter and the count say when they cover only the current page, and they reset on a new search or page. `alert()` was replaced by an inline message.
+- **One site header** (`components/SiteHeader.tsx`, `NavLink.tsx`) on every page, with a compact variant on the tree and takhreej screens. It shows search, books, verify and glossary, marks the current page with `aria-current`, and stays on one row on phones. The footer is shared too (`SiteFooter.tsx`). Every page has its own `<title>` (a template in `layout.tsx`); search, takhreej and verify are server `page.tsx` files that render a client component from `features/`.
+- **Books**:
+  - `/books` shows the same grouped catalogue as the home page (`features/books/CorpusCatalog.tsx`, data in `lib/corpus.ts`), with no API call.
+  - The book and chapter pages are server pages with breadcrumbs. Hadith rows are links, so they work from the keyboard and open in a new tab.
+- **Route states**:
+  - `tree/[hadithId]` has `loading.tsx` and `not-found.tsx`. `getIsnadTree` throws `NotFoundError` on 404; any other failure shows `app/error.tsx` with a retry button.
+  - There is a site-wide `app/not-found.tsx`.
+  - Loading, error and empty blocks share `components/StateViews.tsx`.
+- **Phones**:
+  - The takhreej sidebar starts closed below 768px and opens over the canvas.
+  - The narrator and Ilal drawers take the full width.
+  - The legend starts collapsed.
+  - The tree header clamps the matn ("عرض المتن كاملاً").
+  - A node's anomaly reason and travel note also show in the narrator drawer, since hover tooltips don't work on touch screens.
+- **Accessibility**:
+  - Nodes show the grade as text.
+  - The مدلس/اختلط badges have readable contrast.
+  - The narrator drawer, the Ilal panel and the advanced-search modal share `useDialogFocus`: focus moves into the dialog and stays there, Escape closes it, and focus goes back to the element that opened it.
+  - Only one side drawer is open at a time.
+  - Selecting matn text no longer toggles a search card.
+- **Polish**: `tw-animate-css` was added, so the existing `animate-in …` classes now run. `scrollbar-none`, which isn't a Tailwind class, was removed.
+- **Tests**: `home.spec.ts` and `search.spec.ts` looked for text that is no longer on the page and were updated. The new `navigation.spec.ts` checks, without the API:
+  - the header is on each page;
+  - no page scrolls sideways at 375px;
+  - the current-page marker;
+  - the 404 page;
+  - the takhreej page with fewer than two ids.
+
+---
+
 ## 2026-10-05: Verify, search relevance and optional AI check
 
 - **`/verify`** (`POST /api/Verify`): checks a pasted text against the 31 books (retrieval by word stems and word windows, ordered word-pair scoring, a negation guard in code, a restricted model review with a verified quote). Answers: exact, variant, not-found, invalid; it never invents a source or a ruling. Notes in `docs/verify-feature-handoff.md`; 29 evaluation cases in `docs/challenge/verify-eval-cases.json` run by `scripts/eval_verify.py`.

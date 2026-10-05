@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useDialogFocus } from "@/components/useDialogFocus";
+import { useNarratorDrawerStore } from "@/features/narrator-details/store/useNarratorDrawerStore";
 import { ShieldQuestion, X, Loader2 } from "lucide-react";
 import { useIlalForHadith } from "../hooks/useIlal";
 import { useIlalStore } from "../store/useIlalStore";
@@ -16,6 +18,18 @@ export default function IlalLauncher({ hadithId }: { hadithId: string }) {
   const [requested, setRequested] = useState(false);
   const { data, isLoading, isError } = useIlalForHadith(hadithId, requested);
   const { setReport, reset } = useIlalStore();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const close = () => setIsOpen(false);
+  useDialogFocus(panelRef, isOpen, close);
+
+  // Only one side panel at a time: opening the narrator drawer closes this one, and the reverse.
+  const isNarratorOpen = useNarratorDrawerStore((s) => s.isOpen);
+  const closeNarrator = useNarratorDrawerStore((s) => s.closeDrawer);
+  const [prevNarratorOpen, setPrevNarratorOpen] = useState(isNarratorOpen);
+  if (isNarratorOpen !== prevNarratorOpen) {
+    setPrevNarratorOpen(isNarratorOpen);
+    if (isNarratorOpen) setIsOpen(false);
+  }
 
   useEffect(() => {
     if (data) setReport(data);
@@ -25,13 +39,16 @@ export default function IlalLauncher({ hadithId }: { hadithId: string }) {
 
   const open = () => {
     setRequested(true);
+    closeNarrator();
     setIsOpen(true);
   };
 
   return (
     <>
       <button
+        type="button"
         onClick={open}
+        aria-haspopup="dialog"
         className="flex items-center gap-2 rounded-lg border border-brand-blue/30 bg-white px-3 py-2 text-sm font-semibold text-brand-blue shadow-sm transition-colors hover:bg-brand-blue hover:text-white cursor-pointer"
       >
         <ShieldQuestion className="h-4 w-4" />
@@ -44,16 +61,24 @@ export default function IlalLauncher({ hadithId }: { hadithId: string }) {
       </button>
 
       {isOpen && (
+        <div className="fixed inset-0 z-40 bg-slate-900/20" onClick={close} aria-hidden />
+      )}
+      {isOpen && (
         <div
-          className="fixed top-0 bottom-0 end-0 z-40 flex w-[26rem] max-w-full flex-col border-s border-slate-200 bg-white shadow-2xl"
+          ref={panelRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="ilal-panel-title"
+          className="fixed top-0 bottom-0 end-0 z-50 flex w-full sm:w-[26rem] flex-col border-s border-slate-200 bg-white shadow-2xl outline-none animate-in slide-in-from-left duration-200"
           dir="rtl"
         >
           <div className="flex items-center justify-between border-b border-slate-200 p-4">
-            <h2 className="text-lg font-bold text-slate-800">علل الحديث</h2>
+            <h2 id="ilal-panel-title" className="text-lg font-bold text-slate-800">علل الحديث</h2>
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={close}
               className="rounded-full p-1 text-slate-500 hover:bg-slate-100 cursor-pointer"
-              aria-label="إغلاق"
+              aria-label="إغلاق لوحة العلل"
             >
               <X size={20} />
             </button>

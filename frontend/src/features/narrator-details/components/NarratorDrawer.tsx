@@ -3,8 +3,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { API_BASE, getNarratorDetails } from '@/lib/api';
 import { useNarratorDrawerStore } from '../store/useNarratorDrawerStore';
-import { X, Sparkles, AlertCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { X, Sparkles, AlertCircle, AlertTriangle, MapPin } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { useDialogFocus } from '@/components/useDialogFocus';
 import AiNotice from '@/components/AiNotice';
 import GlossaryTerm from '@/features/glossary/GlossaryTerm';
 import ConsensusBanner from './ConsensusBanner';
@@ -66,7 +67,8 @@ interface ExtractedAiEvaluation {
 }
 
 export default function NarratorDrawer() {
-  const { isOpen, selectedNarratorId, closeDrawer } = useNarratorDrawerStore();
+  const { isOpen, selectedNarratorId, nodeContext, closeDrawer } = useNarratorDrawerStore();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiSummary, setAiSummary] = useState<ExtractedAiEvaluation | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -104,15 +106,7 @@ export default function NarratorDrawer() {
     closeDrawer();
   };
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleClose only calls stable store/state setters
-  }, [isOpen]);
+  useDialogFocus(dialogRef, isOpen, handleClose);
 
   const consensus = narrator ? analyzeEvaluations(narrator.evaluations) : null;
   const evidence = narrator && consensus ? narratorEvidence(consensus, narrator.evaluations.length) : null;
@@ -129,9 +123,12 @@ export default function NarratorDrawer() {
       
       {/* Drawer Panel */}
       <div 
-        className="absolute top-0 bottom-0 start-0 w-96 bg-white shadow-2xl z-50 flex flex-col transform transition-transform duration-300"
+        ref={dialogRef}
+        tabIndex={-1}
+        className="absolute top-0 bottom-0 start-0 w-full sm:w-96 bg-white shadow-2xl z-50 flex flex-col outline-none animate-in slide-in-from-right duration-200"
         dir="rtl"
         role="dialog"
+        aria-modal="true"
         aria-label="تفاصيل الراوي"
       >
         <div className="flex items-center justify-between p-4 border-b border-slate-200">
@@ -139,13 +136,30 @@ export default function NarratorDrawer() {
           <button 
             onClick={handleClose}
             aria-label="إغلاق تفاصيل الراوي"
-            className="p-1 rounded-full hover:bg-slate-100 text-slate-500"
+            className="p-1 rounded-full hover:bg-slate-100 text-slate-500 cursor-pointer"
           >
             <X size={20} />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          {(nodeContext?.anomalyReason || nodeContext?.travelNote) && (
+            <div className="space-y-2">
+              {nodeContext.anomalyReason && (
+                <p className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                  <span><span className="font-bold">تنبيه على هذا الموضع من السند: </span>{nodeContext.anomalyReason}</span>
+                </p>
+              )}
+              {nodeContext.travelNote && (
+                <p className="flex items-start gap-2 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                  <span>{nodeContext.travelNote}</span>
+                </p>
+              )}
+            </div>
+          )}
+
           {isLoading ? (
             <div className="animate-pulse space-y-4">
               <div className="h-6 bg-slate-200 rounded w-3/4"></div>
@@ -153,7 +167,10 @@ export default function NarratorDrawer() {
               <div className="h-20 bg-slate-200 rounded"></div>
             </div>
           ) : isError || !narrator ? (
-            <div className="text-red-500">حدث خطأ أثناء تحميل بيانات الراوي.</div>
+            <p role="alert" className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-800">
+              <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
+              تعذر تحميل بيانات الراوي. أغلق اللوحة وأعد المحاولة.
+            </p>
           ) : (
             <>
               {/* Header Info */}

@@ -48,8 +48,12 @@ export async function advancedSearchHadiths(req: SearchRequestDto): Promise<Hadi
   return res.json();
 }
 
+/** The API answered 404: the requested record does not exist (as opposed to the API being unreachable). */
+export class NotFoundError extends Error {}
+
 export async function getIsnadTree(hadithId: string): Promise<IsnadTreeResponseDto> {
   const res = await fetch(`${API_BASE}/Tree/${hadithId}`);
+  if (res.status === 404) throw new NotFoundError(`Hadith ${hadithId} not found`);
   if (!res.ok) throw new Error("Failed to fetch tree");
   return res.json();
 }

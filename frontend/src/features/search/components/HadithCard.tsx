@@ -68,6 +68,8 @@ export default function HadithCard({
   };
 
   const handleCardClick = () => {
+    // Selecting matn text to copy it is not a click on the card.
+    if (window.getSelection()?.toString()) return;
     onToggleSelect(hadith.id);
   };
 
@@ -95,7 +97,8 @@ export default function HadithCard({
               onToggleSelect(hadith.id);
             }}
             className="text-brand-blue hover:scale-110 transition-transform cursor-pointer p-0.5"
-            aria-label={isSelected ? "إلغاء التحديد" : "تحديد الحديث للتخريج"}
+            aria-pressed={isSelected}
+            aria-label="تحديد الحديث للتخريج"
             title={isSelected ? "إلغاء التحديد" : "تحديد الحديث للمقارنة والتخريج"}
           >
             {isSelected ? (

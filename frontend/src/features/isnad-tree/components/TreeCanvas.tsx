@@ -169,7 +169,8 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     // node.id is now the narratorId!
-    openDrawer(node.id);
+    const data = node.data as { anomalyReason?: string | null; travelNote?: string | null };
+    openDrawer(node.id, { anomalyReason: data.anomalyReason, travelNote: data.travelNote });
   }, [openDrawer]);
 
   useEffect(() => {
