@@ -10,6 +10,8 @@
     { "id": "P07", "group": "positive-exact", "text": "المسلم من سلم المسلمون من لسانه ويده", "accept": ["exact"] },
     { "id": "V01", "group": "positive-variant", "text": "إنما الأعمال بالنية وإنما لكل امرئ ما نوى", "accept": ["exact", "variant"], "why": "singular النية instead of النيات" },
     { "id": "V02", "group": "positive-variant", "text": "لا يؤمن أحدكم حتى يحب لأخيه المسلم ما يحب لنفسه", "accept": ["exact", "variant"], "why": "extra word المسلم" },
+    { "id": "V03", "group": "positive-variant", "text": "الجنة أقرب لأحدكم من شراك نعله", "accept": ["exact", "variant"], "why": "لأحدكم instead of إلى أحدكم (reported failure)" },
+    { "id": "V04", "group": "positive-variant", "text": "الجنة أقرب إلى أحدكم من شراك نعله", "accept": ["exact", "variant"] },
     { "id": "N01", "group": "negative", "text": "حب الوطن من الإيمان", "accept": ["not-found"], "why": "widely quoted, no origin as a hadith" },
     { "id": "N02", "group": "negative", "text": "إنما الأعمال ليست بالنيات وإنما لكل امرئ ما نوى", "accept": ["not-found"], "why": "negation of a real hadith reverses the meaning; neither exact nor variant is acceptable", "reject": ["exact", "variant"] },
     { "id": "N03", "group": "negative", "text": "من قال سبحان الله ثلاثين مرة بنى الله له قصرا من الياقوت الأحمر", "accept": ["not-found"], "why": "invented" },

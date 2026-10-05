@@ -44,7 +44,7 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
         }
 
         var candidates = await RetrieveAsync(words, ct);
-        var inputBigrams = Bigrams(Tokenize(text, fold: true));
+        var inputBigrams = Bigrams(Tokenize(text, fold: true, stem: true));
 
         var scored = candidates
             .Select(c => new VerifiedHadithMatchDto
@@ -54,7 +54,7 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
                 HadithNumber = c.HadithNumber,
                 Chapter = c.Chapter,
                 MatnArabic = c.MatnArabic,
-                Similarity = Math.Round(Containment(inputBigrams, Bigrams(Tokenize(c.MatnArabic, fold: true))), 3)
+                Similarity = Math.Round(Containment(inputBigrams, Bigrams(Tokenize(c.MatnArabic, fold: true, stem: true))), 3)
             })
             .OrderByDescending(m => m.Similarity)
             .ThenBy(m => m.MatnArabic.Length)
@@ -116,8 +116,12 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
 
     private async Task<List<HadithSearchResultDto>> RetrieveAsync(List<string> words, CancellationToken ct)
     {
+        // Prefix-stripped stems (لأحدكم -> أحدكم): the search is a substring match, so a stem also finds
+        // the prefixed forms and the text written with a different preposition (إلى أحدكم).
         var distinctive = words
-            .Where(w => w.Length >= 3 && !StopWords.Contains(w))
+            .Where(w => !StopWords.Contains(w))
+            .Select(StripPrefix)
+            .Where(w => w.Length >= 3)
             .Distinct()
             .OrderByDescending(w => w.Length)
             .ToList();
@@ -126,18 +130,34 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
         foreach (var take in new[] { 5, 3, 2 })
         {
             if (distinctive.Count < take) continue;
-            var results = await searchService.SearchHadithsAsync(new SearchRequestDto
-            {
-                Query = string.Join(' ', distinctive.Take(take)),
-                Scope = SearchScope.Matn,
-                Match = SearchMatchType.AllWords,
-                PageSize = CandidatePageSize
-            }, ct);
+            var results = await SearchAllWordsAsync(distinctive.Take(take), ct);
             if (results.Count > 0) return results;
+        }
+
+        // A word the stored text spells differently (typo, other wording) blocks every query above:
+        // retry leaving out one word at a time and pool the candidates. Ranking happens afterwards.
+        if (distinctive.Count >= 3)
+        {
+            var pooled = new Dictionary<Guid, HadithSearchResultDto>();
+            for (var skip = 0; skip < Math.Min(distinctive.Count, 5); skip++)
+            {
+                var subset = distinctive.Where((_, i) => i != skip).Take(5);
+                foreach (var r in await SearchAllWordsAsync(subset, ct)) pooled.TryAdd(r.Id, r);
+            }
+            return pooled.Values.ToList();
         }
 
         return [];
     }
+
+    private Task<List<HadithSearchResultDto>> SearchAllWordsAsync(IEnumerable<string> words, CancellationToken ct) =>
+        searchService.SearchHadithsAsync(new SearchRequestDto
+        {
+            Query = string.Join(' ', words),
+            Scope = SearchScope.Matn,
+            Match = SearchMatchType.AllWords,
+            PageSize = CandidatePageSize
+        }, ct);
 
     private async Task<ModelReview?> ReviewAsync(string text, List<VerifiedHadithMatchDto> candidates, CancellationToken ct)
     {
@@ -254,14 +274,25 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
     /// Words of the text after the corpus normalization. <paramref name="fold"/> also merges ى/ي and ؤ/ئ/ء forms
     /// so that scoring tolerates typing variants; retrieval uses the unfolded form to match the stored text.
     /// </summary>
-    public static List<string> Tokenize(string text, bool fold)
+    public static List<string> Tokenize(string text, bool fold, bool stem = false)
     {
         if (string.IsNullOrWhiteSpace(text)) return [];
         var t = ArabicNormalizer.Normalize(Diacritics.Replace(text, string.Empty));
         t = NonLetters.Replace(t, " ");
-        if (fold) t = t.Replace('ى', 'ي').Replace('ؤ', 'ء').Replace('ئ', 'ء');
-        return t.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+        if (fold || stem) t = t.Replace('ى', 'ي').Replace('ؤ', 'ء').Replace('ئ', 'ء');
+        var tokens = t.Split(' ', StringSplitOptions.RemoveEmptyEntries).AsEnumerable();
+        // Scoring only: drop prepositions and attached one-letter prefixes so that "لأحدكم" equals "إلى أحدكم".
+        // Not used by the negation check, where stripping would turn ليست into يست.
+        if (stem) tokens = tokens.Where(w => !Prepositions.Contains(w)).Select(StripPrefix);
+        return tokens.ToList();
     }
+
+    /// <summary>Removes one attached prefix letter (و ف ب ل ك) when at least three letters remain.</summary>
+    public static string StripPrefix(string word) =>
+        word.Length >= 4 && "\u0648\u0641\u0628\u0644\u0643".Contains(word[0]) ? word[1..] : word;
+
+    /// <summary>Prepositions (folded form) that differ between wordings without changing the hadith.</summary>
+    private static readonly HashSet<string> Prepositions = ["الي", "علي", "في", "من", "عن"];
 
     private static readonly HashSet<string> StopWords = new(
         new[] { "قال", "عن", "رسول", "الله", "صلي", "صلى", "عليه", "وسلم", "ان", "من", "في", "ما", "لا", "الي", "الى", "على",
