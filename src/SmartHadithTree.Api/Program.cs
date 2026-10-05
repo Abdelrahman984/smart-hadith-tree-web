@@ -1,3 +1,4 @@
+using SmartHadithTree.Api;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -34,7 +35,12 @@ if (!string.IsNullOrEmpty(togetherApiKey))
 {
     var togetherModel = builder.Configuration["Together:Model"] ?? "zai-org/GLM-5.3-Flash";
     var togetherEndpoint = new Uri(builder.Configuration["Together:Endpoint"] ?? "https://api.together.xyz/v1");
-    builder.Services.AddKernel().AddOpenAIChatCompletion(togetherModel, togetherEndpoint, togetherApiKey);
+    // Together:ExtraBody (JSON object) adds provider-specific request fields, e.g. to switch the model's "thinking" off.
+    var togetherExtra = ExtraBodyHandler.Parse(builder.Configuration["Together:ExtraBody"]);
+    var togetherHttp = togetherExtra is null
+        ? null
+        : new HttpClient(new ExtraBodyHandler(togetherExtra) { InnerHandler = new HttpClientHandler() });
+    builder.Services.AddKernel().AddOpenAIChatCompletion(togetherModel, togetherEndpoint, togetherApiKey, httpClient: togetherHttp);
 }
 else if (!string.IsNullOrEmpty(geminiApiKey) && geminiApiKey != "YOUR_API_KEY_HERE")
 {
