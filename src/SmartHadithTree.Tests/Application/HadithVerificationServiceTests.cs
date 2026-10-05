@@ -158,6 +158,50 @@ public class HadithVerificationServiceTests
     }
 
     [Fact]
+    public void UnmatchedWords_ShouldNameTheChangedWord_AndIgnoreDiacriticsAndPrepositions()
+    {
+        HadithVerificationService.UnmatchedWords("إنما الأقوال بالنيات وإنما لكل امرئ ما نوى", Matn)
+            .Should().Equal("الأقوال");
+        HadithVerificationService.UnmatchedWords("إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ", Matn).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Verify_ShouldReturnAlteredText_AsVariant_WithTheChangedWordShown()
+    {
+        var service = CreateStrict(Hadith(Matn));
+
+        var result = await service.VerifyAsync("إنما الأقوال بالنيات وإنما لكل امرئ ما نوى");
+
+        result.Status.Should().NotBe(HadithVerificationStatus.Exact);
+        if (result.Matches.Count > 0) result.UnmatchedWords.Should().Contain("الأقوال");
+    }
+
+    [Fact]
+    public async Task Verify_ShouldWidenWithWindows_WhenFirstResultsAreUnrelated()
+    {
+        // The all-words query returns only an unrelated hadith; the real one is reachable only by a 4-word window.
+        var real = Hadith("لا يؤمن أحدكم حتى يحب لأخيه ما يحب لنفسه", 13);
+        var noise = Hadith("أحدكم حتى يحب يحب يكمل ايمان", 99); // contains many query words, wrong order
+        var search = new Mock<IHadithSearchService>();
+        search
+            .Setup(s => s.SearchHadithsAsync(It.IsAny<SearchRequestDto>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((SearchRequestDto r, CancellationToken _) =>
+            {
+                var words = r.Query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                return words.Length >= 5 ? new List<HadithSearchResultDto> { noise }
+                    : new[] { real, noise }
+                        .Where(h => words.All(w => SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize(h.MatnArabic).Contains(w)))
+                        .ToList();
+            });
+        var service = new HadithVerificationService(search.Object, new Kernel());
+
+        var result = await service.VerifyAsync("لا يكمل إيمان أحدكم حتى يحب لأخيه ما يحب لنفسه");
+
+        result.Matches.Should().NotBeEmpty();
+        result.Matches[0].HadithNumber.Should().Be(13);
+    }
+
+    [Fact]
     public async Task Verify_ShouldNeverReportExact_ForNegatedRealHadith()
     {
         var service = Create(Hadith(Matn));

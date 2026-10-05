@@ -81,8 +81,12 @@ def main():
         if len(set(seen)) > 1:
             unstable.append((c["id"], seen))
         status = seen[0]
-        results[c["id"]] = {"status": status, "method": body.get("method"), "model": body.get("modelStatus"), "diag": body.get("diagnostics")}
+        results[c["id"]] = {"status": status, "method": body.get("method"), "model": body.get("modelStatus"), "diag": body.get("diagnostics"), "unmatched": body.get("unmatchedWords")}
         ok = status in c["accept"] and status not in c.get("reject", [])
+        if ok and status == "variant" and c.get("unmatched_contains"):
+            # A near-match is only safe if the response shows which word differs.
+            shown = body.get("unmatchedWords") or []
+            ok = all(w in shown for w in c["unmatched_contains"])
         groups[c["group"]][0] += ok
         groups[c["group"]][1] += 1
         if c["group"] == "negative":

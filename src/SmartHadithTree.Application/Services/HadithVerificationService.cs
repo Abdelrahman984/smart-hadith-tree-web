@@ -33,6 +33,7 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
     private const int MaxMatches = 5;
     private const int CandidatePageSize = 40;
     private const int MaxWindowQueries = 8;
+    private const int WindowPageSize = 100;
 
     public async Task<HadithVerificationResultDto> VerifyAsync(string text, CancellationToken ct = default)
     {
@@ -51,7 +52,7 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
         var candidates = await RetrieveAsync(words, ct);
         var inputBigrams = Bigrams(Tokenize(text, fold: true, stem: true));
 
-        var scored = candidates
+        List<VerifiedHadithMatchDto> Score(List<HadithSearchResultDto> pool) => pool
             .Select(c => new VerifiedHadithMatchDto
             {
                 Id = c.Id,
@@ -65,6 +66,20 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
             .ThenBy(m => m.MatnArabic.Length)
             .Take(MaxMatches)
             .ToList();
+
+        var scored = Score(candidates);
+
+        // A paraphrase or a typo makes some words absent from the stored text, so the all-words queries return
+        // nothing useful. Widen with runs of consecutive words (four first: more specific, then three), pooling the
+        // candidates and re-ranking, until a variant-level match appears.
+        foreach (var size in new[] { 4, 3 })
+        {
+            if ((scored.FirstOrDefault()?.Similarity ?? 0) >= VariantThreshold) break;
+            var extra = await RetrieveByWindowsAsync(words, size, ct);
+            if (extra.Count == 0) continue;
+            candidates = candidates.Concat(extra).GroupBy(c => c.Id).Select(g => g.First()).ToList();
+            scored = Score(candidates);
+        }
 
         var best = scored.FirstOrDefault();
         string Diag(string decidedBy) =>
@@ -95,7 +110,7 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
         // Exact quotations need no model. The model only reviews the uncertain band.
         if (status != HadithVerificationStatus.Exact)
         {
-            var (review, reviewStatus) = await ReviewAsync(text, scored, ct);
+            var (review, reviewStatus) = await ReviewAsync(text, scored.Take(3).ToList(), ct);
             modelStatus = reviewStatus;
             if (review != null)
             {
@@ -132,6 +147,7 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
             Method = method,
             ModelStatus = modelStatus,
             Diagnostics = Diag(method == "ai+lexical" ? "model-review" : "similarity-threshold"),
+            UnmatchedWords = UnmatchedWords(text, scored[0].MatnArabic),
             Matches = scored.Where(m => m.Similarity >= ReviewThreshold).ToList(),
             Explanation = string.IsNullOrWhiteSpace(explanation) ? DefaultExplanation(status) : explanation
         };
@@ -157,43 +173,41 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
             if (results.Count > 0) return results;
         }
 
-        // A paraphrase or a typo makes some words absent from the stored text, which blocks every query above.
-        // Retry with every run of three consecutive words (in the user's order) and pool the candidates;
-        // a run that avoids the changed words still finds the hadith. Ranking happens afterwards.
-        if (distinctive.Count >= 3)
-        {
-            var ordered = words
-                .Where(w => !StopWords.Contains(w))
-                .Select(StripPrefix)
-                .Where(w => w.Length >= 3)
-                .ToList();
-            var pooled = new Dictionary<Guid, HadithSearchResultDto>();
-            var tried = new HashSet<string>();
-            for (var i = 0; i + 3 <= ordered.Count && tried.Count < MaxWindowQueries; i++)
-            {
-                var window = ordered.Skip(i).Take(3).ToList();
-                if (!tried.Add(string.Join(' ', window))) continue;
-                foreach (var r in await SearchAllWordsAsync(window, ct)) pooled.TryAdd(r.Id, r);
-            }
-            return pooled.Values.ToList();
-        }
-
         return [];
     }
 
-    private Task<List<HadithSearchResultDto>> SearchAllWordsAsync(IEnumerable<string> words, CancellationToken ct) =>
+    /// <summary>Candidates for every run of <paramref name="size"/> consecutive content words, in the user's order.</summary>
+    private async Task<List<HadithSearchResultDto>> RetrieveByWindowsAsync(List<string> words, int size, CancellationToken ct)
+    {
+        var ordered = words
+            .Where(w => !StopWords.Contains(w))
+            .Select(StripPrefix)
+            .Where(w => w.Length >= 3)
+            .ToList();
+        var pooled = new Dictionary<Guid, HadithSearchResultDto>();
+        var tried = new HashSet<string>();
+        for (var i = 0; i + size <= ordered.Count && tried.Count < MaxWindowQueries; i++)
+        {
+            var window = ordered.Skip(i).Take(size).ToList();
+            if (!tried.Add(string.Join(' ', window))) continue;
+            foreach (var r in await SearchAllWordsAsync(window, ct, WindowPageSize)) pooled.TryAdd(r.Id, r);
+        }
+        return pooled.Values.ToList();
+    }
+
+    private Task<List<HadithSearchResultDto>> SearchAllWordsAsync(IEnumerable<string> words, CancellationToken ct, int pageSize = CandidatePageSize) =>
         searchService.SearchHadithsAsync(new SearchRequestDto
         {
             Query = string.Join(' ', words),
             Scope = SearchScope.Matn,
             Match = SearchMatchType.AllWords,
-            PageSize = CandidatePageSize
+            PageSize = pageSize
         }, ct);
 
     private async Task<(ModelReview? Review, string Status)> ReviewAsync(string text, List<VerifiedHadithMatchDto> candidates, CancellationToken ct)
     {
         var list = string.Join("\n", candidates.Select((c, i) =>
-            $"[{i + 1}] ({c.BookName} رقم {c.HadithNumber}): {Truncate(c.MatnArabic, 500)}"));
+            $"[{i + 1}] ({c.BookName} رقم {c.HadithNumber}): {Truncate(c.MatnArabic, 350)}"));
 
         var prompt = $@"
 أنت مساعد تحقق من نصوص الحديث. لديك نص أدخله المستخدم، وقائمة نصوص (متون) مسترجعة من قاعدة بيانات الكتب.
@@ -253,6 +267,23 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
         similarity >= ExactThreshold ? HadithVerificationStatus.Exact
         : similarity >= VariantThreshold ? HadithVerificationStatus.Variant
         : HadithVerificationStatus.NotFound;
+
+    /// <summary>
+    /// Words of the input (as typed) that do not occur in the candidate, ignoring diacritics, hamza forms,
+    /// prepositions and attached prefixes. Shows exactly which word of a "close wording" text was changed.
+    /// </summary>
+    public static List<string> UnmatchedWords(string input, string candidate)
+    {
+        var known = Tokenize(candidate, fold: true, stem: true).ToHashSet();
+        var result = new List<string>();
+        foreach (var raw in Regex.Split(input ?? string.Empty, @"\s+"))
+        {
+            var typed = NonLetters.Replace(Diacritics.Replace(raw, string.Empty), string.Empty);
+            var stems = Tokenize(typed, fold: true, stem: true);
+            if (stems.Count == 1 && !known.Contains(stems[0]) && !result.Contains(typed)) result.Add(typed);
+        }
+        return result.Take(8).ToList();
+    }
 
     /// <summary>True when the input uses a negation word (لا، لم، لن، ليس، غير…) that never occurs in the candidate.</summary>
     public static bool HasUnmatchedNegation(string input, string candidate)

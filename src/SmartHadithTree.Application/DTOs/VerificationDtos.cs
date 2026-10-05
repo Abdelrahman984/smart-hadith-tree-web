@@ -35,6 +35,9 @@ public class HadithVerificationResultDto
     /// <summary>Why the answer came out this way (candidate count, best score, which rule decided). For debugging and evaluation.</summary>
     public string? Diagnostics { get; set; }
 
+    /// <summary>Words of the checked text that are not in the closest matn (shows which word was changed).</summary>
+    public List<string> UnmatchedWords { get; set; } = [];
+
     public List<VerifiedHadithMatchDto> Matches { get; set; } = [];
 }
 

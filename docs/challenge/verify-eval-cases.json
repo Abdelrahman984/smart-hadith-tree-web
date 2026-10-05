@@ -194,13 +194,16 @@
       "group": "altered",
       "text": "إنما الأقوال بالنيات وإنما لكل امرئ ما نوى",
       "accept": [
-        "not-found"
-      ],
-      "reject": [
-        "exact",
+        "not-found",
         "variant"
       ],
-      "why": "one key word swapped (الأعمال -> الأقوال): ~70% word-pair match, so only the model's veto can reject it"
+      "reject": [
+        "exact"
+      ],
+      "why": "one key word swapped (الأعمال -> الأقوال). Word-pair match is ~71%, so 'variant' is acceptable ONLY if the response names the changed word in unmatchedWords; 'exact' is never acceptable. (Originally required not-found via the model's veto, but the model review takes 10-25s and times out.)",
+      "unmatched_contains": [
+        "الأقوال"
+      ]
     },
     {
       "id": "A02",
@@ -230,12 +233,12 @@
     },
     {
       "id": "N05",
-      "group": "negative",
+      "group": "found-in-corpus",
       "text": "خير الأمور أوساطها",
       "accept": [
-        "not-found"
+        "exact"
       ],
-      "why": "a saying, not a hadith; confirm it is not quoted in your corpus"
+      "why": "found in مصنف ابن أبي شيبة 37861 with similarity 1.0 (diagnostics), so the saying IS in the corpus; 'exact' means present in the book, not authentic. Open the matn to see how it is attributed."
     },
     {
       "id": "N06",

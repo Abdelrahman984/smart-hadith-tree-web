@@ -181,6 +181,8 @@ export interface HadithVerificationResultDto {
   explanation: string;
   /** "not-needed" | "reviewed" | "timeout" | "unavailable". */
   modelStatus?: string;
+  /** Words of the checked text that are not in the closest matn. */
+  unmatchedWords?: string[];
   matches: VerifiedHadithMatchDto[];
 }
 

@@ -93,6 +93,11 @@ export default function VerifyPage() {
               <ui.Icon className="h-5 w-5" aria-hidden /> {ui.label}
             </p>
             <p className="mt-1.5 text-sm leading-relaxed">{result.explanation}</p>
+            {result.unmatchedWords && result.unmatchedWords.length > 0 && (
+              <p className="mt-2 text-sm font-semibold">
+                كلمات في نصك غير موجودة في المتن: {result.unmatchedWords.join("، ")}
+              </p>
+            )}
             {result.method === "ai+lexical" && <AiNotice className="mt-3" />}
           </div>
 
