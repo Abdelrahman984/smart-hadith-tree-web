@@ -7,10 +7,11 @@ separate reasoning text. A "Flash" model that spends most of its time on reasoni
 code cannot change; a model that answers a one-word prompt in about a second but a 10-passage prompt in 20 s points
 to output length.
 
-Reads the same settings as the API (environment variables):
+Reads the same settings as the API: environment variables first
     Together__ApiKey (or TOGETHER_API_KEY), Together__Model (default zai-org/GLM-5.3-Flash),
     Together__Endpoint (default https://api.together.xyz/v1)
-The key is never printed.
+and, when the key is not in the environment, the .NET user secrets of src/SmartHadithTree.Api
+(`dotnet user-secrets set "Together:ApiKey" ...`). The key is never printed.
 
 Usage:
     python scripts/model_latency.py                         # tiny prompt, then the realistic search-check prompt
@@ -23,7 +24,9 @@ import argparse
 import concurrent.futures
 import json
 import os
+import re
 import statistics
+import subprocess
 import sys
 import time
 import urllib.error
@@ -63,6 +66,17 @@ JUDGE_PROMPT = """أنت مساعد يفحص نتائج بحث في متون ا�
 
 أرجع مصفوفة JSON صالحة فقط بدون أي نص إضافي أو علامات Markdown:
 [{{"Index": 1, "Level": "match", "Quote": "عبارة حرفية", "Reason": "جملة قصيرة بالعربية"}}]"""
+
+
+def read_user_secrets():
+    """Together settings stored with `dotnet user-secrets` for the API project, as {"ApiKey": ..., "Model": ..., "Endpoint": ...}."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    try:
+        out = subprocess.run(["dotnet", "user-secrets", "list", "--project", os.path.join("src", "SmartHadithTree.Api")],
+                             cwd=root, capture_output=True, text=True, timeout=60).stdout
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    return {m.group(1): m.group(2).strip() for m in re.finditer(r"^Together:(\w+)\s*=\s*(.*)$", out, re.MULTILINE)}
 
 
 def call(endpoint, key, model, prompt, max_tokens, extra):
@@ -115,11 +129,15 @@ def main():
     args = ap.parse_args()
 
     key = os.environ.get("Together__ApiKey") or os.environ.get("TOGETHER_API_KEY")
+    secrets = {} if key else read_user_secrets()
+    key = key or secrets.get("ApiKey")
     if not key:
-        print("Set Together__ApiKey (or TOGETHER_API_KEY) in the environment. The key is not printed.")
+        print("No Together key found: set Together__ApiKey (or TOGETHER_API_KEY) in the environment, or store it with\n"
+              '  dotnet user-secrets set "Together:ApiKey" "<key>" --project src/SmartHadithTree.Api\n'
+              "The key is never printed.")
         return 2
-    model = os.environ.get("Together__Model") or os.environ.get("TOGETHER_MODEL") or "zai-org/GLM-5.3-Flash"
-    endpoint = os.environ.get("Together__Endpoint") or "https://api.together.xyz/v1"
+    model = os.environ.get("Together__Model") or os.environ.get("TOGETHER_MODEL") or secrets.get("Model") or "zai-org/GLM-5.3-Flash"
+    endpoint = os.environ.get("Together__Endpoint") or secrets.get("Endpoint") or "https://api.together.xyz/v1"
     extra = json.loads(args.extra)
     print(f"model={model} endpoint={endpoint} max_tokens={args.max_tokens or 'default'} extra={extra} parallel={args.parallel}")
 
