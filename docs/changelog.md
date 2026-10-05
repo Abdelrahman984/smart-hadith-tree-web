@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-05: Production deploy and CI/CD
+
+- Live at https://smart-hadith.idealisticsolutions.com (one hostname: `/api/*` goes to the API), behind the host's shared edge Caddy. Database restored from `SmartHadithTree_Shamela_v5_2026-10-05.bak` as `SmartHadithTree`.
+- **Auto deploy on merge to `master`**: `.github/workflows/deploy.yml` (tests + lint, then SSH) -> `deploy/ssh-deploy-gate.sh` (forced command, only commits on `master`) -> `deploy/deploy-remote.sh` (pre-migration backup, build, health checks, automatic rollback). Runbook: `deploy/devops-handoff.md` §6.
+
 ## 2026-10-05: Verify, search relevance and optional AI check
 
 - **`/verify`** (`POST /api/Verify`): checks a pasted text against the 31 books (retrieval by word stems and word windows, ordered word-pair scoring, a negation guard in code, a restricted model review with a verified quote). Answers: exact, variant, not-found, invalid; it never invents a source or a ruling. Notes in `docs/verify-feature-handoff.md`; 29 evaluation cases in `docs/challenge/verify-eval-cases.json` run by `scripts/eval_verify.py`.
