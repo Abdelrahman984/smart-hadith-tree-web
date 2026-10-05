@@ -136,6 +136,28 @@ public class HadithVerificationServiceTests
     }
 
     [Fact]
+    public async Task Verify_ShouldFindParaphrase_ThroughWordWindows_AndReportModelUnavailable()
+    {
+        var service = CreateStrict(Hadith("لا يؤمن أحدكم حتى يحب لأخيه ما يحب لنفسه"));
+
+        // يكمل / إيمان are absent from the stored text, so only a window that skips them can retrieve it.
+        var result = await service.VerifyAsync("لا يكمل إيمان أحدكم حتى يحب لأخيه ما يحب لنفسه");
+
+        result.Matches.Should().NotBeEmpty();
+        result.ModelStatus.Should().Be(VerificationModelStatus.Unavailable, "an empty Kernel has no chat model");
+    }
+
+    [Fact]
+    public async Task Verify_ShouldReportModelNotNeeded_ForExactQuotation()
+    {
+        var service = Create(Hadith(Matn));
+
+        var result = await service.VerifyAsync("إنما الأعمال بالنيات وإنما لكل امرئ ما نوى");
+
+        result.ModelStatus.Should().Be(VerificationModelStatus.NotNeeded);
+    }
+
+    [Fact]
     public async Task Verify_ShouldNeverReportExact_ForNegatedRealHadith()
     {
         var service = Create(Hadith(Matn));

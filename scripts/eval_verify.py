@@ -81,7 +81,7 @@ def main():
         if len(set(seen)) > 1:
             unstable.append((c["id"], seen))
         status = seen[0]
-        results[c["id"]] = {"status": status, "method": body.get("method")}
+        results[c["id"]] = {"status": status, "method": body.get("method"), "model": body.get("modelStatus")}
         ok = status in c["accept"] and status not in c.get("reject", [])
         groups[c["group"]][0] += ok
         groups[c["group"]][1] += 1
@@ -106,6 +106,14 @@ def main():
         print(f"Unstable across {args.runs} runs: {unstable}")
     elif args.runs > 1:
         print(f"Stable across {args.runs} runs")
+    model_counts = defaultdict(list)
+    for i, r in results.items():
+        model_counts[r.get("model") or "unknown"].append(i)
+    print("Model review status per case: " + ", ".join(f"{k}={len(v)}" for k, v in sorted(model_counts.items())))
+    stalled = model_counts.get("timeout", []) + model_counts.get("unavailable", [])
+    if stalled:
+        print(f"WARNING: the model did not answer for {stalled}; those cases were decided by text matching only,"
+              " so this run does not measure the model's value.")
     ai_cases = [i for i, r in results.items() if r["method"] == "ai+lexical"]
     print(f"Cases where the model reviewed: {len(ai_cases)}/{len(results)} {ai_cases}")
     if args.save:

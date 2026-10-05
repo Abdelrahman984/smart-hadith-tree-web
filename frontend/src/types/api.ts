@@ -179,6 +179,8 @@ export interface HadithVerificationResultDto {
   /** "lexical" or "ai+lexical". */
   method: string;
   explanation: string;
+  /** "not-needed" | "reviewed" | "timeout" | "unavailable". */
+  modelStatus?: string;
   matches: VerifiedHadithMatchDto[];
 }
 

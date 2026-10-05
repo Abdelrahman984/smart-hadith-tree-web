@@ -28,6 +28,10 @@ public class HadithVerificationResultDto
     public string Method { get; set; } = "lexical";
 
     public string Explanation { get; set; } = string.Empty;
+
+    /// <summary>What happened to the model review; see <see cref="VerificationModelStatus"/>.</summary>
+    public string ModelStatus { get; set; } = VerificationModelStatus.NotNeeded;
+
     public List<VerifiedHadithMatchDto> Matches { get; set; } = [];
 }
 
@@ -43,4 +47,17 @@ public static class HadithVerificationStatus
     public const string Variant = "variant";
     public const string NotFound = "not-found";
     public const string Invalid = "invalid";
+}
+
+/// <summary>
+/// Whether the model took part. <c>unavailable</c> and <c>timeout</c> mean the answer came from text matching only,
+/// so a run with many of them says nothing about the model's value.
+/// </summary>
+public static class VerificationModelStatus
+{
+    /// <summary>No review was needed (exact quotation, invalid input, or nothing close enough to review).</summary>
+    public const string NotNeeded = "not-needed";
+    public const string Reviewed = "reviewed";
+    public const string Timeout = "timeout";
+    public const string Unavailable = "unavailable";
 }

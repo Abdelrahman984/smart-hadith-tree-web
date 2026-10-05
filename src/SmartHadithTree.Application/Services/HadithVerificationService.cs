@@ -25,9 +25,14 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
     public const double ExactThreshold = 0.95;
     public const double VariantThreshold = 0.6;
     public const double ReviewThreshold = 0.3;
-    private static readonly TimeSpan ReviewTimeout = TimeSpan.FromSeconds(8);
+    /// <summary>Model review time limit. Override with the VERIFY_REVIEW_TIMEOUT_SECONDS environment variable (2-60).</summary>
+    private static readonly TimeSpan ReviewTimeout = TimeSpan.FromSeconds(
+        int.TryParse(Environment.GetEnvironmentVariable("VERIFY_REVIEW_TIMEOUT_SECONDS"), out var seconds)
+            ? Math.Clamp(seconds, 2, 60)
+            : 8);
     private const int MaxMatches = 5;
     private const int CandidatePageSize = 40;
+    private const int MaxWindowQueries = 8;
 
     public async Task<HadithVerificationResultDto> VerifyAsync(string text, CancellationToken ct = default)
     {
@@ -68,6 +73,7 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
         var status = Classify(best.Similarity);
         var method = "lexical";
         var explanation = string.Empty;
+        var modelStatus = VerificationModelStatus.NotNeeded;
 
         // A negation the matching hadith does not contain reverses the meaning, even when most word pairs match.
         // Decided in code, not by the model: a wrong "match" here would put words in the Prophet's mouth.
@@ -80,7 +86,8 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
         // Exact quotations need no model. The model only reviews the uncertain band.
         if (status != HadithVerificationStatus.Exact)
         {
-            var review = await ReviewAsync(text, scored, ct);
+            var (review, reviewStatus) = await ReviewAsync(text, scored, ct);
+            modelStatus = reviewStatus;
             if (review != null)
             {
                 method = "ai+lexical";
@@ -103,12 +110,17 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
         }
 
         if (status == HadithVerificationStatus.NotFound)
-            return NotFound(method, explanation);
+        {
+            var notFound = NotFound(method, explanation);
+            notFound.ModelStatus = modelStatus;
+            return notFound;
+        }
 
         return new HadithVerificationResultDto
         {
             Status = status,
             Method = method,
+            ModelStatus = modelStatus,
             Matches = scored.Where(m => m.Similarity >= ReviewThreshold).ToList(),
             Explanation = string.IsNullOrWhiteSpace(explanation) ? DefaultExplanation(status) : explanation
         };
@@ -134,15 +146,23 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
             if (results.Count > 0) return results;
         }
 
-        // A word the stored text spells differently (typo, other wording) blocks every query above:
-        // retry leaving out one word at a time and pool the candidates. Ranking happens afterwards.
+        // A paraphrase or a typo makes some words absent from the stored text, which blocks every query above.
+        // Retry with every run of three consecutive words (in the user's order) and pool the candidates;
+        // a run that avoids the changed words still finds the hadith. Ranking happens afterwards.
         if (distinctive.Count >= 3)
         {
+            var ordered = words
+                .Where(w => !StopWords.Contains(w))
+                .Select(StripPrefix)
+                .Where(w => w.Length >= 3)
+                .ToList();
             var pooled = new Dictionary<Guid, HadithSearchResultDto>();
-            for (var skip = 0; skip < Math.Min(distinctive.Count, 5); skip++)
+            var tried = new HashSet<string>();
+            for (var i = 0; i + 3 <= ordered.Count && tried.Count < MaxWindowQueries; i++)
             {
-                var subset = distinctive.Where((_, i) => i != skip).Take(5);
-                foreach (var r in await SearchAllWordsAsync(subset, ct)) pooled.TryAdd(r.Id, r);
+                var window = ordered.Skip(i).Take(3).ToList();
+                if (!tried.Add(string.Join(' ', window))) continue;
+                foreach (var r in await SearchAllWordsAsync(window, ct)) pooled.TryAdd(r.Id, r);
             }
             return pooled.Values.ToList();
         }
@@ -159,7 +179,7 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
             PageSize = CandidatePageSize
         }, ct);
 
-    private async Task<ModelReview?> ReviewAsync(string text, List<VerifiedHadithMatchDto> candidates, CancellationToken ct)
+    private async Task<(ModelReview? Review, string Status)> ReviewAsync(string text, List<VerifiedHadithMatchDto> candidates, CancellationToken ct)
     {
         var list = string.Join("\n", candidates.Select((c, i) =>
             $"[{i + 1}] ({c.BookName} رقم {c.HadithNumber}): {Truncate(c.MatnArabic, 500)}"));
@@ -195,13 +215,18 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
             timeout.CancelAfter(ReviewTimeout);
             var result = await kernel.InvokePromptAsync(prompt, cancellationToken: timeout.Token);
             var json = StripFences(result.GetValue<string>());
-            if (json.Length == 0) return null;
-            return JsonSerializer.Deserialize<ModelReview>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (json.Length == 0) return (null, VerificationModelStatus.Unavailable);
+            var review = JsonSerializer.Deserialize<ModelReview>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return review == null ? (null, VerificationModelStatus.Unavailable) : (review, VerificationModelStatus.Reviewed);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return (null, VerificationModelStatus.Timeout);
         }
         catch (Exception)
         {
             // No model configured, provider error, or bad JSON: fall back to text matching. Do not leak details.
-            return null;
+            return (null, VerificationModelStatus.Unavailable);
         }
     }
 
