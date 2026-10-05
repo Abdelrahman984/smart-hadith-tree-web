@@ -1,4 +1,18 @@
-# Changelog: Advanced Features Integration
+# Changelog
+
+## 2026-10-05: Shamela data and review fixes (merged into `master`)
+
+- **Data source**: all 31 books and the narrator registry are built from Shamela 4 (Tahdhib al-Kamal, Taqrib and the compilers' shaykh books); Itqan is no longer read. Database `SmartHadithTree_ShamelaV5`: 274,597 hadiths, 1,217,978 transmissions, 23,502 narrators, 116,670 quotes, 115,816 relations. The migration is documented in `docs/shamela_migration.md`.
+- **Chains**: multi-chain isnads (tahwil) are kept as several chains; first-person «أبي» and «جده» are resolved; the compilers' own teacher lists were added.
+- **Grading**: the overall grade is computed from each route's weakest narrator above the compiler.
+- **Ilal and the comparative page**: fewer false findings (the compiler's link, matn framing words, a medoid text as the base, the order of the requested hadiths); geographic mismatch is a travel note, not a break; low-confidence findings fold into a group; fixes to the header badges and the refit on resize.
+- **Challenge work merged** (`claude/happy-johnson-5vqndl`): evidence-status badges, disagreement between critics, a glossary, an AI notice, accessibility fixes, Docker packaging and the challenge documents.
+- **Docs**: `docs/backlog.md` (open work and how to review a page), `docs/challenge/sources-and-licenses.md`.
+- The previous master is kept as the tag `legacy-master-itqan` and the branch `legacy/itqan-master`.
+
+---
+
+## 2026-09-06: Advanced features integration (Itqan-based, superseded)
 
 **Date:** September 6, 2026
 **Summary:** This session focused on integrating a robust dataset (Itqan) and building advanced analytical, AI, and interactive features on top of the base graph architecture.

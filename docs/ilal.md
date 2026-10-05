@@ -65,24 +65,24 @@ Tiers come from `NarratorGradeScale` (T1 companion … T12 fabricator), which `T
 
 ## Data
 
-- **Teacher/student relations** come from the Itqan `teachers[]`/`students[]` arrays in the rijal profiles.
-- **Mudallisin**: `src/SmartHadithTree.Etl/Seeds/mudallisin.json`, using Ibn Hajr's tiers from طبقات المدلسين.
-- **Mukhtalitun**: `src/SmartHadithTree.Etl/Seeds/mukhtalitun.json`, after al-'Ala'i and Ibn al-Kayyal. Each entry has `heardBefore` and `heardAfter` students.
-- **Name matching.** Seed entries are matched by `itqanId` when one is given. Otherwise they need an exact normalized name match on `FullName` or `KnownAs`. For names of three words or more, a full-name prefix match also counts. Ties go to the most-used narrator, and unmatched entries are logged. To add a narrator, add an entry and re-run the seed.
+- **Teacher/student relations** come from the teacher and student lists of Tahdhib al-Kamal (and the compilers' shaykh books), linked by `link_tahdhib.py` and loaded from `registry.json` (115,816 relations). Late narrators (the shaykhs of al-Tabarani, al-Bayhaqi and al-Hakim) have no lists, so the rule cannot check them.
+- **Mudallisin** (158): Ibn Hajar's طبقات المدلسين with its five tiers. **Mukhtalitun** (131): الكواكب النيرات and المختلطين للعلائي, with the students who heard before and after the change. Both are read in `scripts/shamela4-extractor/rijal_pilot/` (`link_ilal.py`, `ilal_data/`) and written to `ilal.json`.
+- **Name matching.** The decisions made by hand are kept in `ilal_overrides.json` (git-tracked). To add a narrator, add the entry there and re-run the pipeline (`docs/shamela_migration.md`).
 
 Load it with:
 
 ```bash
 dotnet ef database update -p src/SmartHadithTree.Infrastructure -s src/SmartHadithTree.Api
-dotnet run --project src/SmartHadithTree.Etl -- seed-ilal data/itqan
+dotnet run --project src/SmartHadithTree.Etl -- seed-ilal-shamela data/shamela_rijal
 ```
 
-`seed-ilal` can be re-run safely. It replaces the `itqan` relations and resets the mudallis and mukhtalit flags before applying the seeds again.
+`seed-ilal-shamela` loads `ilal.json`. Like the rest of the ingestion it only inserts, so run it on an empty database (`docs/data_ingestion.md`).
 
 ## Known limitations
 
-- Chains come from the regex isnad parser. If it drops or misidentifies a narrator, the result can be a false انقطاع خفي or a false ظاهره الإرسال. Those findings are always Tanbih with low confidence for this reason.
-- When names are joined with «و», the parser keeps only the first one, so parallel chains (مقارنة) are lost.
+- Chains come from the Python resolver. If it drops or misidentifies a narrator, the result can be a false انقطاع خفي or a false ظاهره الإرسال. Those findings are always Tanbih with low confidence for this reason.
+- Multi-chain isnads (tahwil) are read as separate chains, up to 8 per record; some written forms are still missed or joined wrongly (`docs/backlog.md`, section 1).
+- Matn comparison uses the stored text, which sometimes still carries a compiler's comment or an editor's note; these produce false matn findings (`docs/backlog.md`, section 4). A shorter, abridged text is also taken as an omission, not as an abridgement.
 - `/api/ilal/{id}` gathers turuq through a substring match on the matn, so it can miss turuq that use different wording.
 - Detecting raf' depends on the text naming the Prophet ﷺ. Marfu' hukman (e.g. «من السنة») counts as mawquf.
 - The seed lists cover high-frequency narrators only. Extend them as needed.

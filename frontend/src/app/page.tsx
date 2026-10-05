@@ -228,19 +228,19 @@ export default function Home() {
           </div>
 
           <div className="bg-white/90 backdrop-blur-xs p-5 rounded-2xl border border-slate-200/80 shadow-xs text-center">
-            <div className="text-3xl sm:text-4xl font-bold text-brand-teal font-latin">233,224</div>
+            <div className="text-3xl sm:text-4xl font-bold text-brand-teal font-latin">274,597</div>
             <div className="text-sm font-bold text-slate-800 mt-1">حديث وأثر مسند</div>
             <div className="text-xs text-slate-500 mt-0.5">مفهرسة ومطبّعة للبحث الفوري</div>
           </div>
 
           <div className="bg-white/90 backdrop-blur-xs p-5 rounded-2xl border border-slate-200/80 shadow-xs text-center">
-            <div className="text-3xl sm:text-4xl font-bold text-emerald-600 font-latin">1,078,668</div>
+            <div className="text-3xl sm:text-4xl font-bold text-emerald-600 font-latin">1,217,978</div>
             <div className="text-sm font-bold text-slate-800 mt-1">حلقة إسناد متصلة</div>
-            <div className="text-xs text-slate-500 mt-0.5">روابط شيخ–تلميذ مفكوكة الاشتباك سياقياً</div>
+            <div className="text-xs text-slate-500 mt-0.5">روابط شيخ–تلميذ مستخرجة آلياً من الأسانيد</div>
           </div>
 
           <div className="bg-white/90 backdrop-blur-xs p-5 rounded-2xl border border-slate-200/80 shadow-xs text-center">
-            <div className="text-3xl sm:text-4xl font-bold text-purple-600 font-latin">115,735</div>
+            <div className="text-3xl sm:text-4xl font-bold text-purple-600 font-latin">23,502</div>
             <div className="text-sm font-bold text-slate-800 mt-1">ترجمة راوٍ في القاعدة</div>
             <div className="text-xs text-slate-500 mt-0.5">مع أقوال أئمة الجرح والتعديل والطبقة</div>
           </div>
@@ -403,7 +403,7 @@ export default function Home() {
             <span className="font-bold text-white">شجرة الأسانيد الذكية (Smart Hadith Tree)</span>
           </div>
           <div className="text-xs text-slate-400 text-center sm:text-left">
-            موسوعة رقمية لدراسة الأسانيد والتخريج وكشف العلل • تضم 31 ديواناً مسنداً (+233,000 حديث و +1,078,000 حلقة إسناد)
+            موسوعة رقمية لدراسة الأسانيد والتخريج وكشف العلل • تضم 31 ديواناً مسنداً (+274,000 حديث و +1,217,000 حلقة إسناد)
           </div>
         </div>
         <p className="max-w-7xl mx-auto mt-4 text-[11px] text-slate-500 text-center">

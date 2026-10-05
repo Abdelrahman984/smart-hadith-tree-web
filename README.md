@@ -4,9 +4,10 @@ A MENA-targeted SaaS platform and scholarly research tool designed to digitize, 
 
 ## Corpus Scale
 - **31 Canonical Sunni Collections**: Covering the Sihah, Sunan, Early Musannafat (`موطأ مالك`, `مصنف عبد الرزاق`, `مصنف ابن أبي شيبة`), Major Masanid (`مسند أحمد`, `الطيالسي`, `الشافعي`, `الحميدي`, `إسحاق بن راهويه`, `البزار`, `أبو يعلى`), Mustakhrajat & Mustadrakat (`صحيح ابن خزيمة`, `صحيح ابن حبان`, `مستخرج أبي عوانة`, `المستدرك للحاكم`), Ma'ajim (`المعجم الكبير والأوسط والصغير للطبراني`), and Sunan Kubra (`السنن الكبرى للنسائي والبيهقي`, `سنن الدارقطني`, `سنن سعيد بن منصور`, `شعب الإيمان`).
-- **233,224 Complete Hadiths & Athar**: Fully indexed and normalized for instant full-text and chain search.
-- **1,078,668 Isnad Transmission Links**: Contextually disambiguated Sheikh → Student graph edges.
-- **115,735 Narrator Profiles**: Linked with classical Jarh wa Ta'deel evaluations, Tabaqat, Mudallis tiers, and Ikhtilat records.
+- **274,597 Hadiths & Athar**: each edition's own numbering, indexed and normalized for full-text and chain search.
+- **1,217,978 Isnad Transmission Links**: Sheikh → Student edges; hadiths with several chains (tahwil) keep each chain (19,982 hadiths).
+- **23,502 Narrator Profiles**: a registry built from Tahdhib al-Kamal, Taqrib al-Tahdhib and the compilers' shaykh books, with 116,670 attributed Jarh wa Ta'deel quotes, 115,816 teacher/student relations, 158 Mudallisin and 131 Mukhtalitun.
+- **Sources**: every book and rijal reference comes from Shamela 4; see [`docs/challenge/sources-and-licenses.md`](docs/challenge/sources-and-licenses.md). The narrator and chain resolution is automatic and still makes mistakes; the known ones are tracked in [`docs/backlog.md`](docs/backlog.md).
 
 ## Project Structure
 - `src/`: ASP.NET Core 9 Web API backend & ETL pipeline using Clean Architecture.
@@ -32,14 +33,14 @@ A MENA-targeted SaaS platform and scholarly research tool designed to digitize, 
 
 ### 1. Database Setup & Data Ingestion
 #### Option A: Instant Restore from Full Backup (Recommended if `.bak` is present)
-If `backups/SmartHadithTree_Shamela_v4_2026-10-05.bak` is present locally, restore the complete 31-book database in seconds (all versions are described in [`backups/README.md`](backups/README.md)):
+If `backups/SmartHadithTree_Shamela_v5_2026-10-05.bak` is present locally, restore the complete 31-book database in seconds (all versions are described in [`backups/README.md`](backups/README.md)). Run it from the repository root:
 ```powershell
-sqlcmd -S . -Q "RESTORE DATABASE [SmartHadithTree_Shamela] FROM DISK = N'd:\Programming\Full-Stack\Smart-Hadith-Tree\backups\SmartHadithTree_Shamela_v4_2026-10-05.bak' WITH REPLACE, STATS = 25;"
+sqlcmd -S . -Q "RESTORE DATABASE [SmartHadithTree_ShamelaV5] FROM DISK = N'$((Get-Location).Path)\backups\SmartHadithTree_Shamela_v5_2026-10-05.bak' WITH REPLACE, STATS = 25;"
 ```
 
 #### Option B: Run Migrations & Load from `data/shamela_rijal`
 Needs the data files built from a local Shamela 4 installation (see [`docs/data_ingestion.md`](docs/data_ingestion.md)).
-1. Ensure SQL Server is running and update the connection string in `src/SmartHadithTree.Api/appsettings.json` and `src/SmartHadithTree.Etl/appsettings.json` if needed (the default database is `SmartHadithTree_Shamela`).
+1. Ensure SQL Server is running and update the connection string in `src/SmartHadithTree.Api/appsettings.json` and `src/SmartHadithTree.Etl/appsettings.json` if needed (the default database is `SmartHadithTree_ShamelaV5`).
 2. Run the database migrations:
    ```powershell
    dotnet ef database update --project src/SmartHadithTree.Infrastructure --startup-project src/SmartHadithTree.Api
@@ -77,9 +78,9 @@ The frontend will run on `http://localhost:3000`.
 ## Core Features
 - **Visual Isnad Trees & Comparative Takhreej**: Dynamically renders single-hadith and multi-hadith comparative transmission graphs (`ELK.js` + `React Flow`) highlighting the common Madar (pivot narrator) across 31 collections.
 - **Ilal (Hidden Defects) Engine**: Detects 6 major categories of Hadith defects (`Tadlis`, `Ikhtilat`, `Hidden Inqita'`, `Matn Discrepancy at Madar`, `Raf'/Waqf Conflict`, `Wasl/Irsal Conflict`) with interactive graph overlays and Gemini AI scholarly explanations.
-- **Contextual Narrator Disambiguation**: Resolves shared/ambiguous narrator names in Isnads using the 115k-node teacher-student graph and compiler/era overrides.
+- **Narrator Resolution**: an offline Python resolver (`scripts/shamela4-extractor/rijal_pilot/`) matches each name in an isnad to a Tahdhib al-Kamal narrator using the teacher-student lists, and reads multi-chain isnads (tahwil). Names it cannot decide leave a gap in the chain.
 - **AI Narrator Summaries (RAG)**: Synthesizes classical Jarh wa Ta'deel quotes into a concise Arabic scholarly verdict.
-- **Advanced Search & Book Browser**: Instant normalized search across 233k+ Hadiths with narrator-in-chain filters and hierarchical browsing across all 31 collections (`/books`).
+- **Advanced Search & Book Browser**: Instant normalized search across 274k+ Hadiths with narrator-in-chain filters and hierarchical browsing across all 31 collections (`/books`).
 
 ## Documentation
 For detailed technical documentation, refer to the `docs/` folder:
@@ -89,3 +90,7 @@ For detailed technical documentation, refer to the `docs/` folder:
 - [Features Changelog](docs/changelog.md)
 - [Missing Books Roadmap](docs/missing-books-roadmap.md)
 - [API Reference](docs/api.md)
+
+## Privacy and AI notice
+- The application has no accounts and stores nothing about its users in the browser or the database.
+- AI output (narrator summaries and Ilal explanations) is a reading aid, not a fatwa, and abstains when no quotation supports it. Ilal findings are automatic warnings with a confidence value and need a scholar's check.
