@@ -102,7 +102,16 @@ public class HadithVerificationServiceTests
 
         var result = await service.VerifyAsync("إنما الأعمال ليست بالنيات وإنما لكل امرئ ما نوى");
 
-        result.Status.Should().NotBe(HadithVerificationStatus.Exact);
+        result.Status.Should().Be(HadithVerificationStatus.NotFound, "an added negation reverses the meaning");
+        result.Matches.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void HasUnmatchedNegation_ShouldIgnoreNegatorsPresentInBoth_AndPrefixedForms()
+    {
+        HadithVerificationService.HasUnmatchedNegation("لا ضرر ولا ضرار", "لا ضرر ولا ضرار في الإسلام").Should().BeFalse();
+        HadithVerificationService.HasUnmatchedNegation("ولا ضرر ولا ضرار", "لا ضرر ولا ضرار").Should().BeFalse();
+        HadithVerificationService.HasUnmatchedNegation("الأعمال ليست بالنيات", Matn).Should().BeTrue();
     }
 
     [Theory]

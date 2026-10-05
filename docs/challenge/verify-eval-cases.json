@@ -11,7 +11,7 @@
     { "id": "V01", "group": "positive-variant", "text": "إنما الأعمال بالنية وإنما لكل امرئ ما نوى", "accept": ["exact", "variant"], "why": "singular النية instead of النيات" },
     { "id": "V02", "group": "positive-variant", "text": "لا يؤمن أحدكم حتى يحب لأخيه المسلم ما يحب لنفسه", "accept": ["exact", "variant"], "why": "extra word المسلم" },
     { "id": "N01", "group": "negative", "text": "حب الوطن من الإيمان", "accept": ["not-found"], "why": "widely quoted, no origin as a hadith" },
-    { "id": "N02", "group": "negative", "text": "إنما الأعمال ليست بالنيات وإنما لكل امرئ ما نوى", "accept": ["not-found", "variant"], "why": "negation of a real hadith; must never be 'exact'", "reject": ["exact"] },
+    { "id": "N02", "group": "negative", "text": "إنما الأعمال ليست بالنيات وإنما لكل امرئ ما نوى", "accept": ["not-found"], "why": "negation of a real hadith reverses the meaning; neither exact nor variant is acceptable", "reject": ["exact", "variant"] },
     { "id": "N03", "group": "negative", "text": "من قال سبحان الله ثلاثين مرة بنى الله له قصرا من الياقوت الأحمر", "accept": ["not-found"], "why": "invented" },
     { "id": "N04", "group": "negative", "text": "من صلى الفجر ثم قرأ هذه الآية وجبت له الجنة بغير حساب ولا عذاب", "accept": ["not-found"], "why": "invented" },
     { "id": "I01", "group": "invalid", "text": "إنما الأعمال", "accept": ["invalid"], "why": "fewer than 3 words" }

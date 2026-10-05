@@ -25,6 +25,7 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
     public const double ExactThreshold = 0.95;
     public const double VariantThreshold = 0.6;
     public const double ReviewThreshold = 0.3;
+    private static readonly TimeSpan ReviewTimeout = TimeSpan.FromSeconds(8);
     private const int MaxMatches = 5;
     private const int CandidatePageSize = 40;
 
@@ -67,6 +68,14 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
         var status = Classify(best.Similarity);
         var method = "lexical";
         var explanation = string.Empty;
+
+        // A negation the matching hadith does not contain reverses the meaning, even when most word pairs match.
+        // Decided in code, not by the model: a wrong "match" here would put words in the Prophet's mouth.
+        if (status != HadithVerificationStatus.NotFound && HasUnmatchedNegation(text, best.MatnArabic))
+        {
+            return NotFound(method,
+                "النص يشبه حديثاً موجوداً في الكتب لكنه يختلف عنه بأداة نفي ليست في المتن، فالمعنى مختلف؛ لذلك لا ننسبه إلى ذلك الحديث.");
+        }
 
         // Exact quotations need no model. The model only reviews the uncertain band.
         if (status != HadithVerificationStatus.Exact)
@@ -161,7 +170,10 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
 
         try
         {
-            var result = await kernel.InvokePromptAsync(prompt, cancellationToken: ct);
+            // A slow provider must not stall the answer: past the limit we fall back to text matching.
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(ReviewTimeout);
+            var result = await kernel.InvokePromptAsync(prompt, cancellationToken: timeout.Token);
             var json = StripFences(result.GetValue<string>());
             if (json.Length == 0) return null;
             return JsonSerializer.Deserialize<ModelReview>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -185,6 +197,28 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
         similarity >= ExactThreshold ? HadithVerificationStatus.Exact
         : similarity >= VariantThreshold ? HadithVerificationStatus.Variant
         : HadithVerificationStatus.NotFound;
+
+    /// <summary>True when the input uses a negation word (لا، لم، لن، ليس، غير…) that never occurs in the candidate.</summary>
+    public static bool HasUnmatchedNegation(string input, string candidate)
+    {
+        var candidateNegators = Tokenize(candidate, fold: true).Select(BaseNegator).Where(n => n != null).ToHashSet();
+        return Tokenize(input, fold: true)
+            .Select(BaseNegator)
+            .Any(n => n != null && !candidateNegators.Contains(n));
+    }
+
+    /// <summary>The negator a token is (also with a leading و/ف), or null.</summary>
+    private static string? BaseNegator(string token)
+    {
+        if (Negators.Contains(token)) return token;
+        if (token.Length > 2 && (token[0] == '\u0648' || token[0] == '\u0641') && Negators.Contains(token[1..]))
+            return token[1..];
+        return null;
+    }
+
+    private static readonly HashSet<string> Negators = new(
+        new[] { "لا", "لم", "لن", "ليس", "ليست", "ليسوا", "غير", "بدون" }
+        .Select(w => ArabicNormalizer.Normalize(w)));
 
     /// <summary>True when the phrase has at least three words and occurs in both the input and the candidate.</summary>
     public static bool PhraseIsGrounded(string? phrase, string input, string candidate)
