@@ -287,7 +287,7 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
   return (
     <div
       ref={containerRef}
-      className={`absolute inset-0 bg-slate-50 transition-opacity duration-150 ${phase === "ready" ? "opacity-100" : "opacity-0"}`}
+      className={`absolute inset-0 bg-surface-muted transition-opacity duration-150 ${phase === "ready" ? "opacity-100" : "opacity-0"}`}
       dir="ltr"
     >
       <ReactFlow
@@ -306,7 +306,7 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
         }}
         fitView
         attributionPosition="bottom-right"
-        className="bg-slate-50"
+        className="bg-surface-muted"
       >
         <GraphControls showWeakOnly={showWeakOnly} setShowWeakOnly={setShowWeakOnly} />
         {focusBook && (
@@ -315,10 +315,10 @@ export default function ComparativeTreeCanvas({ treeData, narratorsTooltips }: C
               type="button"
               onClick={() => setFocusBook(null)}
               title="إلغاء الإبراز (Esc)"
-              className="flex items-center gap-2 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              className="flex items-center gap-2 bg-surface/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md border border-slate-300 text-xs font-bold text-slate-700 hover:bg-surface-muted cursor-pointer"
             >
               <span>إبراز: {focusBook}</span>
-              <X className="w-3.5 h-3.5 text-slate-500" />
+              <X className="w-3.5 h-3.5 text-ink-subtle" />
             </button>
           </Panel>
         )}

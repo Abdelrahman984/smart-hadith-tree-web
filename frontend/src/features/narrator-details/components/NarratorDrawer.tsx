@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { API_BASE, getNarratorDetails } from '@/lib/api';
 import { useNarratorDrawerStore } from '../store/useNarratorDrawerStore';
 import { X, Sparkles, AlertCircle, AlertTriangle, MapPin } from 'lucide-react';
+import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { useDialogFocus } from '@/components/useDialogFocus';
 import AiNotice from '@/components/AiNotice';
@@ -44,11 +45,11 @@ const CAMP_HEADING: Record<EvaluationGroup["camp"], string> = {
 
 function EvaluationCard({ evalRecord }: { evalRecord: { scholarName: string; verdictRating: string | null; evaluationText: string } }) {
   return (
-    <div className="bg-slate-50 p-3 rounded border border-slate-100">
+    <div className="bg-surface-muted p-3 rounded border border-slate-100">
       <div className="flex justify-between items-start mb-1">
-        <span className="font-semibold text-brand-teal text-sm">{getScholarAr(evalRecord.scholarName)}</span>
+        <span className="font-semibold text-brand-teal-ink text-sm">{getScholarAr(evalRecord.scholarName)}</span>
         {evalRecord.verdictRating && (
-          <span className="text-xs px-1.5 py-0.5 bg-white border border-slate-200 rounded text-slate-600">
+          <span className="text-xs px-1.5 py-0.5 bg-surface border border-line rounded text-ink-muted">
             {getVerdictAr(evalRecord.verdictRating)}
           </span>
         )}
@@ -125,18 +126,18 @@ export default function NarratorDrawer() {
       <div 
         ref={dialogRef}
         tabIndex={-1}
-        className="absolute top-0 bottom-0 start-0 w-full sm:w-96 bg-white shadow-2xl z-50 flex flex-col outline-none animate-in slide-in-from-right duration-200"
+        className="absolute top-0 bottom-0 start-0 w-full sm:w-96 bg-surface shadow-2xl z-50 flex flex-col outline-none animate-in slide-in-from-right duration-200"
         dir="rtl"
         role="dialog"
         aria-modal="true"
         aria-label="تفاصيل الراوي"
       >
-        <div className="flex items-center justify-between p-4 border-b border-slate-200">
-          <h2 className="text-xl font-bold text-slate-800">تفاصيل الراوي</h2>
+        <div className="flex items-center justify-between p-4 border-b border-line">
+          <h2 className="text-xl font-bold text-ink">تفاصيل الراوي</h2>
           <button 
             onClick={handleClose}
             aria-label="إغلاق تفاصيل الراوي"
-            className="p-1 rounded-full hover:bg-slate-100 text-slate-500 cursor-pointer"
+            className="p-1 rounded-full hover:bg-slate-100 text-ink-subtle cursor-pointer"
           >
             <X size={20} />
           </button>
@@ -179,7 +180,7 @@ export default function NarratorDrawer() {
                   {narrator.knownAs || narrator.fullName}
                 </h3>
                 {narrator.knownAs && (
-                  <p className="text-sm text-slate-500 mb-2">{narrator.fullName}</p>
+                  <p className="text-sm text-ink-subtle mb-2">{narrator.fullName}</p>
                 )}
                 
                 <div className="flex gap-2 flex-wrap mt-3">
@@ -203,12 +204,12 @@ export default function NarratorDrawer() {
                     </span>
                   )}
                   {narrator.birthYearHijri && (
-                    <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">
+                    <span className="px-2 py-1 bg-slate-100 text-ink-muted rounded text-xs">
                       مواليد: {narrator.birthYearHijri} هـ
                     </span>
                   )}
                   {narrator.deathYearHijri && (
-                    <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">
+                    <span className="px-2 py-1 bg-slate-100 text-ink-muted rounded text-xs">
                       وفيات: {narrator.deathYearHijri} هـ
                     </span>
                   )}
@@ -227,11 +228,11 @@ export default function NarratorDrawer() {
 
               {/* Geography & Schools of Hadith */}
               {(narrator.residencePlaces || narrator.deathPlace) && (
-                <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-2">
-                  <h4 className="text-sm font-bold text-slate-800">🌍 البلدان والرحلة العلمية</h4>
+                <div className="bg-surface-muted rounded-xl p-3.5 border border-line space-y-2">
+                  <h4 className="text-sm font-bold text-ink">🌍 البلدان والرحلة العلمية</h4>
                   {narrator.residencePlaces && (
                     <div>
-                      <span className="text-xs text-slate-500 block mb-1">بلدان الإقامة والرحلة:</span>
+                      <span className="text-xs text-ink-subtle block mb-1">بلدان الإقامة والرحلة:</span>
                       <div className="flex flex-wrap gap-1.5">
                         {narrator.residencePlaces.split(/[،,-]/).map((city, idx) => {
                           const trimmed = city.trim();
@@ -239,7 +240,7 @@ export default function NarratorDrawer() {
                           return (
                             <span
                               key={idx}
-                              className="px-2 py-0.5 bg-white border border-slate-200 rounded-full text-xs text-slate-700 font-medium shadow-2xs"
+                              className="px-2 py-0.5 bg-surface border border-line rounded-full text-xs text-slate-700 font-medium shadow-2xs"
                             >
                               📍 {trimmed}
                             </span>
@@ -249,9 +250,9 @@ export default function NarratorDrawer() {
                     </div>
                   )}
                   {narrator.deathPlace && (
-                    <div className="text-xs text-slate-600 pt-1 border-t border-slate-200/70">
-                      <span className="text-slate-500">بلد الوفاة: </span>
-                      <span className="font-semibold text-slate-800">{narrator.deathPlace}</span>
+                    <div className="text-xs text-ink-muted pt-1 border-t border-line/70">
+                      <span className="text-ink-subtle">بلد الوفاة: </span>
+                      <span className="font-semibold text-ink">{narrator.deathPlace}</span>
                     </div>
                   )}
                 </div>
@@ -261,7 +262,7 @@ export default function NarratorDrawer() {
               {(narrator.uniqueHadithCount != null || narrator.totalNarrationsCount != null) && (
                 <div className="bg-blue-50/60 rounded-xl p-3.5 border border-blue-100 space-y-2">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-bold text-slate-800">📊 إحصائيات المرويات (جوامع الكلم)</h4>
+                    <h4 className="text-sm font-bold text-ink">📊 إحصائيات المرويات (جوامع الكلم)</h4>
                     {narrator.uniqueHadithCount != null && (
                       <span
                         className={`px-2 py-0.5 text-xs font-bold rounded-full ${
@@ -282,15 +283,15 @@ export default function NarratorDrawer() {
                   </div>
                   <div className="grid grid-cols-2 gap-2 pt-1">
                     {narrator.uniqueHadithCount != null && (
-                      <div className="bg-white p-2.5 rounded-lg border border-blue-100 text-center">
+                      <div className="bg-surface p-2.5 rounded-lg border border-blue-100 text-center">
                         <div className="text-lg font-bold text-brand-dark">{narrator.uniqueHadithCount.toLocaleString('ar-EG')}</div>
-                        <div className="text-[11px] text-slate-500">أطراف الأحاديث الفريدة</div>
+                        <div className="text-[11px] text-ink-subtle">أطراف الأحاديث الفريدة</div>
                       </div>
                     )}
                     {narrator.totalNarrationsCount != null && (
-                      <div className="bg-white p-2.5 rounded-lg border border-blue-100 text-center">
+                      <div className="bg-surface p-2.5 rounded-lg border border-blue-100 text-center">
                         <div className="text-lg font-bold text-brand-blue">{narrator.totalNarrationsCount.toLocaleString('ar-EG')}</div>
-                        <div className="text-[11px] text-slate-500">إجمالي الأسانيد والطرق</div>
+                        <div className="text-[11px] text-ink-subtle">إجمالي الأسانيد والطرق</div>
                       </div>
                     )}
                   </div>
@@ -300,18 +301,18 @@ export default function NarratorDrawer() {
               {/* Bio */}
               {narrator.biography && (
                 <div>
-                  <h4 className="text-lg font-semibold text-slate-800 mb-2">ترجمة الراوي</h4>
-                  <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">
+                  <h4 className="text-lg font-semibold text-ink mb-2">ترجمة الراوي</h4>
+                  <p className="text-ink-muted text-sm leading-relaxed whitespace-pre-wrap">
                     {narrator.biography}
                   </p>
                 </div>
               )}
 
               {evidence && (
-                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-2.5">
-                  <span className="text-xs font-semibold text-slate-600">حالة الدليل لحال الراوي:</span>
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-line bg-surface p-2.5">
+                  <span className="text-xs font-semibold text-ink-muted">حالة الدليل لحال الراوي:</span>
                   <EvidenceBadge status={evidence.status} />
-                  <span className="text-xs text-slate-600">{evidence.reason}</span>
+                  <span className="text-xs text-ink-muted">{evidence.reason}</span>
                 </div>
               )}
 
@@ -353,7 +354,7 @@ export default function NarratorDrawer() {
                         </p>
                       )}
                       {aiSummary.status === "ok" ? (
-                        <div className="bg-white p-3 rounded shadow-sm border border-purple-100">
+                        <div className="bg-surface p-3 rounded shadow-sm border border-purple-100">
                           <p className="font-bold text-lg mb-1">«{aiSummary.verbatimQuote}»</p>
                           <p className="text-xs text-purple-600 mb-3">— {aiSummary.sourceBook}</p>
                           <div className="flex gap-2 items-center bg-purple-50 p-2 rounded">
@@ -379,7 +380,12 @@ export default function NarratorDrawer() {
 
               {/* Scholar Evaluations */}
               <div>
-                <h4 className="text-lg font-semibold text-slate-800 mb-3">أقوال الجرح والتعديل</h4>
+                <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <h4 className="text-lg font-semibold text-ink">أقوال الجرح والتعديل</h4>
+                  <Link href="/sources#jarh-tadil" target="_blank" className="text-xs font-semibold text-brand-blue underline">
+                    مصادر الأقوال
+                  </Link>
+                </div>
                 {narrator.evaluations.length > 0 && consensus ? (
                   <>
                     <ConsensusBanner consensus={consensus} />
@@ -389,7 +395,7 @@ export default function NarratorDrawer() {
                           <section key={group.camp} aria-label={CAMP_HEADING[group.camp]}>
                             <h5 className="mb-2 text-sm font-bold text-slate-700">
                               {CAMP_HEADING[group.camp]}{" "}
-                              <span className="font-normal text-slate-500">({group.items.length.toLocaleString("ar-EG")})</span>
+                              <span className="font-normal text-ink-subtle">({group.items.length.toLocaleString("ar-EG")})</span>
                             </h5>
                             <div className="space-y-3">
                               {group.items.map(({ evaluation, index }) => (
@@ -408,7 +414,7 @@ export default function NarratorDrawer() {
                     )}
                   </>
                 ) : (
-                  <p className="text-sm text-slate-500">لا توجد أقوال مسجلة لهذا الراوي.</p>
+                  <p className="text-sm text-ink-subtle">لا توجد أقوال مسجلة لهذا الراوي.</p>
                 )}
               </div>
             </>

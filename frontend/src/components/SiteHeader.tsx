@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { BookOpen, Network, ScrollText, Search, ShieldCheck } from "lucide-react";
+import { BookOpen, Library, ScrollText, Search, ShieldCheck } from "lucide-react";
+import Logo, { LogoMark } from "./Logo";
 import NavLink from "./NavLink";
 
 const NAV_ITEMS = [
@@ -7,6 +8,7 @@ const NAV_ITEMS = [
   { href: "/books", short: "الدواوين", long: "فهرس الدواوين", Icon: BookOpen },
   { href: "/verify", short: "التحقق", long: "تحقق من حديث", Icon: ShieldCheck },
   { href: "/glossary", short: "المصطلحات", long: "المصطلحات", Icon: ScrollText },
+  { href: "/sources", short: "المصادر", long: "المصادر والمنهج", Icon: Library },
 ];
 
 interface SiteHeaderProps {
@@ -27,8 +29,8 @@ export default function SiteHeader({ variant = "default", children }: SiteHeader
     <header
       className={
         isCompact
-          ? "shrink-0 z-30 bg-white border-b border-slate-200"
-          : "sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80"
+          ? "shrink-0 z-30 bg-surface border-b border-line"
+          : "sticky top-0 z-30 bg-surface/90 backdrop-blur-md border-b border-line/80"
       }
     >
       <div
@@ -37,16 +39,14 @@ export default function SiteHeader({ variant = "default", children }: SiteHeader
         }`}
       >
         <Link href="/" className="group flex min-w-0 items-center gap-2.5" aria-label="شجرة الأسانيد الذكية: الرئيسية">
-          <span
-            className={`flex shrink-0 items-center justify-center rounded-xl bg-brand-blue text-brand-teal shadow-xs transition-transform group-hover:scale-105 ${
-              isCompact ? "h-8 w-8" : "h-9 w-9"
-            }`}
-          >
-            <Network className={isCompact ? "h-4 w-4" : "h-5 w-5"} aria-hidden />
+          <span className="transition-transform group-hover:scale-105">
+            <LogoMark size={isCompact ? 32 : 36} />
           </span>
-          <span className={`truncate font-bold text-brand-dark ${isCompact ? "hidden md:inline text-sm" : "hidden sm:inline text-base"}`}>
-            شجرة الأسانيد <span className="text-brand-teal">الذكية</span>
-          </span>
+          <Logo
+            variant="wordmark"
+            size={isCompact ? 32 : 36}
+            className="hidden lg:inline whitespace-nowrap"
+          />
         </Link>
 
         <div className="flex min-w-0 items-center gap-2">
@@ -56,10 +56,10 @@ export default function SiteHeader({ variant = "default", children }: SiteHeader
               <NavLink
                 key={href}
                 href={href}
-                className="flex flex-col items-center gap-0.5 rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-brand-dark sm:flex-row sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm"
+                className="flex flex-col items-center gap-0.5 rounded-lg px-1 min-[360px]:px-2 py-1 text-[11px] font-semibold text-ink-muted transition-colors hover:bg-slate-100 hover:text-brand-dark sm:flex-row sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm"
                 activeClassName="bg-brand-blue/10 text-brand-blue"
               >
-                <Icon className="h-4 w-4 shrink-0 text-brand-teal" aria-hidden />
+                <Icon className="h-4 w-4 shrink-0 text-brand-teal-ink" aria-hidden />
                 <span className="whitespace-nowrap lg:hidden">{short}</span>
                 <span className="hidden whitespace-nowrap lg:inline">{long}</span>
               </NavLink>

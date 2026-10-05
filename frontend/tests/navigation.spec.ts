@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 
 // These pages render without the API, so the checks hold whether or not the backend is running.
-const CONTENT_PAGES = ['/', '/search', '/books', '/verify', '/glossary'];
+const CONTENT_PAGES = ['/', '/search', '/books', '/verify', '/glossary', '/sources'];
 
-const NAV_TARGETS = ['/search', '/books', '/verify', '/glossary'];
+const NAV_TARGETS = ['/search', '/books', '/verify', '/glossary', '/sources'];
 
 for (const path of CONTENT_PAGES) {
   test(`${path} has the shared header with all sections`, async ({ page }) => {
@@ -53,3 +53,23 @@ test('takhreej with fewer than two ids explains what to do', async ({ page }) =>
   await expect(page.getByRole('heading', { name: 'يرجى تحديد حديثين على الأقل للتخريج' })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'التنقل الرئيسي' })).toBeVisible();
 });
+
+// The header holds five sections: they must fit the screen from small phones to wide desktops.
+for (const width of [320, 375, 640, 768, 1024, 1366]) {
+  test(`the header navigation fits a ${width}px screen`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('/sources');
+
+    const edges = await page.locator('nav[aria-label="التنقل الرئيسي"] a').evaluateAll((links) =>
+      links.map((a) => {
+        const r = a.getBoundingClientRect();
+        return { left: r.left, right: r.right };
+      })
+    );
+    expect(edges).toHaveLength(5);
+    for (const { left, right } of edges) {
+      expect(left).toBeGreaterThanOrEqual(0);
+      expect(right).toBeLessThanOrEqual(width);
+    }
+  });
+}

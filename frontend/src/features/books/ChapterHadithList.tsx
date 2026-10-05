@@ -20,22 +20,22 @@ export default function ChapterHadithList({ bookName, chapter }: { bookName: str
 
   return (
     <>
-      <h2 className="mb-4 text-sm font-semibold text-slate-600">الأحاديث ({hadiths.length})</h2>
+      <h2 className="mb-4 text-sm font-semibold text-ink-muted">الأحاديث ({hadiths.length})</h2>
       <ul className="space-y-4">
         {hadiths.map((hadith) => (
           <li key={hadith.id}>
             <Link
               href={`/tree/${hadith.id}`}
-              className="group block rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs transition-all hover:border-brand-teal hover:shadow-md sm:p-5"
+              className="group block rounded-xl border border-line/80 bg-surface p-4 shadow-xs transition-all hover:border-brand-teal hover:shadow-md sm:p-5"
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-semibold text-brand-blue">حديث رقم {hadith.hadithNumber}</span>
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 group-hover:text-brand-blue">
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-ink-subtle group-hover:text-brand-blue">
                   <Network className="h-3.5 w-3.5" aria-hidden />
                   شجرة الإسناد
                 </span>
               </div>
-              <p className="mt-3 whitespace-pre-wrap text-justify font-arabic text-base leading-loose text-slate-800 md:text-lg">
+              <p className="mt-3 whitespace-pre-wrap text-justify font-arabic text-base leading-loose text-ink md:text-lg">
                 {hadith.matnArabic || hadith.matnSnippet}
               </p>
             </Link>

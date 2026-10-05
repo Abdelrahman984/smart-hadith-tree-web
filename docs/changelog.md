@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-05: Logo, theme tokens and the sources page
+
+- **Logo**: the "logo" was a generic lucide icon. There is now an original mark, an isnad tree (a teal root branching into narrator nodes on a navy square): `components/Logo.tsx`, used in the header and footer, plus `app/icon.svg`, `apple-icon.png`, a multi-size `favicon.ico` (the default Next.js icon was replaced) and `viewport.themeColor`. The five unused create-next-app SVGs in `public/` were removed; `public/.gitkeep` stays because the Dockerfile copies `public/`.
+- **Theme tokens** (`globals.css`): `surface`, `surface-muted`, `line`, `ink`, `ink-muted`, `ink-subtle` replace about 300 raw `bg-white`/`border-slate-200`/`text-slate-*` classes (same values, so no visual change). Teal used as text is now `brand-teal-ink` (`#0B7A83`, 5.1:1 on white); the old `#00C2CB` was 2.2:1. The graph legend reads its grade colours from `gradeStyle.ts`. The look stays light; see `docs/design-system.md`.
+- **`/sources`** (new, «المصادر والمنهج»): where the hadith texts, the الجرح والتعديل data and the العلل rules come from, what is taken from each book, the method and the known limits. It lists تهذيب الكمال, Shamela's narrator encyclopedia, تقريب التهذيب, the compilers' shaykh books, طبقات المدلسين, الكواكب النيرات and المختلطين, the six Ilal rules with their severities, and how branches are weighed. Content is in `features/sources/sourcesData.ts` (figures dated 2026-10-05, from `docs/shamela_migration.md` and `docs/ilal.md`). Linked from the header, the footer, the narrator drawer («مصادر الأقوال»), the Ilal panel («مصادر العلل وقواعدها») and the glossary.
+- **Header**: five sections now; the wordmark shows from 1024px and the items shrink below 360px, so it fits from 320px up (tested at six widths).
+- **Footer**: small-print text contrast raised (`slate-500` to `slate-400` on navy).
+- **Tests**: `sources.spec.ts`, and `navigation.spec.ts` covers `/sources` and the header at six widths.
+
+---
+
 ## 2026-10-05: Frontend layout and UI/UX fixes
 
 - **Broken flows**: on `/verify`, «التخريج والعلل» sent a single id to `/takhreej`, which needs two; it now gathers the related narrations first, the same way as «تخريج فوري» on search (`useAutoTakhreej`), and opens the single tree when there are none. The narrator drawer's grade badge was always green, even for كذاب/متروك. One map, `features/narrator-details/utils/gradeStyle.ts`, now colours the drawer, both node types and the legend's grades. On search, the book filter and the count say when they cover only the current page, and they reset on a new search or page. `alert()` was replaced by an inline message.

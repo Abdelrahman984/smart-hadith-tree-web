@@ -70,12 +70,12 @@ export default function GlossaryTerm({ id, children }: { id: string; children: R
         ref={popRef}
         id={popId}
         style={shift ? { transform: `translateX(${shift}px)` } : undefined}
-        className={`absolute start-0 top-full z-50 mt-1 w-64 max-w-[calc(100vw-1rem)] rounded-lg border border-slate-200 bg-white p-2.5 text-start text-xs font-normal leading-relaxed text-slate-700 shadow-lg ${
+        className={`absolute start-0 top-full z-50 mt-1 w-64 max-w-[calc(100vw-1rem)] rounded-lg border border-line bg-surface p-2.5 text-start text-xs font-normal leading-relaxed text-slate-700 shadow-lg ${
           open ? "block" : "hidden group-hover:block"
         }`}
       >
         <span className="block">{entry.definition}</span>
-        <span className="mt-1 block text-[10px] text-slate-500" dir="ltr">
+        <span className="mt-1 block text-[10px] text-ink-subtle" dir="ltr">
           {entry.english} — {entry.englishGloss}
         </span>
         <Link href={`/glossary#${entry.id}`} className="mt-1 inline-block text-[11px] font-semibold text-indigo-700 underline">

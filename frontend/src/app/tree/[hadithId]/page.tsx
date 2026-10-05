@@ -37,13 +37,13 @@ export default async function TreePage({ params }: { params: Params }) {
       <SiteHeader variant="compact" />
 
       {/* Hadith header */}
-      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-start justify-between gap-3 z-10 shadow-sm relative shrink-0">
+      <header className="bg-surface border-b border-line px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-start justify-between gap-3 z-10 shadow-sm relative shrink-0">
         <div className="max-w-3xl min-w-0">
           <h1 className="text-lg sm:text-xl font-bold text-brand-dark mb-1">
             {treeData.bookName} - حديث رقم {treeData.hadithNumber}
           </h1>
           <ClampedText text={treeData.matnArabic} className="text-slate-700 font-arabic text-base sm:text-lg leading-relaxed" />
-          <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
             <span className="font-semibold">حكم الحديث:</span>
             <EvidenceBadge status="insufficient" />
             <span>
@@ -63,7 +63,7 @@ export default async function TreePage({ params }: { params: Params }) {
       </header>
 
       {/* Tree Canvas */}
-      <main id="main-content" className="flex-1 relative bg-slate-50">
+      <main id="main-content" className="flex-1 relative bg-surface-muted">
         <TreeCanvas treeData={treeData} />
         <NarratorDrawer />
       </main>

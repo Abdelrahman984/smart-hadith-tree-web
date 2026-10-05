@@ -68,7 +68,7 @@ const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: Com
     >
       {data.isAnomaly && (
         <div 
-          className="absolute -top-3 -right-3 bg-white rounded-full p-1 shadow border border-red-200" 
+          className="absolute -top-3 -right-3 bg-surface rounded-full p-1 shadow border border-red-200" 
           title={data.anomalyReason}
         >
           <AlertTriangle className="w-5 h-5 text-red-500" />
@@ -76,7 +76,7 @@ const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: Com
       )}
       {data.travelNote && (
         <div
-          className="absolute -bottom-3 -right-3 bg-white rounded-full p-1 shadow border border-sky-200"
+          className="absolute -bottom-3 -right-3 bg-surface rounded-full p-1 shadow border border-sky-200"
           title={data.travelNote}
         >
           <MapPin className="w-4 h-4 text-sky-500" />
@@ -84,7 +84,7 @@ const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: Com
       )}
       {data.hasMatnVariation && (
         <div
-          className="absolute -bottom-3 -left-3 bg-white rounded-full p-1 shadow border border-amber-200"
+          className="absolute -bottom-3 -left-3 bg-surface rounded-full p-1 shadow border border-amber-200"
           title={data.matnVariationSnippet || 'اختلاف باللفظ'}
         >
           <FileDiff className="w-4 h-4 text-amber-500" />
@@ -95,7 +95,7 @@ const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: Com
       <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-transparent !border-none opacity-0 pointer-events-none" />
       
       {visibleBooks.length > 0 && (
-        <div className="absolute -top-3 left-2 flex items-center gap-0.5 bg-white rounded-full px-1.5 py-0.5 shadow-xs border border-slate-200 z-10 whitespace-nowrap">
+        <div className="absolute -top-3 left-2 flex items-center gap-0.5 bg-surface rounded-full px-1.5 py-0.5 shadow-xs border border-line z-10 whitespace-nowrap">
           {visibleBooks.map((book, idx) => {
             const meta = getBookMeta(book);
             return (
@@ -121,17 +121,17 @@ const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: Com
       )}
 
       {data.transmissionTerm && (
-        <div className="text-xs text-slate-500 mb-1 border-b pb-1 mt-2">
+        <div className="text-xs text-ink-subtle mb-1 border-b pb-1 mt-2">
           {data.transmissionTerm}
         </div>
       )}
       
-      <div className="font-bold text-slate-800 text-lg" title={data.fullName || data.narratorName}>
+      <div className="font-bold text-ink text-lg" title={data.fullName || data.narratorName}>
         {data.narratorName}
       </div>
       
       {data.generationTier && (
-        <div className="text-sm text-slate-500 mt-1">
+        <div className="text-sm text-ink-subtle mt-1">
           {data.generationTier}
         </div>
       )}
@@ -146,7 +146,7 @@ const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: Com
         <div className="flex gap-1 justify-center mt-2 flex-wrap">
           {primaryCity && (
             <span
-              className="px-2 py-0.5 text-[10px] font-semibold text-slate-700 bg-slate-100 border border-slate-200 rounded-full"
+              className="px-2 py-0.5 text-[10px] font-semibold text-slate-700 bg-slate-100 border border-line rounded-full"
               title={`بلدان الإقامة: ${data.residencePlaces || 'غير محدد'}${data.deathPlace ? ` | الوفاة: ${data.deathPlace}` : ''}`}
             >
               📍 {primaryCity}

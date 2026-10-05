@@ -21,18 +21,18 @@ export default function ChapterList({ bookName }: { bookName: string }) {
 
   return (
     <>
-      <p className="mb-4 text-sm font-semibold text-slate-600">عدد الأبواب: {chapters.length}</p>
+      <p className="mb-4 text-sm font-semibold text-ink-muted">عدد الأبواب: {chapters.length}</p>
       <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {chapters.map((chapter) => (
           <li key={chapter}>
             <Link
               href={bookHref(bookName, chapter)}
-              className="flex h-full items-center gap-3 rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs transition-all hover:border-brand-teal hover:shadow-md"
+              className="flex h-full items-center gap-3 rounded-xl border border-line/80 bg-surface p-4 shadow-xs transition-all hover:border-brand-teal hover:shadow-md"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-teal/10 text-brand-teal">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-teal/10 text-brand-teal-ink">
                 <ListFilter className="h-4 w-4" aria-hidden />
               </span>
-              <span className="font-semibold text-slate-800">{chapter}</span>
+              <span className="font-semibold text-ink">{chapter}</span>
             </Link>
           </li>
         ))}

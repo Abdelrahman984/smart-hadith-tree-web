@@ -54,7 +54,7 @@ const NarratorNode = ({ id, data, selected }: { id: string; data: NarratorNodeDa
     >
       {data.isAnomaly && (
         <div 
-          className="absolute -top-3 -right-3 bg-white rounded-full p-1 shadow border border-red-200" 
+          className="absolute -top-3 -right-3 bg-surface rounded-full p-1 shadow border border-red-200" 
           title={data.anomalyReason}
         >
           <AlertTriangle className="w-5 h-5 text-red-500" />
@@ -62,7 +62,7 @@ const NarratorNode = ({ id, data, selected }: { id: string; data: NarratorNodeDa
       )}
       {data.travelNote && (
         <div
-          className="absolute -bottom-3 -right-3 bg-white rounded-full p-1 shadow border border-sky-200"
+          className="absolute -bottom-3 -right-3 bg-surface rounded-full p-1 shadow border border-sky-200"
           title={data.travelNote}
         >
           <MapPin className="w-4 h-4 text-sky-500" />
@@ -73,17 +73,17 @@ const NarratorNode = ({ id, data, selected }: { id: string; data: NarratorNodeDa
       <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-transparent !border-none opacity-0 pointer-events-none" />
       
       {data.transmissionTerm && (
-        <div className="text-xs text-slate-500 mb-1 border-b pb-1">
+        <div className="text-xs text-ink-subtle mb-1 border-b pb-1">
           {data.transmissionTerm}
         </div>
       )}
       
-      <div className="font-bold text-slate-800 text-lg" title={data.fullName || data.narratorName}>
+      <div className="font-bold text-ink text-lg" title={data.fullName || data.narratorName}>
         {data.narratorName}
       </div>
       
       {data.generationTier && (
-        <div className="text-sm text-slate-500 mt-1">
+        <div className="text-sm text-ink-subtle mt-1">
           {data.generationTier}
         </div>
       )}
@@ -98,7 +98,7 @@ const NarratorNode = ({ id, data, selected }: { id: string; data: NarratorNodeDa
         <div className="flex gap-1 justify-center mt-2 flex-wrap">
           {primaryCity && (
             <span
-              className="px-2 py-0.5 text-[10px] font-semibold text-slate-700 bg-slate-100 border border-slate-200 rounded-full"
+              className="px-2 py-0.5 text-[10px] font-semibold text-slate-700 bg-slate-100 border border-line rounded-full"
               title={`بلدان الإقامة: ${data.residencePlaces || 'غير محدد'}${data.deathPlace ? ` | الوفاة: ${data.deathPlace}` : ''}`}
             >
               📍 {primaryCity}

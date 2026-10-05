@@ -209,7 +209,7 @@ function SearchContent() {
   const isSearchActive = !!advancedRequest || submittedQuery.trim().length >= MIN_QUERY_LENGTH;
 
   return (
-    <div className="min-h-screen bg-slate-50/60 flex flex-col selection:bg-brand-teal/20 selection:text-brand-dark">
+    <div className="min-h-screen bg-surface-muted/60 flex flex-col selection:bg-brand-teal/20 selection:text-brand-dark">
       <SiteHeader>
         {selectedIds.size > 0 && (
           <div className="hidden sm:flex items-center gap-2 text-xs font-bold bg-brand-blue/10 text-brand-blue px-3 py-1.5 rounded-xl animate-in fade-in">
@@ -226,7 +226,7 @@ function SearchContent() {
           <h1 className="text-2xl sm:text-4xl font-extrabold text-brand-dark tracking-tight">
             ابحث وخرّج الأحاديث النبوية
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-xl mx-auto font-arabic leading-relaxed">
+          <p className="text-xs sm:text-sm text-ink-subtle max-w-xl mx-auto font-arabic leading-relaxed">
             ابحث في المتون والرواة، وحدد الروايات من مختلف كتب السنة لرسم شجرة التخريج المقارنة وبيان مدار الإسناد.
           </p>
         </section>
@@ -252,7 +252,7 @@ function SearchContent() {
               ref={inputRef}
               type="text"
               dir="rtl"
-              className="block w-full py-4 ps-12 pe-28 text-base md:text-lg text-slate-900 placeholder:text-slate-400 bg-white border-2 border-slate-200/90 rounded-2xl shadow-sm hover:border-slate-300 focus:border-brand-teal focus:ring-4 focus:ring-brand-teal/15 outline-none transition-all duration-200"
+              className="block w-full py-4 ps-12 pe-28 text-base md:text-lg text-slate-900 placeholder:text-slate-400 bg-surface border-2 border-line/90 rounded-2xl shadow-sm hover:border-slate-300 focus:border-brand-teal focus:ring-4 focus:ring-brand-teal/15 outline-none transition-all duration-200"
               placeholder="ابحث بمتن الحديث، اسم الراوي، أو المصدر..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -264,7 +264,7 @@ function SearchContent() {
             {/* Right-side Controls (Clear & Shortcut / Loading) */}
             <div className="absolute inset-y-0 end-0 flex items-center pe-3.5 gap-2">
               {isFetching && (
-                <Loader2 className="w-5 h-5 text-brand-teal animate-spin" />
+                <Loader2 className="w-5 h-5 text-brand-teal-ink animate-spin" />
               )}
 
               {query.length > 0 && !isFetching && (
@@ -274,7 +274,7 @@ function SearchContent() {
                     clearSearch();
                     inputRef.current?.focus();
                   }}
-                  className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                  className="p-1 rounded-full text-slate-400 hover:text-ink-muted hover:bg-slate-100 transition-colors cursor-pointer"
                   title="مسح البحث"
                   aria-label="مسح البحث"
                 >
@@ -297,7 +297,7 @@ function SearchContent() {
               </button>
 
               {query.length === 0 && (
-                <kbd className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-1 rounded-md">
+                <kbd className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-ink-subtle bg-slate-100 border border-line px-2 py-1 rounded-md">
                   /
                 </kbd>
               )}
@@ -321,7 +321,7 @@ function SearchContent() {
               * أدخل {MIN_QUERY_LENGTH} أحرف على الأقل ثم اضغط «بحث» أو Enter.
             </p>
           ) : hasUnsubmittedChange ? (
-            <p className="text-xs text-slate-500 mt-2 pr-1 animate-in fade-in">
+            <p className="text-xs text-ink-subtle mt-2 pr-1 animate-in fade-in">
               اضغط «بحث» أو Enter لعرض النتائج.
             </p>
           ) : null}
@@ -332,7 +332,7 @@ function SearchContent() {
           <div className="mb-5 p-3.5 bg-brand-blue/5 border border-brand-blue/20 rounded-2xl flex items-center justify-between gap-3 flex-wrap animate-in fade-in">
             <div className="flex items-center gap-2 flex-wrap text-xs">
               <span className="font-bold text-brand-blue flex items-center gap-1.5">
-                <Sliders className="w-4 h-4 text-brand-teal" />
+                <Sliders className="w-4 h-4 text-brand-teal-ink" />
                 <span>شروط الشاملة النشطة:</span>
               </span>
 
@@ -341,7 +341,7 @@ function SearchContent() {
                 <div className="inline-flex items-center gap-1.5 bg-brand-blue/10 border border-brand-blue/25 text-brand-blue px-2 py-0.5 rounded-lg">
                   <span className="font-black">[و]:</span>
                   {advancedRequest.andPhrases.map((p, i) => (
-                    <span key={i} className="bg-white text-slate-800 px-1.5 py-0.5 rounded font-semibold text-[11px] shadow-2xs">
+                    <span key={i} className="bg-surface text-ink px-1.5 py-0.5 rounded font-semibold text-[11px] shadow-2xs">
                       «{p}»
                     </span>
                   ))}
@@ -353,7 +353,7 @@ function SearchContent() {
                 <div className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/25 text-amber-800 px-2 py-0.5 rounded-lg">
                   <span className="font-black">[أو]:</span>
                   {advancedRequest.orPhrases.map((p, i) => (
-                    <span key={i} className="bg-white text-slate-800 px-1.5 py-0.5 rounded font-semibold text-[11px] shadow-2xs">
+                    <span key={i} className="bg-surface text-ink px-1.5 py-0.5 rounded font-semibold text-[11px] shadow-2xs">
                       «{p}»
                     </span>
                   ))}
@@ -364,7 +364,7 @@ function SearchContent() {
               {(!advancedRequest.andPhrases || advancedRequest.andPhrases.length === 0) &&
                 (!advancedRequest.orPhrases || advancedRequest.orPhrases.length === 0) &&
                 advancedRequest.phrases?.map((p, i) => (
-                  <span key={i} className="bg-white border border-slate-200 text-slate-800 px-2 py-0.5 rounded-md font-semibold shadow-2xs">
+                  <span key={i} className="bg-surface border border-line text-ink px-2 py-0.5 rounded-md font-semibold shadow-2xs">
                     «{p}»
                   </span>
                 ))}
@@ -374,7 +374,7 @@ function SearchContent() {
                 <div className="inline-flex items-center gap-1.5 bg-rose-500/10 border border-rose-500/25 text-rose-700 px-2 py-0.5 rounded-lg">
                   <span className="font-black">[ليس]:</span>
                   {advancedRequest.excludePhrases.map((p, i) => (
-                    <span key={i} className="bg-white text-rose-800 px-1.5 py-0.5 rounded font-semibold text-[11px] shadow-2xs">
+                    <span key={i} className="bg-surface text-rose-800 px-1.5 py-0.5 rounded font-semibold text-[11px] shadow-2xs">
                       «{p}»
                     </span>
                   ))}
@@ -425,7 +425,7 @@ function SearchContent() {
                   </span>
                 </h2>
 
-                <div className="flex items-center gap-2 text-xs border-r border-slate-200 pr-3">
+                <div className="flex items-center gap-2 text-xs border-r border-line pr-3">
                   <button
                     type="button"
                     onClick={selectAllFiltered}
@@ -439,7 +439,7 @@ function SearchContent() {
                       <button
                         type="button"
                         onClick={clearSelection}
-                        className="text-slate-500 hover:text-slate-800 font-semibold cursor-pointer"
+                        className="text-ink-subtle hover:text-ink font-semibold cursor-pointer"
                       >
                         إلغاء التحديد ({selectedIds.size})
                       </button>
@@ -452,7 +452,7 @@ function SearchContent() {
                 <button
                   type="button"
                   onClick={() => setSelectedBook(null)}
-                  className="text-xs text-slate-500 hover:text-brand-blue flex items-center gap-1 cursor-pointer"
+                  className="text-xs text-ink-subtle hover:text-brand-blue flex items-center gap-1 cursor-pointer"
                 >
                   <FilterX className="w-3.5 h-3.5" />
                   <span>إلغاء التصفية</span>
@@ -467,7 +467,7 @@ function SearchContent() {
                   type="button"
                   onClick={runJudge}
                   disabled={isJudging}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-brand-blue bg-white px-3 py-1.5 font-bold text-brand-blue transition-colors hover:bg-blue-50 disabled:opacity-60 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-brand-blue bg-surface px-3 py-1.5 font-bold text-brand-blue transition-colors hover:bg-blue-50 disabled:opacity-60 cursor-pointer"
                   title="يقرأ الذكاء الاصطناعي مقاطع النتائج ويحكم هل تتناول معنى بحثك. خطوة اختيارية."
                 >
                   {isJudging ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Sparkles className="h-3.5 w-3.5" aria-hidden />}
@@ -487,7 +487,7 @@ function SearchContent() {
                 )}
 
                 {activeJudge && (
-                  <span className="text-slate-500">
+                  <span className="text-ink-subtle">
                     حُكم على {Object.values(activeJudge.byId).filter((i) => i.level !== "not-judged").length} من{" "}
                     {filteredResults.length}
                     {activeJudge.status === "partial" && " (بعض النتائج لم يُحكم عليها)"}
@@ -569,7 +569,7 @@ function SearchContent() {
                 </div>
               )}
               {hiddenCount > 0 && (
-                <div className="mb-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                <div className="mb-3 flex items-center gap-2 rounded-xl border border-line bg-surface-muted px-3 py-2 text-xs text-slate-700">
                   <span>
                     تم إخفاء {hiddenCount} نتيجة كلماتها متفرقة بحسب حكم الذكاء الاصطناعي، وقد يخطئ.
                   </span>
@@ -583,10 +583,10 @@ function SearchContent() {
                 </div>
               )}
               {filteredResults.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-slate-200/80 p-8 text-center space-y-3 my-4">
-                  <p className="text-slate-600 text-sm">
+                <div className="bg-surface rounded-2xl border border-line/80 p-8 text-center space-y-3 my-4">
+                  <p className="text-ink-muted text-sm">
                     لا توجد أحاديث مطابقة في كتاب{" "}
-                    <span className="font-bold text-slate-800">«{selectedBook}»</span>.
+                    <span className="font-bold text-ink">«{selectedBook}»</span>.
                   </p>
                   <button
                     type="button"
@@ -625,11 +625,11 @@ function SearchContent() {
                       setPage((p) => Math.max(1, p - 1));
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
-                    className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer shadow-2xs"
+                    className="px-4 py-2 rounded-xl border border-line bg-surface text-xs font-bold text-slate-700 hover:bg-surface-muted disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer shadow-2xs"
                   >
                     الصفحة السابقة
                   </button>
-                  <span className="text-xs font-bold text-slate-600 bg-white border border-slate-200 px-3.5 py-2 rounded-xl shadow-2xs">
+                  <span className="text-xs font-bold text-ink-muted bg-surface border border-line px-3.5 py-2 rounded-xl shadow-2xs">
                     صفحة {page}
                   </span>
                   <button
@@ -639,7 +639,7 @@ function SearchContent() {
                       setPage((p) => p + 1);
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
-                    className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer shadow-2xs"
+                    className="px-4 py-2 rounded-xl border border-line bg-surface text-xs font-bold text-slate-700 hover:bg-surface-muted disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer shadow-2xs"
                   >
                     الصفحة التالية
                   </button>
@@ -679,7 +679,7 @@ export default function SearchPageClient() {
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-brand-teal animate-spin" />
+          <Loader2 className="w-8 h-8 text-brand-teal-ink animate-spin" />
         </div>
       }
     >

@@ -46,13 +46,13 @@ export default function GraphControls({ showWeakOnly, setShowWeakOnly }: GraphCo
   };
 
   return (
-    <Panel position="top-left" className="flex flex-col gap-2 bg-white/90 backdrop-blur p-2 rounded-xl shadow-md border border-slate-200">
+    <Panel position="top-left" className="flex flex-col gap-2 bg-surface/90 backdrop-blur p-2 rounded-xl shadow-md border border-line">
       <button
         onClick={() => setShowWeakOnly(!showWeakOnly)}
         className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
           showWeakOnly 
             ? "bg-red-50 text-red-600 border border-red-200" 
-            : "bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100"
+            : "bg-surface-muted text-slate-700 border border-line hover:bg-slate-100"
         }`}
         title="تظليل الرواة الثقات وإبراز الضعفاء"
       >
@@ -62,7 +62,7 @@ export default function GraphControls({ showWeakOnly, setShowWeakOnly }: GraphCo
 
       <button
         onClick={handleDownload}
-        className="flex items-center gap-2 px-3 py-2 bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-sm font-semibold hover:bg-slate-100 transition-colors"
+        className="flex items-center gap-2 px-3 py-2 bg-surface-muted text-slate-700 border border-line rounded-lg text-sm font-semibold hover:bg-slate-100 transition-colors"
       >
         <Download className="w-4 h-4" />
         <span>تصدير صورة</span>

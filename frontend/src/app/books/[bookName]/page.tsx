@@ -31,7 +31,7 @@ export default async function BookChaptersPage({ params }: { params: Params }) {
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-brand-dark sm:text-3xl">{bookName}</h1>
             {corpusBook && (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-ink-subtle">
                 {corpusBook.author} · <span className="font-latin">{corpusBook.hadithsCount}</span> حديث
               </p>
             )}

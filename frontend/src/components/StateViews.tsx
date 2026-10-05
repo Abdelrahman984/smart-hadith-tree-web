@@ -4,8 +4,8 @@ import { AlertCircle, Loader2, RotateCcw, SearchX } from "lucide-react";
 
 export function LoadingState({ message = "جارٍ التحميل...", className = "" }: { message?: string; className?: string }) {
   return (
-    <div role="status" className={`flex flex-col items-center justify-center gap-3 py-12 text-center text-slate-500 ${className}`}>
-      <Loader2 className="h-7 w-7 animate-spin text-brand-teal" aria-hidden />
+    <div role="status" className={`flex flex-col items-center justify-center gap-3 py-12 text-center text-ink-subtle ${className}`}>
+      <Loader2 className="h-7 w-7 animate-spin text-brand-teal-ink" aria-hidden />
       <p className="text-sm font-medium">{message}</p>
     </div>
   );
@@ -49,12 +49,12 @@ export function ErrorState({ title = "حدث خطأ", message, onRetry, children
 
 export function EmptyState({ title, message, children, className = "" }: { title: string; message?: string; children?: React.ReactNode; className?: string }) {
   return (
-    <div className={`mx-auto my-6 max-w-lg space-y-3 rounded-2xl border border-slate-200 bg-white p-8 text-center ${className}`}>
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+    <div className={`mx-auto my-6 max-w-lg space-y-3 rounded-2xl border border-line bg-surface p-8 text-center ${className}`}>
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-ink-subtle">
         <SearchX className="h-6 w-6" aria-hidden />
       </div>
-      <h2 className="text-base font-bold text-slate-800">{title}</h2>
-      {message && <p className="text-sm leading-relaxed text-slate-600">{message}</p>}
+      <h2 className="text-base font-bold text-ink">{title}</h2>
+      {message && <p className="text-sm leading-relaxed text-ink-muted">{message}</p>}
       {children && <div className="flex flex-wrap items-center justify-center gap-2 pt-1">{children}</div>}
     </div>
   );

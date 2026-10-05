@@ -81,14 +81,14 @@ function TakhreejContent() {
   }
 
   return (
-    <div className="h-screen w-full flex flex-col overflow-hidden bg-slate-50 relative" dir="rtl">
+    <div className="h-screen w-full flex flex-col overflow-hidden bg-surface-muted relative" dir="rtl">
       <SiteHeader variant="compact" />
 
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-3 py-2.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 z-10 shrink-0 shadow-sm">
+      <header className="bg-surface border-b border-line px-3 py-2.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 z-10 shrink-0 shadow-sm">
         <div className="flex items-center gap-3 shrink-0">
           <ReturnToSearchButton variant="button" label="العودة للبحث" />
-          <h1 className="text-lg sm:text-xl font-bold text-slate-800">شجرة التخريج المقارنة</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-ink">شجرة التخريج المقارنة</h1>
         </div>
         
         <div className="flex gap-2 items-center flex-nowrap overflow-x-auto sm:flex-wrap min-w-0 pb-0.5">
@@ -134,29 +134,29 @@ function TakhreejContent() {
         {/* Sidebar for Matn texts */}
         <div
           id="takhreej-sidebar"
-          className={`absolute inset-y-0 left-0 z-20 md:relative md:z-10 transition-all duration-300 ease-in-out border-r border-slate-200 bg-white flex flex-col overflow-hidden shadow-xl md:shadow-none ${isSidebarOpen ? 'w-full sm:w-96' : 'w-0 border-r-0'}`}
+          className={`absolute inset-y-0 left-0 z-20 md:relative md:z-10 transition-all duration-300 ease-in-out border-r border-line bg-surface flex flex-col overflow-hidden shadow-xl md:shadow-none ${isSidebarOpen ? 'w-full sm:w-96' : 'w-0 border-r-0'}`}
         >
           <div className="flex-1 overflow-y-auto p-4 space-y-5 min-w-[100vw] sm:min-w-[24rem]">
             <div className="flex items-center justify-between md:hidden">
-              <span className="text-sm font-bold text-slate-800">المتون والعلل</span>
+              <span className="text-sm font-bold text-ink">المتون والعلل</span>
               <button
                 type="button"
                 onClick={() => setIsSidebarOpen(false)}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-ink-muted hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-4 h-4" aria-hidden />
                 <span>إغلاق والعودة للشجرة</span>
               </button>
             </div>
             {data.calculatedGrade && (
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
-                <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2 text-sm">
+              <div className="bg-surface-muted border border-line rounded-xl p-3.5">
+                <h3 className="font-bold text-ink mb-1 flex items-center gap-2 text-sm">
                   <span>التقدير الآلي للطرق:</span>
-                  <span className="text-slate-800 bg-slate-200/70 px-2 py-0.5 rounded-md">{data.calculatedGrade}</span>
+                  <span className="text-ink bg-slate-200/70 px-2 py-0.5 rounded-md">{data.calculatedGrade}</span>
                 </h3>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
                   <EvidenceBadge status="verify" />
-                  <span className="text-[11px] text-slate-800">
+                  <span className="text-[11px] text-ink">
                     تقدير آلي من الأسانيد المسجلة وليس حكماً معتمداً؛ للحكم المعتمد راجع{" "}
                     <a href="https://dorar.net/hadith" target="_blank" rel="noopener noreferrer" className="font-semibold underline">
                       الدرر السنية
@@ -176,13 +176,13 @@ function TakhreejContent() {
             <div className="flex rounded-lg bg-slate-100 p-1 text-sm font-semibold">
               <button
                 onClick={() => setSidebarTab("mutun")}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 transition-colors cursor-pointer ${sidebarTab === "mutun" ? "bg-white text-brand-blue shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 transition-colors cursor-pointer ${sidebarTab === "mutun" ? "bg-surface text-brand-blue shadow-sm" : "text-ink-subtle hover:text-slate-700"}`}
               >
                 <BookOpen className="w-4 h-4" /> المتون
               </button>
               <button
                 onClick={() => setSidebarTab("ilal")}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 transition-colors cursor-pointer ${sidebarTab === "ilal" ? "bg-white text-brand-blue shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 transition-colors cursor-pointer ${sidebarTab === "ilal" ? "bg-surface text-brand-blue shadow-sm" : "text-ink-subtle hover:text-slate-700"}`}
               >
                 <ShieldAlert className="w-4 h-4" /> العلل
                 {data.ilalReport && countVisibleFindings(data.ilalReport.findings) > 0 && (
@@ -196,16 +196,16 @@ function TakhreejContent() {
             {sidebarTab === "ilal" && (
               data.ilalReport
                 ? <IlalPanel report={data.ilalReport} />
-                : <p className="text-sm text-slate-500">لا يتوفر فحص للعلل لهذه الطرق.</p>
+                : <p className="text-sm text-ink-subtle">لا يتوفر فحص للعلل لهذه الطرق.</p>
             )}
 
             {sidebarTab === "mutun" && (<>
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <div className="flex items-center gap-2">
                 <BookOpen className="w-5 h-5 text-brand-blue" />
-                <h2 className="font-bold text-base text-slate-800">متون الروايات</h2>
+                <h2 className="font-bold text-base text-ink">متون الروايات</h2>
               </div>
-              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">
+              <span className="text-xs bg-slate-100 text-ink-muted px-2 py-0.5 rounded-full font-semibold">
                 {data.sources.length} {data.sources.length === 1 ? 'رواية' : 'روايات'}
               </span>
             </div>
@@ -214,7 +214,7 @@ function TakhreejContent() {
               {data.sources.map((source, idx) => {
                 const meta = getBookMeta(source.bookName);
                 return (
-                  <div key={idx} className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/80 space-y-2.5">
+                  <div key={idx} className="bg-surface-muted/70 p-3.5 rounded-xl border border-line/80 space-y-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-bold ${meta.badgeClass}`}>
                         <span
@@ -248,7 +248,7 @@ function TakhreejContent() {
                         </button>
                       </div>
                     </div>
-                    <p className="text-slate-800 leading-loose font-arabic text-sm text-justify whitespace-pre-wrap select-text">
+                    <p className="text-ink leading-loose font-arabic text-sm text-justify whitespace-pre-wrap select-text">
                       {source.matnArabic || source.matnSnippet}
                     </p>
                   </div>
@@ -264,7 +264,7 @@ function TakhreejContent() {
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           aria-controls="takhreej-sidebar"
           aria-expanded={isSidebarOpen}
-          className={`absolute top-1/2 -translate-y-1/2 bg-white border border-l-0 border-slate-200 p-2 rounded-r-lg shadow-md z-20 text-slate-500 hover:text-brand-blue transition-all duration-300 ease-in-out items-center justify-center gap-1 cursor-pointer ${
+          className={`absolute top-1/2 -translate-y-1/2 bg-surface border border-l-0 border-line p-2 rounded-r-lg shadow-md z-20 text-ink-subtle hover:text-brand-blue transition-all duration-300 ease-in-out items-center justify-center gap-1 cursor-pointer ${
             isSidebarOpen ? "hidden md:flex md:left-96" : "flex left-0"
           }`}
           title={isSidebarOpen ? "إخفاء المتون" : "إظهار المتون"}

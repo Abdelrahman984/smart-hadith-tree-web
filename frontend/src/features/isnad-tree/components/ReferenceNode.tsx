@@ -39,7 +39,7 @@ const ReferenceNode = ({ data, selected }: { data: ReferenceNodeData; selected?:
       />
 
       {/* Top Header Tag */}
-      <div className="flex items-center justify-between gap-1 pb-2 mb-2 border-b border-slate-200/80">
+      <div className="flex items-center justify-between gap-1 pb-2 mb-2 border-b border-line/80">
         <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: meta.color }}>
           <BookOpen className="w-3.5 h-3.5" />
           <span>المصدر والمُخَرِّج</span>
@@ -71,7 +71,7 @@ const ReferenceNode = ({ data, selected }: { data: ReferenceNodeData; selected?:
       </div>
 
       {/* Book Name */}
-      <div className="text-xs font-medium text-slate-600 mb-1">
+      <div className="text-xs font-medium text-ink-muted mb-1">
         {data.bookName}
       </div>
 
@@ -84,12 +84,12 @@ const ReferenceNode = ({ data, selected }: { data: ReferenceNodeData; selected?:
       </div>
 
       {/* Historical Two-Part Name Subtitle (e.g. محمد بن إسماعيل) */}
-      <div className="text-xs text-slate-500 font-arabic truncate" title={data.fullName}>
+      <div className="text-xs text-ink-subtle font-arabic truncate" title={data.fullName}>
         ({data.twoPartName || data.fullName || data.famousName})
       </div>
 
       {data.generationTier && (
-        <div className="text-[11px] text-slate-500 mt-1.5 pt-1 border-t border-slate-200/50">
+        <div className="text-[11px] text-ink-subtle mt-1.5 pt-1 border-t border-line/50">
           {data.generationTier}
         </div>
       )}

@@ -49,7 +49,7 @@ export default function IlalLauncher({ hadithId }: { hadithId: string }) {
         type="button"
         onClick={open}
         aria-haspopup="dialog"
-        className="flex items-center gap-2 rounded-lg border border-brand-blue/30 bg-white px-3 py-2 text-sm font-semibold text-brand-blue shadow-sm transition-colors hover:bg-brand-blue hover:text-white cursor-pointer"
+        className="flex items-center gap-2 rounded-lg border border-brand-blue/30 bg-surface px-3 py-2 text-sm font-semibold text-brand-blue shadow-sm transition-colors hover:bg-brand-blue hover:text-white cursor-pointer"
       >
         <ShieldQuestion className="h-4 w-4" />
         فحص العلل
@@ -70,14 +70,14 @@ export default function IlalLauncher({ hadithId }: { hadithId: string }) {
           role="dialog"
           aria-modal="true"
           aria-labelledby="ilal-panel-title"
-          className="fixed top-0 bottom-0 end-0 z-50 flex w-full sm:w-[26rem] flex-col border-s border-slate-200 bg-white shadow-2xl outline-none animate-in slide-in-from-left duration-200"
+          className="fixed top-0 bottom-0 end-0 z-50 flex w-full sm:w-[26rem] flex-col border-s border-line bg-surface shadow-2xl outline-none animate-in slide-in-from-left duration-200"
           dir="rtl"
         >
-          <div className="flex items-center justify-between border-b border-slate-200 p-4">
-            <h2 id="ilal-panel-title" className="text-lg font-bold text-slate-800">علل الحديث</h2>
+          <div className="flex items-center justify-between border-b border-line p-4">
+            <h2 id="ilal-panel-title" className="text-lg font-bold text-ink">علل الحديث</h2>
             <button
               onClick={close}
-              className="rounded-full p-1 text-slate-500 hover:bg-slate-100 cursor-pointer"
+              className="rounded-full p-1 text-ink-subtle hover:bg-slate-100 cursor-pointer"
               aria-label="إغلاق لوحة العلل"
             >
               <X size={20} />
@@ -85,7 +85,7 @@ export default function IlalLauncher({ hadithId }: { hadithId: string }) {
           </div>
           <div className="flex-1 overflow-y-auto p-4">
             {isLoading && (
-              <div className="flex items-center justify-center gap-2 py-10 text-slate-500">
+              <div className="flex items-center justify-center gap-2 py-10 text-ink-subtle">
                 <Loader2 className="h-5 w-5 animate-spin" /> جاري جمع الطرق وفحصها...
               </div>
             )}

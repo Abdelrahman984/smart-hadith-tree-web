@@ -17,7 +17,7 @@ export default function NotFound() {
           <Link href="/search" className="rounded-xl bg-brand-blue px-4 py-2 text-sm font-bold text-white hover:bg-brand-dark">
             البحث
           </Link>
-          <Link href="/books" className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
+          <Link href="/books" className="rounded-xl border border-line bg-surface px-4 py-2 text-sm font-bold text-slate-700 hover:bg-surface-muted">
             فهرس الدواوين
           </Link>
         </EmptyState>

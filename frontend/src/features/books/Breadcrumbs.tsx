@@ -10,7 +10,7 @@ export interface Crumb {
 export default function Breadcrumbs({ items }: { items: Crumb[] }) {
   return (
     <nav aria-label="مسار التصفح" className="mb-4 text-sm">
-      <ol className="flex flex-wrap items-center gap-1 text-slate-500">
+      <ol className="flex flex-wrap items-center gap-1 text-ink-subtle">
         {items.map((item, i) => (
           <li key={i} className="flex min-w-0 items-center gap-1">
             {i > 0 && <ChevronLeft className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />}

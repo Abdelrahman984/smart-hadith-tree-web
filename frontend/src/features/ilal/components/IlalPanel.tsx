@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { ShieldAlert, ShieldCheck, GitFork, FileDiff, ChevronDown } from "lucide-react";
 import { IlalReportDto } from "@/types/api";
@@ -35,9 +36,9 @@ export default function IlalPanel({ report }: IlalPanelProps) {
   const renderGroups = (list: typeof groups) =>
     list.map((group) => (
       <section key={group.type} className="space-y-2">
-        <h4 className="border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
+        <h4 className="border-b border-slate-100 pb-1 text-sm font-bold text-ink">
           <GlossaryTerm id={ILLAH_TYPE_GLOSSARY_ID[group.type]}>{ILLAH_TYPE_LABELS[group.type]}</GlossaryTerm>
-          <span className="ms-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+          <span className="ms-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-ink-muted">
             {group.items.length}
           </span>
         </h4>
@@ -63,16 +64,16 @@ export default function IlalPanel({ report }: IlalPanelProps) {
               className={`cursor-pointer rounded-xl border p-3 transition-shadow ${style.card} ${isActive ? "ring-2 ring-brand-blue shadow-md" : "hover:shadow-sm"}`}
             >
               <div className="mb-1.5 flex items-center justify-between gap-2">
-                <span className="text-sm font-bold text-slate-800">{finding.titleAr}</span>
+                <span className="text-sm font-bold text-ink">{finding.titleAr}</span>
                 <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${style.badge}`}>
                   <GlossaryTerm id={SEVERITY_GLOSSARY_ID[finding.severity]}>{style.label}</GlossaryTerm>
                 </span>
               </div>
               <p className="text-xs leading-relaxed text-slate-700">{finding.evidenceAr}</p>
 
-              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500">
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] text-ink-subtle">
                 {labels.map((l) => (
-                  <span key={l} className="rounded bg-white/80 px-1.5 py-0.5 border border-slate-200">{l}</span>
+                  <span key={l} className="rounded bg-surface/80 px-1.5 py-0.5 border border-line">{l}</span>
                 ))}
                 <EvidenceBadge status="verify" compact />
                 <span className="ms-auto" title="درجة الثقة في الاستنتاج الآلي">
@@ -123,7 +124,7 @@ export default function IlalPanel({ report }: IlalPanelProps) {
           </h4>
           <div className="flex flex-wrap gap-1.5">
             {report.madars.slice(0, 6).map((m) => (
-              <span key={m.narratorId} className="rounded-full border border-amber-200 bg-white px-2 py-0.5 text-xs text-amber-900">
+              <span key={m.narratorId} className="rounded-full border border-amber-200 bg-surface px-2 py-0.5 text-xs text-amber-900">
                 {m.narratorName} <span className="opacity-60">({m.branchCount} فروع)</span>
               </span>
             ))}
@@ -138,7 +139,7 @@ export default function IlalPanel({ report }: IlalPanelProps) {
         <div className="space-y-2">
           <button
             onClick={() => setShowLow(!showLow)}
-            className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+            className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs font-semibold text-ink-muted hover:bg-surface-muted"
           >
             <span>
               ملاحظات منخفضة الثقة
@@ -152,8 +153,11 @@ export default function IlalPanel({ report }: IlalPanelProps) {
 
       {report.findings.length > 0 && <IlalAiExplanation report={report} />}
 
-      <p className="text-[10px] leading-relaxed text-slate-500">
-        نتائج آلية مبنية على قواعد المحدثين في التدليس والاختلاط واللقاء والمخالفة، تُعين المحقق ولا تغني عن نظره في كتب العلل.
+      <p className="text-[10px] leading-relaxed text-ink-subtle">
+        نتائج آلية مبنية على قواعد المحدثين في التدليس والاختلاط واللقاء والمخالفة، تُعين المحقق ولا تغني عن نظره في كتب العلل.{" "}
+        <Link href="/sources#ilal" target="_blank" className="font-semibold text-brand-blue underline">
+          مصادر العلل وقواعدها
+        </Link>
       </p>
     </div>
   );

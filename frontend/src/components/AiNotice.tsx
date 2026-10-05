@@ -8,7 +8,7 @@ const DORAR_HADITH_URL = "https://dorar.net/hadith";
  */
 export default function AiNotice({ className = "" }: { className?: string }) {
   return (
-    <div className={`rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-[11px] leading-relaxed text-slate-600 ${className}`}>
+    <div className={`rounded-lg border border-line bg-surface-muted p-2.5 text-[11px] leading-relaxed text-ink-muted ${className}`}>
       <p className="flex items-start gap-1.5">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
         <span>

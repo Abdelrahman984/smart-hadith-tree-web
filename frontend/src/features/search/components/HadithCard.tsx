@@ -33,7 +33,7 @@ const JUDGE_UI: Record<SearchJudgeLevel, { label: string; className: string }> =
   match: { label: "يطابق البحث", className: "bg-emerald-50 text-emerald-800 border-emerald-200" },
   partial: { label: "يطابق جزئياً", className: "bg-amber-50 text-amber-800 border-amber-200" },
   scattered: { label: "كلمات متفرقة", className: "bg-rose-50 text-rose-800 border-rose-200" },
-  "not-judged": { label: "لم يُحكم عليه", className: "bg-slate-50 text-slate-600 border-slate-200" },
+  "not-judged": { label: "لم يُحكم عليه", className: "bg-surface-muted text-ink-muted border-line" },
 };
 
 function relevanceColor(percent: number) {
@@ -76,10 +76,10 @@ export default function HadithCard({
   return (
     <article
       onClick={handleCardClick}
-      className={`group relative bg-white rounded-2xl p-5 border transition-all duration-200 cursor-pointer select-none ${
+      className={`group relative bg-surface rounded-2xl p-5 border transition-all duration-200 cursor-pointer select-none ${
         isSelected
           ? "border-brand-blue ring-2 ring-brand-blue/30 bg-blue-50/20 shadow-md"
-          : "border-slate-200/80 hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5"
+          : "border-line/80 hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5"
       }`}
       style={{
         borderRightWidth: "4px",
@@ -104,7 +104,7 @@ export default function HadithCard({
             {isSelected ? (
               <CheckSquare className="w-5 h-5 text-brand-blue fill-brand-blue/15" />
             ) : (
-              <Square className="w-5 h-5 text-slate-300 hover:text-slate-500 transition-colors" />
+              <Square className="w-5 h-5 text-slate-300 hover:text-ink-subtle transition-colors" />
             )}
           </button>
 
@@ -117,14 +117,14 @@ export default function HadithCard({
           </span>
 
           {/* Hadith Number */}
-          <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">
+          <span className="text-xs font-semibold text-ink-subtle bg-slate-100 px-2 py-1 rounded-lg">
             حديث #{hadith.hadithNumber}
           </span>
 
           {/* Chapter */}
           {hadith.chapter && (
             <span
-              className="text-xs text-slate-600 bg-slate-50 border border-slate-200/70 px-2.5 py-1 rounded-lg font-medium truncate max-w-xs"
+              className="text-xs text-ink-muted bg-surface-muted border border-line/70 px-2.5 py-1 rounded-lg font-medium truncate max-w-xs"
               title={hadith.chapter}
             >
               <HighlightedText text={hadith.chapter} query={searchQuery} phrases={highlightPhrases} />
@@ -140,7 +140,7 @@ export default function HadithCard({
             className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-colors cursor-pointer border ${
               copied
                 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                : "bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200/80"
+                : "bg-surface-muted hover:bg-slate-100 text-ink-muted border-line/80"
             }`}
             title="نسخ نص الحديث كاملاً"
           >
@@ -151,7 +151,7 @@ export default function HadithCard({
               </>
             ) : (
               <>
-                <Copy className="w-3.5 h-3.5 text-slate-500" />
+                <Copy className="w-3.5 h-3.5 text-ink-subtle" />
                 <span>نسخ</span>
               </>
             )}
@@ -173,7 +173,7 @@ export default function HadithCard({
             <div className={`h-full rounded-full ${relevanceColor(hadith.relevancePercent)}`} style={{ width: `${hadith.relevancePercent}%` }} />
           </div>
           <span className="font-bold text-slate-700">{hadith.relevancePercent}%</span>
-          {hadith.relevanceReason && <span className="text-slate-500">{hadith.relevanceReason}</span>}
+          {hadith.relevanceReason && <span className="text-ink-subtle">{hadith.relevanceReason}</span>}
         </div>
       )}
 
@@ -192,7 +192,7 @@ export default function HadithCard({
       {/* Matn Content */}
       <div className="pt-3.5">
         <p
-          className={`text-slate-800 text-base md:text-lg leading-loose font-arabic text-justify select-text whitespace-pre-wrap ${
+          className={`text-ink text-base md:text-lg leading-loose font-arabic text-justify select-text whitespace-pre-wrap ${
             !isExpanded && isLongText ? "line-clamp-4" : ""
           }`}
         >
@@ -231,7 +231,7 @@ export default function HadithCard({
               <span>✓ محدد للتخريج المقارن</span>
             </span>
           ) : (
-            <span className="text-slate-500">انقر على البطاقة لتحديد الحديث للمقارنة</span>
+            <span className="text-ink-subtle">انقر على البطاقة لتحديد الحديث للمقارنة</span>
           )}
         </div>
 
@@ -243,7 +243,7 @@ export default function HadithCard({
               e.stopPropagation();
               onOpenSingleTree(hadith.id);
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-ink-muted hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
             title="معاينة إسناد هذا الكتاب منفرداً"
           >
             <Network className="w-3.5 h-3.5 text-slate-400" />

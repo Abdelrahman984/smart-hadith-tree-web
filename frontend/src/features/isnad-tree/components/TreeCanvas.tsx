@@ -216,7 +216,7 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
   return (
     <div
       ref={containerRef}
-      className={`absolute inset-0 bg-slate-50 transition-opacity duration-150 ${phase === "ready" ? "opacity-100" : "opacity-0"}`}
+      className={`absolute inset-0 bg-surface-muted transition-opacity duration-150 ${phase === "ready" ? "opacity-100" : "opacity-0"}`}
       dir="ltr"
     >
       <ReactFlow
@@ -235,7 +235,7 @@ export default function TreeCanvas({ treeData, narratorsTooltips }: TreeCanvasPr
         }}
         fitView
         attributionPosition="bottom-right"
-        className="bg-slate-50"
+        className="bg-surface-muted"
       >
         <GraphControls showWeakOnly={showWeakOnly} setShowWeakOnly={setShowWeakOnly} />
         <BookLegend activeBooks={[treeData.bookName]} />

@@ -20,7 +20,7 @@ export default function SearchBookFilters({
 
   return (
     <div className="flex items-center gap-2 overflow-x-auto py-1 text-xs">
-      <span className="text-slate-500 shrink-0 font-medium ml-1">
+      <span className="text-ink-subtle shrink-0 font-medium ml-1">
         {isPaged ? "تصفية نتائج هذه الصفحة بالمصدر:" : "تصفية بالمصدر:"}
       </span>
       
@@ -31,13 +31,13 @@ export default function SearchBookFilters({
         className={`px-3 py-1.5 rounded-full font-semibold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 border ${
           selectedBook === null
             ? "bg-brand-blue text-white border-brand-blue shadow-xs"
-            : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+            : "bg-surface text-ink-muted border-line hover:bg-slate-100"
         }`}
       >
         <span>الكل</span>
         <span
           className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-            selectedBook === null ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+            selectedBook === null ? "bg-surface/20 text-white" : "bg-slate-100 text-ink-subtle"
           }`}
         >
           {totalCount}
@@ -56,7 +56,7 @@ export default function SearchBookFilters({
             className={`px-3 py-1.5 rounded-full font-semibold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 border ${
               isSelected
                 ? "bg-slate-900 text-white border-slate-900 shadow-xs"
-                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                : "bg-surface text-slate-700 border-line hover:bg-slate-100"
             }`}
           >
             <span
@@ -66,7 +66,7 @@ export default function SearchBookFilters({
             <span>{b.name}</span>
             <span
               className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                isSelected ? "bg-surface/20 text-white" : "bg-slate-100 text-ink-subtle"
               }`}
             >
               {b.count}

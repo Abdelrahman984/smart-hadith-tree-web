@@ -19,7 +19,7 @@ export default function Error({ error, retry }: { error: Error & { digest?: stri
           message="تعذر الاتصال بالخادم أو حدث خطأ غير متوقع. تأكد من تشغيل الخادم ثم أعد المحاولة."
           onRetry={() => retry()}
         >
-          <Link href="/" className="rounded-xl border border-rose-200 bg-white px-4 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100">
+          <Link href="/" className="rounded-xl border border-rose-200 bg-surface px-4 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100">
             الصفحة الرئيسية
           </Link>
         </ErrorState>
