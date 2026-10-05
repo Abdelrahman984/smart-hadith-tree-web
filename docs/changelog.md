@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-05: Tree and takhreej pages, step 4b: matns tied to the graph, shawahid
+
+- **Matn cards act on the graph.** A card's book badge highlights that book's routes (and the card gets a ring); «الأصل» marks the first route; every other card has «قارن بالأصل», which shows a word-level comparison under it with the same `MatnDiffView` the Ilal findings use (additions in green, omissions struck through, similarity %).
+- **The comparison cuts the isnad first.** `utils/matnDiff.ts` is a TypeScript port of the server's `MatnText.ExtractBody` / `NormalizeForComparison` and `MatnAligner` (LCS), so the browser's diff aligns the same words the Ilal rules do; without it two different isnads would drown the matn. Its tests reuse the expected strings of the server's `MatnAlignerTests.cs`; keep the two in step.
+- **Turuq and shawahid** (`utils/groupSources.ts`): a narration whose chain ends at another Companion than most is shown apart under «الشواهد» with «شاهد: <الصحابي>», marked «شاهد» on its chip, and counted «(منها شاهد)» in the summary. This is display only: the tree, the madar and the Ilal findings still treat it as a route (the separation is a server change, backlog §3).
+- **The toolbar no longer covers the first row of cards**: the fit reserves its height as it already reserved the legend's width.
+- **Tests**: 129 in all (the diff port against the server's cases, grouping, the matn cards, shawahid), and the fixture API has a witness narration (`ids=h1,h2,h4`).
+
+---
+
 ## 2026-10-05: Tree and takhreej pages, step 4a: one toolbar
 
 - **`GraphToolbar`** replaces the weak-highlight/export panel, the React Flow zoom controls and the legend's own collapsed button: find, «إبراز الضعفاء», card detail, minimap, legend, zoom in/out/fit and export are one bar (icon buttons with labels for screen readers and tooltips, scrolling sideways on a phone).

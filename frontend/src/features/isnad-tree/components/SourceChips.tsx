@@ -13,12 +13,14 @@ interface SourceChipsProps {
   sources: ComparativeHadithSourceDto[];
   /** Canonical name of the book highlighted on the graph, if any. */
   focusBook: string | null;
+  /** Narrations through another Companion (shawahid), marked on their chip. */
+  shawahidIds?: Set<string>;
   onSelect: (source: ComparativeHadithSourceDto) => void;
   onRemove: (source: ComparativeHadithSourceDto) => void;
 }
 
 /** One chip per compared narration: select it to highlight its book's routes, or remove it from the comparison. */
-export default function SourceChips({ sources, focusBook, onSelect, onRemove }: SourceChipsProps) {
+export default function SourceChips({ sources, focusBook, shawahidIds, onSelect, onRemove }: SourceChipsProps) {
   const [showAll, setShowAll] = useState(false);
   const shown = showAll ? sources : sources.slice(0, MAX_VISIBLE);
   const canRemove = sources.length > MIN_SOURCES;
@@ -51,6 +53,11 @@ export default function SourceChips({ sources, focusBook, onSelect, onRemove }: 
               <span>{source.bookName}</span>
               <span className="opacity-50">|</span>
               <span>{source.hadithNumber}</span>
+              {shawahidIds?.has(source.hadithId) && (
+                <span className="rounded-full bg-purple-100 px-1.5 text-[10px] font-bold text-purple-800" title="رواية عن صحابي آخر">
+                  شاهد
+                </span>
+              )}
             </button>
             <button
               type="button"

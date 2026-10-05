@@ -14,6 +14,7 @@ import SourceChips from "@/features/isnad-tree/components/SourceChips";
 import TakhreejSummary from "@/features/isnad-tree/components/TakhreejSummary";
 import { IlalTab, MatnTab } from "@/features/isnad-tree/components/TakhreejTabs";
 import { useTakhreej } from "@/features/isnad-tree/hooks/useTakhreej";
+import { groupSourcesByCompanion } from "@/features/isnad-tree/utils/groupSources";
 import { takhreejTitle } from "@/features/isnad-tree/utils/takhreejTitle";
 import { useGraphViewStore } from "@/features/isnad-tree/store/useGraphViewStore";
 import { useWorkspaceStore } from "@/features/isnad-tree/store/useWorkspaceStore";
@@ -96,8 +97,11 @@ function TakhreejContent() {
     );
   }
 
+  const groups = groupSourcesByCompanion(data);
+  const shawahidIds = new Set(groups.shawahid.map((w) => w.source.hadithId));
+
   const tabs: WorkspaceTab[] = [
-    { id: "mutun", label: "المتون", Icon: BookOpen, render: () => <MatnTab data={data} /> },
+    { id: "mutun", label: "المتون", Icon: BookOpen, render: () => <MatnTab data={data} groups={groups} /> },
     { id: "ilal", label: "العلل", Icon: ShieldAlert, badge: <IlalTabBadge />, render: () => <IlalTab data={data} /> },
   ];
 
@@ -109,10 +113,10 @@ function TakhreejContent() {
             <ReturnToSearchButton variant="button" label="العودة للبحث" />
             <h1 className="text-lg sm:text-xl font-bold text-ink">شجرة التخريج المقارنة</h1>
           </div>
-          <SourceChips sources={data.sources} focusBook={focusBook} onSelect={handleSelectSource} onRemove={handleRemoveSource} />
+          <SourceChips sources={data.sources} focusBook={focusBook} shawahidIds={shawahidIds} onSelect={handleSelectSource} onRemove={handleRemoveSource} />
         </header>
       }
-      summary={<TakhreejSummary data={data} onOpenIlal={() => openTab("ilal")} />}
+      summary={<TakhreejSummary data={data} onOpenIlal={() => openTab("ilal")} shawahidCount={groups.shawahid.length} />}
       canvas={<ComparativeTreeCanvas treeData={data} />}
       tabs={tabs}
       defaultTab="mutun"

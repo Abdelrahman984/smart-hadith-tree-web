@@ -199,6 +199,22 @@ test.describe('edge labels on a big graph', () => {
   });
 });
 
+test.describe('the toolbar and the graph', () => {
+  test('no narrator card sits under the toolbar', async ({ page }) => {
+    await page.goto('/takhreej?ids=h1,h2,h4');
+    await graphReady(page);
+
+    const covered = await page.evaluate(() => {
+      const bar = document.querySelector('[role=toolbar]')!.getBoundingClientRect();
+      return [...document.querySelectorAll('.react-flow__node')].filter((n) => {
+        const r = n.getBoundingClientRect();
+        return r.left < bar.right && r.right > bar.left && r.top < bar.bottom && r.bottom > bar.top;
+      }).length;
+    });
+    expect(covered).toBe(0);
+  });
+});
+
 test.describe('the legend and a big graph', () => {
   test('no narrator card sits under the open legend', async ({ page }) => {
     await page.goto('/takhreej?ids=big,h1');
@@ -248,10 +264,15 @@ test.describe('the toolbar', () => {
 
   test('zoom buttons change the view and fit brings it back', async ({ page }) => {
     const viewport = page.locator('.react-flow__viewport');
+    const fit = toolbar(page).getByRole('button', { name: 'ملاءمة الشجرة للشاشة' });
+
+    await fit.click();
+    await page.waitForTimeout(300);
     const fitted = await viewport.getAttribute('style');
+
     await toolbar(page).getByRole('button', { name: 'تكبير' }).click();
     await expect.poll(() => viewport.getAttribute('style')).not.toBe(fitted);
-    await toolbar(page).getByRole('button', { name: 'ملاءمة الشجرة للشاشة' }).click();
+    await fit.click();
     await expect.poll(() => viewport.getAttribute('style')).toBe(fitted);
   });
 
@@ -363,7 +384,8 @@ test.describe('the source chips', () => {
   });
 
   test('a chip highlights that book\'s routes and shows its matn', async ({ page }) => {
-    const chip = page.getByRole('button', { name: /صحيح مسلم/ }).filter({ hasText: '1907' });
+    const header = page.locator('header', { has: page.getByRole('heading', { name: 'شجرة التخريج المقارنة' }) });
+    const chip = header.getByRole('button', { name: /صحيح مسلم/ }).filter({ hasText: '1907' });
     await chip.click();
     await expect(chip).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByRole('button', { name: /إبراز: صحيح مسلم/ })).toBeVisible();
@@ -375,6 +397,61 @@ test.describe('the source chips', () => {
     await expect(page).toHaveURL(/ids=h1,h3$/);
     await expect(page.getByRole('region', { name: 'ملخص التخريج' })).toContainText('2 روايات من 2 كتب');
     await expect(page.getByRole('button', { name: /إزالة/ }).first()).toBeDisabled();
+  });
+});
+
+test.describe('the matn cards', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/takhreej?ids=h1,h2,h3');
+    await graphReady(page);
+  });
+
+  test('a card\'s book button highlights that book\'s routes', async ({ page }) => {
+    const button = page.locator('#matn-card-h2').getByRole('button', { name: /صحيح مسلم/ });
+    await button.click();
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: /إبراز: صحيح مسلم/ })).toBeVisible();
+    await expect(page.locator('#matn-card-h2')).toHaveClass(/border-brand-blue/);
+  });
+
+  test('«قارن بالأصل» shows the words that differ from the first narration, without the isnads', async ({ page }) => {
+    await expect(page.locator('#matn-card-h1')).toContainText('الأصل');
+    await expect(page.locator('#matn-card-h1').getByRole('button', { name: 'قارن بالأصل' })).toHaveCount(0);
+
+    const card = page.locator('#matn-card-h2');
+    await card.getByRole('button', { name: 'قارن بالأصل' }).click();
+    await expect(card).toContainText('المرجع:');
+    await expect(card).toContainText('التشابه:');
+    // The ending Muslim's narration leaves out is struck through; neither isnad is compared.
+    await expect(card.locator('del', { hasText: 'فمن كانت هجرته' })).toBeVisible();
+    await expect(card.locator('p').last()).not.toContainText('الحميدي');
+
+    await card.getByRole('button', { name: 'إخفاء المقارنة' }).click();
+    await expect(card.locator('del')).toHaveCount(0);
+  });
+
+  test('with one Companion there is no witnesses section', async ({ page }) => {
+    await expect(page.getByRole('region', { name: 'الشواهد' })).toHaveCount(0);
+  });
+});
+
+test.describe('shawahid', () => {
+  test('a narration through another Companion is shown apart, and marked on its chip and in the summary', async ({ page }) => {
+    await page.goto('/takhreej?ids=h1,h2,h4');
+    await graphReady(page);
+
+    const panel = page.locator('#workspace-panel');
+    const witnesses = panel.getByRole('region', { name: 'الشواهد' });
+    await expect(witnesses).toContainText('سنن ابن ماجه');
+    await expect(witnesses).toContainText('شاهد: علي');
+    await expect(witnesses).toContainText('ما تزال داخل الشجرة');
+    // Only the two routes of the first hadith are counted as routes.
+    await expect(panel.getByText('2 روايات', { exact: true })).toBeVisible();
+    await expect(panel.locator('#matn-card-h4')).toBeVisible();
+
+    await expect(page.getByRole('region', { name: 'ملخص التخريج' })).toContainText('(منها شاهد)');
+    const header = page.locator('header', { has: page.getByRole('heading', { name: 'شجرة التخريج المقارنة' }) });
+    await expect(header.getByRole('button', { name: /ابن ماجه \| 4227/ })).toContainText('شاهد');
   });
 });
 

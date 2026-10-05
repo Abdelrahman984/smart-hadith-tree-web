@@ -12,10 +12,12 @@ interface TakhreejSummaryProps {
   data: ComparativeTreeResponseDto;
   /** Opens the findings (the sidebar's «العلل» tab). */
   onOpenIlal: () => void;
+  /** How many of the narrations are shawahid (through another Companion). */
+  shawahidCount?: number;
 }
 
 /** The answer at a glance, above the graph: how many routes and books, the madar, the grade, and the findings. */
-export default function TakhreejSummary({ data, onOpenIlal }: TakhreejSummaryProps) {
+export default function TakhreejSummary({ data, onOpenIlal, shawahidCount = 0 }: TakhreejSummaryProps) {
   const revealNodes = useGraphViewStore((s) => s.revealNodes);
 
   const bookCount = new Set(data.sources.map((s) => s.bookName)).size;
@@ -30,6 +32,7 @@ export default function TakhreejSummary({ data, onOpenIlal }: TakhreejSummaryPro
     >
       <span className="font-semibold text-ink">
         {data.sources.length} {data.sources.length === 1 ? "رواية" : "روايات"} من {bookCount} {bookCount === 1 ? "كتاب" : "كتب"}
+        {shawahidCount > 0 && <span className="font-normal text-ink-muted"> (منها {shawahidCount === 1 ? "شاهد" : `${shawahidCount} شواهد`})</span>}
       </span>
 
       {madars.length > 0 && (

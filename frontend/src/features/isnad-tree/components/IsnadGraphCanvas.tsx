@@ -33,6 +33,9 @@ import GraphToolbar from "./GraphToolbar";
 import NarratorNode from "./NarratorNode";
 import ReferenceNode from "./ReferenceNode";
 
+/** Height of the toolbar plus its margin and a gap. */
+const TOOLBAR_RESERVE_PX = 64;
+
 /** Width of the open legend (w-80) plus its margin and a gap. */
 const LEGEND_RESERVE_PX = 352;
 
@@ -70,7 +73,15 @@ export default function IsnadGraphCanvas({ graph, bookFocus = false }: IsnadGrap
   const legendOn = useLegendOpen();
   const reserveLegend = legendOn && isWide;
   const fitOptions = useMemo(
-    () => ({ duration: 0, padding: reserveLegend ? { top: 0.1, bottom: 0.1, left: 0.1, right: `${LEGEND_RESERVE_PX}px` as const } : 0.1 }),
+    () => ({
+      duration: 0,
+      padding: {
+        top: `${TOOLBAR_RESERVE_PX}px` as const, // the toolbar sits over the top-left corner
+        bottom: 0.1,
+        left: 0.1,
+        right: reserveLegend ? (`${LEGEND_RESERVE_PX}px` as const) : 0.1,
+      },
+    }),
     [reserveLegend]
   );
   const refit = useCallback(() => flowRef.current?.fitView(fitOptions), [fitOptions]);

@@ -9,6 +9,12 @@ const SHORT = 'إنما الأعمال بالنيات';
 const BUKHARI = 'صحيح البخاري';
 const MUSLIM = 'صحيح مسلم';
 const ABU_DAWUD = 'سنن أبي داود';
+const IBN_MAJAH = 'سنن ابن ماجه';
+
+// Realistic stored texts: isnad and matn together, as the real data has them.
+const MATN_BUKHARI = 'حدثنا الحميدي حدثنا سفيان عن يحيى بن سعيد أن رسول الله صلى الله عليه وسلم قال إنما الأعمال بالنيات وإنما لكل امرئ ما نوى فمن كانت هجرته إلى الله ورسوله فهجرته إلى الله ورسوله';
+const MATN_MUSLIM = 'عن عمر بن الخطاب رضي الله عنه قال سمعت رسول الله صلى الله عليه وسلم يقول إنما الأعمال بالنيات وإنما لكل امرئ ما نوى';
+const MATN_OTHER = 'حدثنا أبو بكر بن أبي شيبة عن علي بن أبي طالب أن رسول الله صلى الله عليه وسلم قال الأعمال بالنيات';
 
 const narrator = (id, name, over = {}) => ({ narratorId: id, narratorName: name, knownAs: null, generationTier: null, transmissionTerm: null, ...over });
 
@@ -44,19 +50,25 @@ const COMPARATIVE = [
   cn('n4a', ...N4.slice(0, 2), 3, 'n2a', ['h1'], [BUKHARI], { ...N4[2], transmissionTerm: 'سمعت' }),
   cn('n4b', ...N4.slice(0, 2), 3, 'n2b', ['h2'], [MUSLIM], { ...N4[2], transmissionTerm: 'سمعت' }),
   cn('n4c', ...N4.slice(0, 2), 3, 'n2c', ['h3'], [ABU_DAWUD], { ...N4[2], transmissionTerm: 'سمعت' }),
+  // h4: Ibn Majah ← Abu Bakr ibn Abi Shayba ← Ali (a different Companion)
+  cn('c4', 'F', 'ابن ماجه القزويني', 0, null, ['h4'], [IBN_MAJAH], { knownAs: 'ابن ماجه', gradeEn: 'reliable', generationTier: 'الحادية عشرة' }),
+  cn('n7', 'N7', 'أبو بكر بن أبي شيبة', 1, 'c4', ['h4'], [IBN_MAJAH], { generationTier: 'العاشرة', gradeEn: 'reliable', transmissionTerm: 'حدثنا' }),
+  cn('n8', 'N8', 'علي بن أبي طالب', 2, 'n7', ['h4'], [IBN_MAJAH], { knownAs: 'علي', generationTier: 'صحابي', gradeEn: 'companion', transmissionTerm: 'عن' }),
 ];
 
 const ALL_SOURCES = [
-  { hadithId: 'h1', bookName: BUKHARI, hadithNumber: 1, matnArabic: LONG, matnSnippet: SHORT },
-  { hadithId: 'h2', bookName: MUSLIM, hadithNumber: 1907, matnArabic: SHORT, matnSnippet: SHORT },
-  { hadithId: 'h3', bookName: ABU_DAWUD, hadithNumber: 2201, matnArabic: SHORT, matnSnippet: SHORT },
+  { hadithId: 'h1', bookName: BUKHARI, hadithNumber: 1, matnArabic: MATN_BUKHARI, matnSnippet: SHORT },
+  { hadithId: 'h2', bookName: MUSLIM, hadithNumber: 1907, matnArabic: MATN_MUSLIM, matnSnippet: SHORT },
+  { hadithId: 'h3', bookName: ABU_DAWUD, hadithNumber: 2201, matnArabic: MATN_MUSLIM, matnSnippet: SHORT },
+  // Through another Companion (علي): a witness, only when asked for with ids=...,h4.
+  { hadithId: 'h4', bookName: IBN_MAJAH, hadithNumber: 4227, matnArabic: MATN_OTHER, matnSnippet: SHORT },
 ];
 
-const SOURCES = ALL_SOURCES;
+const SOURCES = ALL_SOURCES.slice(0, 3);
 
 // `ids` selects which of the three narrations are compared: the graph keeps their books' chains.
 function takhreejFor(ids) {
-  const wanted = ids.length > 0 ? ALL_SOURCES.filter((src) => ids.includes(src.hadithId)) : ALL_SOURCES;
+  const wanted = ids.length > 0 ? ALL_SOURCES.filter((src) => ids.includes(src.hadithId)) : ALL_SOURCES.slice(0, 3);
   const books = new Set(wanted.map((src) => src.bookName));
   const keep = new Set(wanted.map((src) => src.hadithId));
   const nodes = COMPARATIVE.filter((n) => n.sourceBooks.some((b) => books.has(b)) && (n.stepOrder > 0 || n.sourceHadithIds.some((h) => keep.has(h))))
