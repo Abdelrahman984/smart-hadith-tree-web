@@ -131,7 +131,8 @@ Possible sources for these: more shaykh books (`parse_shaykh_books.py` covers 6 
 
 ## 5. Project housekeeping
 
-- Merge `feature/shamela-rijal` into `master` (the owner's call; Phases 0-8 are verified).
+- `feature/shamela-rijal` and `claude/happy-johnson-5vqndl` are merged into `master` (2026-10-05, `6523dd7`, `48fd260`). The old master is kept as the tag `legacy-master-itqan` and the branch `legacy/itqan-master` (code only; it needs the Itqan database `SmartHadithTree` and the file `GawamiTbxReader.cs`, which only the Shamela branch has).
+- Challenge work that was on hold until the merge (README/LICENSE, sources and licenses, the golden test set and Ilal accuracy measurement, presentation numbers, sample data/seed script, repository clean-up) is listed in `docs/challenge/gap-analysis.md` and is no longer blocked.
 - The hadith ids of `SmartHadithTree_ShamelaV5` are new Guids, so saved `/takhreej?ids=` and `/tree/<id>` links made against the v4 database return 404. A rebuild always changes them. Map by `BookName` + `HadithNumber` + the start of `NormalizedMatn` when old links must be kept (numbers repeat across volumes).
 - The Itqan columns `ItqanId` / `ItqanGrade` on `Narrators` remain until a later migration (the grade fallback still reads them).
 
