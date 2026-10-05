@@ -27,6 +27,9 @@ public class SearchJudgeResponseDto
     /// <summary>See <see cref="SearchJudgeStatus"/>.</summary>
     public string Status { get; set; } = SearchJudgeStatus.Unavailable;
 
+    /// <summary>What happened (results asked, cached, chunks, failures, why answers were rejected). For debugging and evaluation.</summary>
+    public string? Diagnostics { get; set; }
+
     /// <summary>One item per requested id, in the requested order.</summary>
     public List<SearchJudgeItemDto> Items { get; set; } = [];
 }

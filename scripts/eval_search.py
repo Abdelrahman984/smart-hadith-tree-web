@@ -65,9 +65,12 @@ def rank_of(results, needle):
     return None
 
 
-def review_block(case, results, level, reasons, top=10):
+def review_block(case, results, level, reasons, judge_info="", top=10):
     """One Markdown section: the query, the target and the top results with their scores and AI labels."""
-    lines = [f"## {case['id']}: {case['query']}", f"Looking for: «{case['target_contains']}»", ""]
+    lines = [f"## {case['id']}: {case['query']}", f"Looking for: «{case['target_contains']}»"]
+    if judge_info:
+        lines.append(judge_info)
+    lines.append("")
     for i, r in enumerate(results[:top], 1):
         label = level.get(r["id"], "-")
         reason, quote = reasons.get(r["id"], ("", ""))
@@ -105,7 +108,7 @@ def main():
     pack = []
 
     for c in cases:
-        level, reasons = {}, {}
+        level, reasons, judge_info = {}, {}, ""
         qs = urllib.parse.urlencode({"query": c["query"], "scope": c.get("scope", 1), "match": c.get("match", 0), "page": 1, "pageSize": 50})
         results, ms = http_json(f"{api}/Search?{qs}")
         latencies.append(ms)
@@ -123,9 +126,12 @@ def main():
             model_status[judged["status"]] = model_status.get(judged["status"], 0) + 1
             level = {i["id"]: i["level"] for i in judged["items"]}
             reasons = {i["id"]: (i.get("reason", ""), i.get("quote", "")) for i in judged["items"]}
+            judge_info = f"AI check status: {judged['status']}; {judged.get('diagnostics')}"
             reordered = sorted(results, key=lambda r: LEVEL_ORDER.get(level.get(r["id"], "not-judged"), 2))  # stable
             jr = rank_of(reordered, c["target_contains"])
             entry["rank_after_ai"] = jr
+            entry["ai_status"] = judged["status"]
+            entry["ai_diagnostics"] = judged.get("diagnostics")
             if rank:
                 entry["target_level"] = level.get(results[rank - 1]["id"])
                 if entry["target_level"] == "scattered":
@@ -133,10 +139,12 @@ def main():
             judged_ranks.append(jr)
         
         if args.review_pack:
-            pack.append(review_block(c, results, level, reasons))
+            pack.append(review_block(c, results, level, reasons, judge_info))
         out[c["id"]] = entry
         print(f"{c['id']}  rank={rank}  results={len(results)}  relevance={entry.get('relevance')}"
-              + (f"  after_ai={entry.get('rank_after_ai')} level={entry.get('target_level')}" if args.judge else ""))
+              + (f"  after_ai={entry.get('rank_after_ai')} level={entry.get('target_level')} ai={entry.get('ai_status')}" if args.judge else ""))
+        if args.judge and entry.get("ai_status") not in (None, "reviewed"):
+            print(f"      {entry.get('ai_diagnostics')}")
 
     def summary(label, rs):
         total = len(rs)

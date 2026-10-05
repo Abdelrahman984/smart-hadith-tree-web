@@ -191,4 +191,46 @@ public class SearchJudgeServiceTests
 
         result.Items[0].Level.Should().Be(SearchJudgeLevel.Scattered);
     }
+
+    [Fact]
+    public async Task Judge_ShouldAcceptQuote_WithOtherPunctuationHamzaAndDiacritics()
+    {
+        var (service, ids, _) = Create(1, AnswerAll("match", "الطُّهُورُ شَطْرُ الْإِيمَانِ، والحمد"));
+
+        var result = await service.JudgeAsync("الطهور شطر الايمان ق11", ids);
+
+        result.Items[0].Level.Should().Be(SearchJudgeLevel.Match);
+    }
+
+    [Fact]
+    public async Task Judge_ShouldReportUnavailable_AndSayWhy_WhenTheAnswerIsNotJson()
+    {
+        var (service, ids, _) = Create(2, _ => "I cannot help with that.");
+
+        var result = await service.JudgeAsync("الطهور شطر الايمان ق12", ids);
+
+        result.Status.Should().Be(SearchJudgeStatus.Unavailable);
+        result.Diagnostics.Should().Contain("unreadable-json=1").And.Contain("chunk-unreadable-json=1");
+        result.Items.Should().OnlyContain(i => i.Level == SearchJudgeLevel.NotJudged);
+    }
+
+    [Fact]
+    public async Task Judge_ShouldExplainRejections_InDiagnostics()
+    {
+        var (service, ids, _) = Create(2, AnswerAll("match", "عبارة ليست في المتن اطلاقا"));
+
+        var result = await service.JudgeAsync("الطهور شطر الايمان ق13", ids);
+
+        result.Diagnostics.Should().Contain("quote-not-in-matn=2").And.Contain("asked=2").And.Contain("chunks=1");
+    }
+
+    [Fact]
+    public async Task Judge_ShouldFindTheArray_WhenTextSurroundsIt()
+    {
+        var (service, ids, _) = Create(1, p => "Here is the result: " + AnswerAll("partial")(p) + " Hope it helps.");
+
+        var result = await service.JudgeAsync("الطهور شطر الايمان ق14", ids);
+
+        result.Items[0].Level.Should().Be(SearchJudgeLevel.Partial);
+    }
 }

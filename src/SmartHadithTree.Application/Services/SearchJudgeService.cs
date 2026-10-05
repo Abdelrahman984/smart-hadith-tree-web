@@ -53,6 +53,8 @@ public class SearchJudgeService(IHadithTreeDbContext context, Kernel kernel) : I
         var failedChunks = 0;
         var timedOut = 0;
         var chunkCount = 0;
+        var diagnostics = new Dictionary<string, int>();
+        void Count(string key, int n = 1) => diagnostics[key] = diagnostics.GetValueOrDefault(key) + n;
 
         if (missing.Count > 0)
         {
@@ -68,10 +70,12 @@ public class SearchJudgeService(IHadithTreeDbContext context, Kernel kernel) : I
             var outcomes = await Task.WhenAll(chunks.Select(chunk => JudgeChunkAsync(query, terms, chunk, ct)));
             foreach (var outcome in outcomes)
             {
+                foreach (var (reason, n) in outcome.Rejections) Count(reason, n);
                 if (outcome.Items == null)
                 {
                     failedChunks++;
                     if (outcome.TimedOut) timedOut++;
+                    Count($"chunk-{outcome.Failure ?? "failed"}");
                     continue;
                 }
                 foreach (var item in outcome.Items)
@@ -85,6 +89,9 @@ public class SearchJudgeService(IHadithTreeDbContext context, Kernel kernel) : I
         return new SearchJudgeResponseDto
         {
             Status = Status(chunkCount, failedChunks, timedOut),
+            Diagnostics = $"asked={requested.Count}; cached={requested.Count - missing.Count}; chunks={chunkCount}; failed-chunks={failedChunks}; " +
+                          $"time-limit={CallTimeout.TotalSeconds:0}s" +
+                          (diagnostics.Count == 0 ? "" : "; " + string.Join(", ", diagnostics.OrderBy(d => d.Key).Select(d => $"{d.Key}={d.Value}"))),
             Items = requested.Select(id => judged.TryGetValue(id, out var item)
                 ? item
                 : new SearchJudgeItemDto { Id = id }).ToList()
@@ -105,23 +112,27 @@ public class SearchJudgeService(IHadithTreeDbContext context, Kernel kernel) : I
 
     private async Task<ChunkOutcome> JudgeChunkAsync(string query, List<string> terms, Row[] chunk, CancellationToken ct)
     {
+        var rejections = new Dictionary<string, int>();
         try
         {
             var prompt = BuildPrompt(query, terms, chunk);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(CallTimeout);
             var result = await kernel.InvokePromptAsync(prompt, cancellationToken: timeout.Token);
-            var items = ParseAndValidate(result.GetValue<string>(), chunk.Select(r => (r.Id, r.MatnArabic)).ToList());
-            return new ChunkOutcome(items, false);
+            var items = ParseAndValidate(result.GetValue<string>(), chunk.Select(r => (r.Id, r.MatnArabic)).ToList(), rejections);
+            // An answer that could not be read at all is a failed call, not a page of "not judged" results.
+            return rejections.ContainsKey("unreadable-json")
+                ? new ChunkOutcome(null, false, "unreadable-json", rejections)
+                : new ChunkOutcome(items, false, null, rejections);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            return new ChunkOutcome(null, true);
+            return new ChunkOutcome(null, true, "timeout", rejections);
         }
         catch (Exception)
         {
-            // No model configured, provider error, or unreadable answer. Do not leak details.
-            return new ChunkOutcome(null, false);
+            // No model configured or a provider error. Do not leak details.
+            return new ChunkOutcome(null, false, "model-error", rejections);
         }
     }
 
@@ -169,43 +180,82 @@ public class SearchJudgeService(IHadithTreeDbContext context, Kernel kernel) : I
     /// Reads the model's JSON and keeps only answers that pass every check. Returns one item per row, in order;
     /// rows without a valid answer are <see cref="SearchJudgeLevel.NotJudged"/>.
     /// </summary>
-    public static List<SearchJudgeItemDto> ParseAndValidate(string? raw, IReadOnlyList<(Guid Id, string Matn)> rows)
+    public static List<SearchJudgeItemDto> ParseAndValidate(
+        string? raw, IReadOnlyList<(Guid Id, string Matn)> rows, Dictionary<string, int>? rejections = null)
     {
+        void Reject(string reason) { if (rejections != null) rejections[reason] = rejections.GetValueOrDefault(reason) + 1; }
+
         var items = rows.Select(r => new SearchJudgeItemDto { Id = r.Id }).ToList();
         var json = (raw ?? string.Empty).Trim();
         if (json.StartsWith("```json")) json = json[7..];
         if (json.StartsWith("```")) json = json[3..];
         if (json.EndsWith("```")) json = json[..^3];
+        json = json.Trim();
+
+        // Some models put text before or after the array: keep the outermost [ ... ].
+        var open = json.IndexOf('[');
+        var close = json.LastIndexOf(']');
+        if (open >= 0 && close > open) json = json[open..(close + 1)];
 
         List<Raw>? answers;
         try
         {
-            answers = JsonSerializer.Deserialize<List<Raw>>(json.Trim(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            answers = JsonSerializer.Deserialize<List<Raw>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         }
         catch (JsonException)
         {
+            Reject("unreadable-json");
             return items;
         }
-        if (answers == null) return items;
+        if (answers == null)
+        {
+            Reject("unreadable-json");
+            return items;
+        }
 
         // A number the model repeats is ambiguous, so none of its answers is trusted.
-        foreach (var group in answers.GroupBy(a => a.Index).Where(g => g.Count() == 1))
+        foreach (var group in answers.GroupBy(a => a.Index))
         {
+            if (group.Count() > 1) { Reject("repeated-index"); continue; }
             var answer = group.Single();
             var index = answer.Index - 1;
-            if (index < 0 || index >= rows.Count) continue;
+            if (index < 0 || index >= rows.Count) { Reject("bad-index"); continue; }
 
             var level = (answer.Level ?? string.Empty).Trim().ToLowerInvariant();
-            if (!SearchJudgeLevel.IsJudged(level)) continue;
-            if (Words.Matches(Normalize(answer.Quote)).Count < 3) continue;
-            if (!AiEvaluationService.IsQuoteGrounded(answer.Quote, new[] { rows[index].Matn })) continue;
+            if (!SearchJudgeLevel.IsJudged(level)) { Reject("bad-level"); continue; }
+            if (WordCount(answer.Quote) < 3) { Reject("quote-under-3-words"); continue; }
+            if (!QuoteIsInMatn(answer.Quote, rows[index].Matn)) { Reject("quote-not-in-matn"); continue; }
 
             items[index].Level = level;
             items[index].Quote = answer.Quote!.Trim();
             items[index].Reason = Truncate((answer.Reason ?? string.Empty).Trim(), 200);
         }
 
+        var unanswered = items.Count(i => i.Level == SearchJudgeLevel.NotJudged) - answers.Count;
+        for (var i = 0; i < Math.Max(0, unanswered); i++) Reject("no-answer");
         return items;
+    }
+
+    /// <summary>
+    /// True when the quote's words occur, in order and next to each other, in the matn. Diacritics, punctuation,
+    /// hamza forms and alef maqsura / ya are ignored, so a harmless spelling difference does not reject an answer.
+    /// </summary>
+    public static bool QuoteIsInMatn(string? quote, string matn)
+    {
+        var q = FoldWords(quote);
+        return q.Trim().Length > 0 && FoldWords(matn).Contains(q, StringComparison.Ordinal);
+    }
+
+    private static int WordCount(string? text) => Words.Matches(FoldWords(text)).Count;
+
+    private static readonly Regex Marks = new(@"[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640]", RegexOptions.Compiled);
+
+    /// <summary>The text as space-separated folded words, with a space at both ends so whole words are matched.</summary>
+    private static string FoldWords(string? text)
+    {
+        var t = Marks.Replace(text ?? string.Empty, string.Empty)
+            .Replace('\u0671', '\u0627').Replace('\u0649', '\u064A').Replace('\u0624', '\u0621').Replace('\u0626', '\u0621');
+        return " " + string.Join(' ', Words.Matches(SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize(t)).Select(m => m.Value)) + " ";
     }
 
     private static string Normalize(string? text) =>
@@ -214,7 +264,7 @@ public class SearchJudgeService(IHadithTreeDbContext context, Kernel kernel) : I
     private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max] + "…";
 
     private sealed record Row(Guid Id, string BookName, int HadithNumber, string MatnArabic, string NormalizedMatn);
-    private sealed record ChunkOutcome(List<SearchJudgeItemDto>? Items, bool TimedOut);
+    private sealed record ChunkOutcome(List<SearchJudgeItemDto>? Items, bool TimedOut, string? Failure, Dictionary<string, int> Rejections);
 
     private sealed class Raw
     {

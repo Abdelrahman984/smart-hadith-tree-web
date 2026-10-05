@@ -56,15 +56,19 @@ public static class RelevanceScorer
             termWords[t] = Math.Max(1, Words.Matches(terms[t]).Count);
             var from = 0;
             var count = 0;
+            // "الجنه" must also be found in "للجنه" (a prefix before the stem): fall back to the stem without "ال".
+            var needle = terms[t];
+            if (needle.StartsWith("ال", StringComparison.Ordinal) && needle.Length >= 5 && !normalizedMatn.Contains(needle, StringComparison.Ordinal))
+                needle = needle[2..];
             while (count < MaxOccurrencesPerTerm)
             {
-                var idx = normalizedMatn.IndexOf(terms[t], from, StringComparison.Ordinal);
+                var idx = normalizedMatn.IndexOf(needle, from, StringComparison.Ordinal);
                 if (idx < 0) break;
                 found[t] = true;
                 var word = Array.BinarySearch(tokenStarts, idx);
                 if (word < 0) word = Math.Max(0, ~word - 1);
                 events.Add((word, t, termWords[t]));
-                from = idx + Math.Max(1, terms[t].Length);
+                from = idx + Math.Max(1, needle.Length);
                 count++;
             }
         }

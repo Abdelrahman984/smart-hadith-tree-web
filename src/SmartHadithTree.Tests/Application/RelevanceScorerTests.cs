@@ -75,4 +75,14 @@ public class RelevanceScorerTests
         RelevanceScorer.QueryTerms("إِذَا ذَهَبَ، المَذهبَ أَبعد! إذا")
             .Should().Equal("اذا", "ذهب", "المذهب", "ابعد");
     }
+
+    [Fact]
+    public void Score_ShouldFindAWord_WhenAPrefixIsAttachedToItsStem()
+    {
+        // "للجنه" contains "جنه" but not "الجنه": the word must still count as found.
+        var withPrefix = RelevanceScorer.Score("للجنه اقرب الى احدكم", new[] { "الجنه", "اقرب" }, "الجنه اقرب")!;
+
+        withPrefix.Percent.Should().BeGreaterThan(70);
+        withPrefix.ReasonAr.Should().NotContain("وُجد");
+    }
 }
