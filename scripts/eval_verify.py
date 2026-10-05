@@ -81,7 +81,7 @@ def main():
         if len(set(seen)) > 1:
             unstable.append((c["id"], seen))
         status = seen[0]
-        results[c["id"]] = {"status": status, "method": body.get("method"), "model": body.get("modelStatus")}
+        results[c["id"]] = {"status": status, "method": body.get("method"), "model": body.get("modelStatus"), "diag": body.get("diagnostics")}
         ok = status in c["accept"] and status not in c.get("reject", [])
         groups[c["group"]][0] += ok
         groups[c["group"]][1] += 1
@@ -126,6 +126,7 @@ def main():
         print(f"Status differs from {args.compare}: {diff if diff else 'none'}")
     for f in failures:
         print(f"FAILED {f[0]}: got {f[1]}, accept {f[2]}, method {f[3]}")
+        print(f"        {results[f[0]].get('diag')}")
     return 1 if failures else 0
 
 

@@ -67,8 +67,15 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
             .ToList();
 
         var best = scored.FirstOrDefault();
+        string Diag(string decidedBy) =>
+            $"candidates={candidates.Count}; best={(best == null ? "none" : $"{best.Similarity:0.###} ({best.BookName} {best.HadithNumber})")}; decided-by={decidedBy}; review-timeout={ReviewTimeout.TotalSeconds:0}s";
+
         if (best == null || best.Similarity < ReviewThreshold)
-            return NotFound();
+        {
+            var weak = NotFound();
+            weak.Diagnostics = Diag(best == null ? "no-candidates" : "below-review-threshold");
+            return weak;
+        }
 
         var status = Classify(best.Similarity);
         var method = "lexical";
@@ -79,8 +86,10 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
         // Decided in code, not by the model: a wrong "match" here would put words in the Prophet's mouth.
         if (status != HadithVerificationStatus.NotFound && HasUnmatchedNegation(text, best.MatnArabic))
         {
-            return NotFound(method,
+            var negated = NotFound(method,
                 "النص يشبه حديثاً موجوداً في الكتب لكنه يختلف عنه بأداة نفي ليست في المتن، فالمعنى مختلف؛ لذلك لا ننسبه إلى ذلك الحديث.");
+            negated.Diagnostics = Diag("negation-guard");
+            return negated;
         }
 
         // Exact quotations need no model. The model only reviews the uncertain band.
@@ -113,6 +122,7 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
         {
             var notFound = NotFound(method, explanation);
             notFound.ModelStatus = modelStatus;
+            notFound.Diagnostics = Diag(method == "ai+lexical" ? "model-review" : "similarity-threshold");
             return notFound;
         }
 
@@ -121,6 +131,7 @@ public class HadithVerificationService(IHadithSearchService searchService, Kerne
             Status = status,
             Method = method,
             ModelStatus = modelStatus,
+            Diagnostics = Diag(method == "ai+lexical" ? "model-review" : "similarity-threshold"),
             Matches = scored.Where(m => m.Similarity >= ReviewThreshold).ToList(),
             Explanation = string.IsNullOrWhiteSpace(explanation) ? DefaultExplanation(status) : explanation
         };

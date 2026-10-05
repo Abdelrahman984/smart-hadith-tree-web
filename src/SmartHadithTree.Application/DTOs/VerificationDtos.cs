@@ -32,6 +32,9 @@ public class HadithVerificationResultDto
     /// <summary>What happened to the model review; see <see cref="VerificationModelStatus"/>.</summary>
     public string ModelStatus { get; set; } = VerificationModelStatus.NotNeeded;
 
+    /// <summary>Why the answer came out this way (candidate count, best score, which rule decided). For debugging and evaluation.</summary>
+    public string? Diagnostics { get; set; }
+
     public List<VerifiedHadithMatchDto> Matches { get; set; } = [];
 }
 
