@@ -65,6 +65,25 @@ def rank_of(results, needle):
     return None
 
 
+def review_block(case, results, level, reasons, top=10):
+    """One Markdown section: the query, the target and the top results with their scores and AI labels."""
+    lines = [f"## {case['id']}: {case['query']}", f"Looking for: «{case['target_contains']}»", ""]
+    for i, r in enumerate(results[:top], 1):
+        label = level.get(r["id"], "-")
+        reason, quote = reasons.get(r["id"], ("", ""))
+        text = (r.get("matnArabic") or r.get("matnSnippet") or "").replace("\n", " ")
+        lines += [
+            f"### {case['id']}.{i} {r.get('bookName')} #{r.get('hadithNumber')}  |  relevance {r.get('relevancePercent')}%  |  AI: {label}",
+            f"- reason (relevance): {r.get('relevanceReason')}",
+            f"- AI reason: {reason}" if reason else "- AI reason: -",
+            f"- AI quote: «{quote}»" if quote else "- AI quote: -",
+            f"- matn: {text[:500]}",
+            "- reviewer verdict (match / partial / scattered / unsure): ",
+            "",
+        ]
+    return "\n".join(lines)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--api", default="http://localhost:5147/api")
@@ -72,6 +91,7 @@ def main():
     ap.add_argument("--judge", action="store_true", help="also run the AI check and re-order by its labels")
     ap.add_argument("--save")
     ap.add_argument("--compare")
+    ap.add_argument("--review-pack", help="write a Markdown file with the top results, scores and AI labels for a reviewer (use with --judge)")
     args = ap.parse_args()
 
     cases = load_cases()
@@ -82,8 +102,10 @@ def main():
     api = args.api.rstrip("/")
     out, ranks, judged_ranks, latencies = {}, [], [], []
     scattered_targets, model_status, decoy_above = [], {}, []
+    pack = []
 
     for c in cases:
+        level, reasons = {}, {}
         qs = urllib.parse.urlencode({"query": c["query"], "scope": c.get("scope", 1), "match": c.get("match", 0), "page": 1, "pageSize": 50})
         results, ms = http_json(f"{api}/Search?{qs}")
         latencies.append(ms)
@@ -100,6 +122,7 @@ def main():
             judged, _ = http_json(f"{api}/Search/ai-judge", {"query": c["query"], "ids": [r["id"] for r in results]})
             model_status[judged["status"]] = model_status.get(judged["status"], 0) + 1
             level = {i["id"]: i["level"] for i in judged["items"]}
+            reasons = {i["id"]: (i.get("reason", ""), i.get("quote", "")) for i in judged["items"]}
             reordered = sorted(results, key=lambda r: LEVEL_ORDER.get(level.get(r["id"], "not-judged"), 2))  # stable
             jr = rank_of(reordered, c["target_contains"])
             entry["rank_after_ai"] = jr
@@ -108,6 +131,9 @@ def main():
                 if entry["target_level"] == "scattered":
                     scattered_targets.append(c["id"])
             judged_ranks.append(jr)
+        
+        if args.review_pack:
+            pack.append(review_block(c, results, level, reasons))
         out[c["id"]] = entry
         print(f"{c['id']}  rank={rank}  results={len(results)}  relevance={entry.get('relevance')}"
               + (f"  after_ai={entry.get('rank_after_ai')} level={entry.get('target_level')}" if args.judge else ""))
@@ -133,6 +159,9 @@ def main():
     if args.save:
         Path(args.save).write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"Saved to {args.save}")
+    if args.review_pack:
+        Path(args.review_pack).write_text("# Search review pack\n\n" + "\n".join(pack), encoding="utf-8")
+        print(f"Review pack written to {args.review_pack}")
     if args.compare:
         before = json.loads(Path(args.compare).read_text(encoding="utf-8"))
         changes = {i: (before[i]["rank"], e["rank"]) for i, e in out.items() if i in before and before[i]["rank"] != e["rank"]}

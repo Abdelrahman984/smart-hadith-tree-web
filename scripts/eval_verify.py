@@ -55,6 +55,7 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--save", help="write per-case results to this JSON file")
     ap.add_argument("--compare", help="a file written by --save; print the cases whose status differs")
+    ap.add_argument("--review-pack", help="write a Markdown file with each text, the answer, the matches and the model's explanation for a reviewer")
     args = ap.parse_args()
 
     cases = load_cases()
@@ -71,6 +72,7 @@ def main():
     unstable = []
     failures = []
     results = {}
+    pack = []
 
     for c in cases:
         seen = []
@@ -83,6 +85,18 @@ def main():
         status = seen[0]
         results[c["id"]] = {"status": status, "method": body.get("method"), "model": body.get("modelStatus"), "diag": body.get("diagnostics"), "unmatched": body.get("unmatchedWords")}
         ok = status in c["accept"] and status not in c.get("reject", [])
+        if args.review_pack:
+            best = (body.get("matches") or [{}])[0]
+            pack.append("\n".join([
+                f"## {c['id']}: {c['text']}",
+                f"- expected: {c['accept']}  |  got: {status}  |  method: {body.get('method')}  |  model: {body.get('modelStatus')}",
+                f"- explanation: {body.get('explanation')}",
+                f"- words not in the matn: {body.get('unmatchedWords')}",
+                f"- closest: {best.get('bookName')} #{best.get('hadithNumber')} (similarity {best.get('similarity')})",
+                f"- matn: {(best.get('matnArabic') or '')[:400]}",
+                "- reviewer verdict (correct / wrong / unsure): ",
+                "",
+            ]))
         if ok and status == "variant" and c.get("unmatched_contains"):
             # A near-match is only safe if the response shows which word differs.
             shown = body.get("unmatchedWords") or []
@@ -123,6 +137,9 @@ def main():
     if args.save:
         Path(args.save).write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"Saved results to {args.save}")
+    if args.review_pack:
+        Path(args.review_pack).write_text("# Verify review pack\n\n" + "\n".join(pack), encoding="utf-8")
+        print(f"Review pack written to {args.review_pack}")
     if args.compare:
         before = json.loads(Path(args.compare).read_text(encoding="utf-8"))
         diff = {i: (before[i]["status"], r["status"]) for i, r in results.items()
