@@ -38,7 +38,7 @@ $Exclude = @(
     'Smart_Hadith_Tree_Presentation.pptx', 'Smart_Hadith_Tree_Presentation.pdf',
     'frontend/playwright-report', 'frontend/test-results',
     '.github/workflows/deploy.yml', 'deploy/deploy-remote.sh', 'deploy/ssh-deploy-gate.sh',
-    'scripts/fetch_shamela.py', 'scripts/convert_pptx_to_pdf.ps1'
+    'scripts/fetch_shamela.py', 'scripts/convert_pptx_to_pdf.ps1', 'scripts/fix.ps1'
 )
 
 # Content that aborts the run if it appears anywhere in the snapshot.
@@ -86,12 +86,14 @@ try {
         if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Recurse -Force }
     }
 
-    # backups/README.md carries absolute Windows paths of the author's machine; make them relative.
-    $bk = Join-Path $wt 'backups/README.md'
-    if (Test-Path $bk) {
-        $t = [IO.File]::ReadAllText($bk)
-        $t = [regex]::Replace($t, '[A-Za-z]:\\[^\r\n"'']*?\\Smart-Hadith-Tree\\backups\\', 'backups\')
-        [IO.File]::WriteAllText($bk, $t)
+    # Docs carry absolute Windows paths of the author's machine; make them relative to the repo root.
+    foreach ($f in (& git ls-files '*.md')) {
+        $path = Join-Path $wt $f
+        if (-not (Test-Path -LiteralPath $path)) { continue }
+        $t = [IO.File]::ReadAllText($path)
+        $n = [regex]::Replace($t, '[A-Za-z]:\[^
+"'']*?\Smart-Hadith-Tree\', '')
+        if ($n -ne $t) { [IO.File]::WriteAllText($path, $n) }
     }
 
     Invoke-Git add -A
