@@ -149,15 +149,27 @@ Set in `.env`; compose maps them to the API's configuration keys.
 Without an LLM key the site works; the AI narrator summaries, Ilal explanations and the `/verify` model review are off.
 Changing `API_DOMAIN` needs a rebuild of `web` (`up -d --build web`). Never commit `.env` or keys.
 
-## 6. Updating
+## 6. Updating (CI/CD)
 
-```bash
-git pull
-docker compose -f docker-compose.prod.yml up -d --build
-```
+Every push to `master` (a merged PR) deploys automatically: `.github/workflows/deploy.yml` runs the .NET tests and
+the frontend lint, then asks the host over SSH to deploy that commit SHA. Pushes that change only docs/`*.md` do not trigger it.
 
-Schema changes ship as EF Core migrations and are applied by the api on start. Take a database backup first (section 7).
-There is no CI/CD pipeline in the repo yet (no `.github/`); building on the server is the current flow.
+- **On the host** (`/opt/smart-hadith-tree`): `deploy/ssh-deploy-gate.sh`, installed as `/usr/local/sbin/smart-hadith-deploy`,
+  is the forced command of the deploy key in `/root/.ssh/authorized_keys` (`command=...,restrict`). It accepts only a
+  commit SHA that is on `origin/master` and not older than the live one, checks it out and runs `deploy/deploy-remote.sh` of that commit.
+  It is not updated by deploys: after changing it, copy it to `/usr/local/sbin/` by hand.
+- **`deploy/deploy-remote.sh`**: skips the rebuild for docs-only changes; backs up the database to
+  `backups/predeploy_*.bak` (newest three kept) when `src/SmartHadithTree.Infrastructure/Data/Migrations/` changed;
+  tags the running images `:previous`; builds and restarts `api` and `web`; checks `/api/books`, the web root, the
+  public domain, the `/api/admin` 404 and the "migration check failed" log line. On any failure it puts the previous
+  images and commit back (a migration that already ran is not undone: restore the pre-deploy backup for that).
+- **Secrets** (repository): `DEPLOY_SSH_KEY`, `DEPLOY_HOST`, `DEPLOY_KNOWN_HOSTS` (pinned `ssh-keyscan` output).
+- **Roll back**: merge a revert PR (it deploys like any merge). The gate refuses commits older than the live one, so
+  re-running an old workflow run does not roll back. **Redeploy** the current commit: Actions -> deploy -> Run workflow.
+- **By hand**: `ssh root@<host> 'cd /opt/smart-hadith-tree && git pull && ./deploy/deploy-remote.sh'`.
+
+The host's `.env` sets `COMPOSE_FILE=docker-compose.prod.yml:compose.edge.yml` (the second file is host-only and joins
+`api`/`web` to the edge proxy network), so plain `docker compose ...` in `/opt/smart-hadith-tree` targets production.
 
 ## 7. Backups and restore
 

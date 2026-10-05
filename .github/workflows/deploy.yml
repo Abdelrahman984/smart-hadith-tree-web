@@ -1,0 +1,93 @@
+# Test, then deploy every push to master (i.e. every merged PR) to the production host.
+#
+# The host builds the images itself (no registry, no files copied): the job only asks it, over SSH, to
+# deploy one commit SHA. The key in DEPLOY_SSH_KEY is bound on the host to deploy/ssh-deploy-gate.sh, so it
+# can do nothing else, and only commits on origin/master that are not older than the live one are accepted. The deploy logic is
+# deploy/deploy-remote.sh of the commit being deployed (backup before migrations, health checks, rollback).
+#
+# Roll back: merge a revert PR (the host refuses commits older than the live one). Redeploy: Actions -> deploy -> Run workflow.
+#
+# Repository secrets:
+#   DEPLOY_SSH_KEY      private key "smart-hadith-deploy-github-actions"
+#   DEPLOY_HOST         169.58.190.201
+#   DEPLOY_KNOWN_HOSTS  `ssh-keyscan -t ed25519 169.58.190.201`, pinned so the job never trusts a new host key
+name: deploy
+
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "responses-evaluation/**"
+      - "experiments/**"
+      - "**/*.pdf"
+      - "**/*.pptx"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Never two deploys at once; a newer push waits for the running one instead of cancelling it mid-build.
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: test (.NET + frontend lint)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          # The app targets net9.0, the test projects net10.0.
+          dotnet-version: |
+            9.0.x
+            10.0.x
+      - name: dotnet test
+        run: dotnet test SmartHadithTree.sln -c Release
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20 # same as frontend/Dockerfile
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: frontend lint
+        working-directory: frontend
+        run: |
+          npm ci
+          npx eslint
+
+  deploy:
+    name: deploy to 169.58.190.201
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: deploy over SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          for v in DEPLOY_SSH_KEY DEPLOY_HOST DEPLOY_KNOWN_HOSTS; do
+            test -n "${!v:-}" || { echo "missing secret $v" >&2; exit 1; }
+          done
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # Keepalives: an image build can be silent for minutes. Retry ONLY on exit 255 (SSH transport
+          # failure); any other code is the deploy's own verdict (it already rolled back) and is final.
+          for attempt in 1 2 3; do
+            rc=0
+            ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=30 \
+              -o ServerAliveInterval=15 -o ServerAliveCountMax=8 \
+              "root@$DEPLOY_HOST" "$GITHUB_SHA" || rc=$?
+            [ "$rc" = 255 ] || break
+            echo "SSH transport failed (attempt $attempt), retrying in 60 s" >&2
+            sleep 60
+          done
+          rm -f ~/.ssh/deploy
+          exit "$rc"

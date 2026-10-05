@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-05: Production deploy and CI/CD
+
+- Live at https://smart-hadith.idealisticsolutions.com (one hostname: `/api/*` goes to the API), behind the host's shared edge Caddy. Database restored from `SmartHadithTree_Shamela_v5_2026-10-05.bak` as `SmartHadithTree`.
+- **Auto deploy on merge to `master`**: `.github/workflows/deploy.yml` (tests + lint, then SSH) -> `deploy/ssh-deploy-gate.sh` (forced command, only commits on `master`) -> `deploy/deploy-remote.sh` (pre-migration backup, build, health checks, automatic rollback). Runbook: `deploy/devops-handoff.md` §6.
+
+---
+
 ## 2026-10-05: Tree and takhreej pages, step 4b: matns tied to the graph, shawahid
 
 - **Matn cards act on the graph.** A card's book badge highlights that book's routes (and the card gets a ring); «الأصل» marks the first route; every other card has «قارن بالأصل», which shows a word-level comparison under it with the same `MatnDiffView` the Ilal findings use (additions in green, omissions struck through, similarity %).
