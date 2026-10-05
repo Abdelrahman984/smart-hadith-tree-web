@@ -5,6 +5,110 @@
 - Live at https://smart-hadith.idealisticsolutions.com (one hostname: `/api/*` goes to the API), behind the host's shared edge Caddy. Database restored from `SmartHadithTree_Shamela_v5_2026-10-05.bak` as `SmartHadithTree`.
 - **Auto deploy on merge to `master`**: `.github/workflows/deploy.yml` (tests + lint, then SSH) -> `deploy/ssh-deploy-gate.sh` (forced command, only commits on `master`) -> `deploy/deploy-remote.sh` (pre-migration backup, build, health checks, automatic rollback). Runbook: `deploy/devops-handoff.md` §6.
 
+---
+
+## 2026-10-05: Tree and takhreej pages, step 4b: matns tied to the graph, shawahid
+
+- **Matn cards act on the graph.** A card's book badge highlights that book's routes (and the card gets a ring); «الأصل» marks the first route; every other card has «قارن بالأصل», which shows a word-level comparison under it with the same `MatnDiffView` the Ilal findings use (additions in green, omissions struck through, similarity %).
+- **The comparison cuts the isnad first.** `utils/matnDiff.ts` is a TypeScript port of the server's `MatnText.ExtractBody` / `NormalizeForComparison` and `MatnAligner` (LCS), so the browser's diff aligns the same words the Ilal rules do; without it two different isnads would drown the matn. Its tests reuse the expected strings of the server's `MatnAlignerTests.cs`; keep the two in step.
+- **Turuq and shawahid** (`utils/groupSources.ts`): a narration whose chain ends at another Companion than most is shown apart under «الشواهد» with «شاهد: <الصحابي>», marked «شاهد» on its chip, and counted «(منها شاهد)» in the summary. This is display only: the tree, the madar and the Ilal findings still treat it as a route (the separation is a server change, backlog §3).
+- **The toolbar no longer covers the first row of cards**: the fit reserves its height as it already reserved the legend's width.
+- **Tests**: 129 in all (the diff port against the server's cases, grouping, the matn cards, shawahid), and the fixture API has a witness narration (`ids=h1,h2,h4`).
+
+---
+
+## 2026-10-05: Tree and takhreej pages, step 4a: one toolbar
+
+- **`GraphToolbar`** replaces the weak-highlight/export panel, the React Flow zoom controls and the legend's own collapsed button: find, «إبراز الضعفاء», card detail, minimap, legend, zoom in/out/fit and export are one bar (icon buttons with labels for screen readers and tooltips, scrolling sideways on a phone).
+- **Find a narrator**: a combobox over the graph's narrators. It ignores diacritics, hamza and taa marbuta (`قتيبه` finds `قتيبة`), ranks the phrase as typed first, and Enter selects the card and brings it into view.
+- **Card detail**: «مضغوط/مفصّل». Compact cards show the name and grade only; the choice is automatic above 25 narrators. Changing it lays the graph out again with the new card sizes without the graph blinking out.
+- **Minimap**: on by default on a wide screen when the graph has more than 25 narrators; switchable from the toolbar; bottom-left, so it never covers the legend.
+- **Dynamic title** for takhreej («تخريج صحيح البخاري 1 و2 روايات أخرى»), built from book and number because a stored matn can still begin with the isnad.
+- **Resizable side panel**: drag its edge (or use arrow keys, Home/End) between 320 and 640px; the width and the last tab are remembered.
+- **Tree header**: the book name links to its chapters, and on a phone the ruling note collapses behind a «تفاصيل» button (a first version wrapped the evidence badge in a button, which nested buttons and caused a hydration error).
+- **Tests**: 111 in all, including 12 for the toolbar, search, density and minimap, and a fixture graph of 35 narrators (`ids=huge`).
+
+---
+
+## 2026-10-05: Tree and takhreej pages, step 3: one workspace
+
+- **`HadithWorkspace`** is the page both screens share: site header, a header block, an optional summary strip, the graph, and a side panel of real ARIA tabs (`role=tablist/tab/tabpanel`). `TreeWorkspace` and the takhreej page only say what goes in each slot. The takhreej sidebar became the «المتون» and «العلل» tabs; panel and tab state live in `useWorkspaceStore`, so the summary strip, chips and findings open tabs without prop plumbing.
+- **The narrator panel no longer covers the graph.** From 1024px up, a selected narrator opens as an «الراوي» tab of the side panel (no backdrop; the card stays selected); below that it is still the drawer over the graph. `NarratorDrawer` was split into `NarratorDetails` (the body) and a thin modal wrapper.
+- **The address keeps the view**: `?tab=ilal`, `?narrator=<id>` and `?book=<name>` are written with `history.replaceState` (other parameters such as `ids=a,b` are left exactly as they were) and restored on load, so a link reopens the same view.
+- **Tree page**: tabs «المتن» (full text, copy, link to the book) and «العلل» (fetched the first time the tab is shown, as before); a primary «التخريج المقارن» button gathers the related routes and opens the comparison; «فحص العلل» opens its tab. The ruling note stays in the header. `IlalLauncher` (the old fixed drawer) was deleted. On a phone «عودة للبحث» is icon-only so the buttons fit one row.
+- **Escape peels one layer per press**: narrator details, then the selection, then the book focus. It listens in the capture phase, because React Flow deselects a focused card on Escape and that update removed the old handler before it ran.
+- **Tests**: 92 in all (panel, tablet drawer, address round-trip, the tree workspace, the phone header row).
+
+---
+
+## 2026-10-05: Tree and takhreej pages, step 2: selection, clearer data, a summary
+
+- **Tap, click or Enter selects a narrator and keeps its chain highlighted** (sheikhs above, students below) until Escape or a click on empty canvas; hovering only previews while nothing is selected. Enter on a focused card opens the details like a click. Touch screens no longer depend on hover.
+- **«غير مُقيَّم»**: a narrator with no grade is shown neutrally (dashed card and badge, also in the drawer and the legend) and is not treated as weak by «إبراز الضعفاء». Before, a missing grade looked like nothing was said.
+- **Quieter edges**: on a graph of more than 12 links, edge labels («انقطاع», «عنعنة مدلس», …) become small icon markers with a tooltip, and the full label prints on the chain you select or hover.
+- **Takhreej summary strip** above the graph: routes and books, the madar (a chip that selects it on the graph), the automatic grade with its «يتطلب تحققاً» badge, and the findings by severity (a button that opens the «العلل» tab). Before, the grade was only in the sidebar.
+- **Source chips are interactive**: click one to highlight that book's routes (and scroll to its matn when the sidebar is beside the graph); ✕ removes a narration by updating `?ids=` (two must remain). The page keeps the current graph while the next one loads (`keepPreviousData`) instead of replacing everything with a spinner.
+- **Findings act on the graph**: picking one in the panel brings its narrators into view; on a phone it also closes the panel/sidebar so they can be seen (takhreej and tree pages).
+- **Low-confidence findings are not drawn on edges** unless the panel's «ملاحظات منخفضة الثقة» group is open (backlog §3, "Panel"); that state now lives in `useIlalStore`.
+- **The legend no longer covers the graph**: while it is open beside the graph, the graph is fitted into the space left; its open state moved to `useGraphViewStore`.
+- **Tests**: 13 more e2e tests and 8 more unit tests; the fixture API honours `ids` (and serves a 14-link graph for `ids=big,h1`). `next.config.ts` gets `allowedDevOrigins: ["127.0.0.1"]`: since Next 16.3.8 `next dev` blocks dev resources from that origin, which Playwright uses, and the page never hydrated.
+
+---
+
+## 2026-10-05: Tree and takhreej pages, step 1: one graph core
+
+- **One canvas, pure builders.** `IsnadGraphCanvas` now draws both the single tree and the takhreej tree; `TreeCanvas` and `ComparativeTreeCanvas` are 17-line wrappers. The transmissions-to-graph logic left the canvases for pure functions, `buildSingleGraph` and `buildComparativeGraph` (`utils/buildIsnadGraph.ts`), with the parent lookup now a `Map` instead of a scan per transmission. `ComparativeNarratorNode` was merged into `NarratorNode` (badges in `NarratorBadges.tsx`), so a madar ring now also shows on the single tree once its Ilal report is loaded.
+- **One edge rule table** (`utils/edgeStyle.ts`): انقطاع, then اختلاف باللفظ, then a link shared by several books, then one book's colour, then grey; Ilal findings are laid over that. A broken link now stays red and shows both labels instead of taking the finding's colour.
+- **Fix:** when the same narrator pair appeared in hadiths of different books, its edge kept the first book's colour; it is now drawn as a shared link, as the legend says.
+- **View state** (`store/useGraphViewStore.ts`): «إبراز الضعفاء», the hovered narrator and the focused book no longer rewrite every node's data; the legend takes its grade colours from `gradeStyle.ts`.
+- **Tests without the database**: `tests/fixtures/mock-api.mjs` is a fixture API (started by `playwright.config.ts` on :5147; the graph specs skip themselves when a real API answers there). New `graphBuilders.spec.ts` (11 unit tests) and `graphPages.spec.ts` (13 tests: both pages, the drawer, the Ilal overlay, book focus, the phone layout). Assertions now wait up to 15 s because `npm run dev` compiles pages on first request.
+
+---
+
+## 2026-10-05: Logo, theme tokens and the sources page
+
+- **Logo**: the "logo" was a generic lucide icon. There is now an original mark, an isnad tree (a teal root branching into narrator nodes on a navy square): `components/Logo.tsx`, used in the header and footer, plus `app/icon.svg`, `apple-icon.png`, a multi-size `favicon.ico` (the default Next.js icon was replaced) and `viewport.themeColor`. The five unused create-next-app SVGs in `public/` were removed; `public/.gitkeep` stays because the Dockerfile copies `public/`.
+- **Theme tokens** (`globals.css`): `surface`, `surface-muted`, `line`, `ink`, `ink-muted`, `ink-subtle` replace about 300 raw `bg-white`/`border-slate-200`/`text-slate-*` classes (same values, so no visual change). Teal used as text is now `brand-teal-ink` (`#0B7A83`, 5.1:1 on white); the old `#00C2CB` was 2.2:1. The graph legend reads its grade colours from `gradeStyle.ts`. The look stays light; see `docs/design-system.md`.
+- **`/sources`** (new, «المصادر والمنهج»): where the hadith texts, the الجرح والتعديل data and the العلل rules come from, what is taken from each book, the method and the known limits. It lists تهذيب الكمال, Shamela's narrator encyclopedia, تقريب التهذيب, the compilers' shaykh books, طبقات المدلسين, الكواكب النيرات and المختلطين, the six Ilal rules with their severities, and how branches are weighed. Content is in `features/sources/sourcesData.ts` (figures dated 2026-10-05, from `docs/shamela_migration.md` and `docs/ilal.md`). Linked from the header, the footer, the narrator drawer («مصادر الأقوال»), the Ilal panel («مصادر العلل وقواعدها») and the glossary.
+- **Header**: five sections now; the wordmark shows from 1024px and the items shrink below 360px, so it fits from 320px up (tested at six widths).
+- **Footer**: small-print text contrast raised (`slate-500` to `slate-400` on navy).
+- **Tests**: `sources.spec.ts`, and `navigation.spec.ts` covers `/sources` and the header at six widths.
+
+---
+
+## 2026-10-05: Frontend layout and UI/UX fixes
+
+- **Broken flows**: on `/verify`, «التخريج والعلل» sent a single id to `/takhreej`, which needs two; it now gathers the related narrations first, the same way as «تخريج فوري» on search (`useAutoTakhreej`), and opens the single tree when there are none. The narrator drawer's grade badge was always green, even for كذاب/متروك. One map, `features/narrator-details/utils/gradeStyle.ts`, now colours the drawer, both node types and the legend's grades. On search, the book filter and the count say when they cover only the current page, and they reset on a new search or page. `alert()` was replaced by an inline message.
+- **One site header** (`components/SiteHeader.tsx`, `NavLink.tsx`) on every page, with a compact variant on the tree and takhreej screens. It shows search, books, verify and glossary, marks the current page with `aria-current`, and stays on one row on phones. The footer is shared too (`SiteFooter.tsx`). Every page has its own `<title>` (a template in `layout.tsx`); search, takhreej and verify are server `page.tsx` files that render a client component from `features/`.
+- **Books**:
+  - `/books` shows the same grouped catalogue as the home page (`features/books/CorpusCatalog.tsx`, data in `lib/corpus.ts`), with no API call.
+  - The book and chapter pages are server pages with breadcrumbs. Hadith rows are links, so they work from the keyboard and open in a new tab.
+- **Route states**:
+  - `tree/[hadithId]` has `loading.tsx` and `not-found.tsx`. `getIsnadTree` throws `NotFoundError` on 404; any other failure shows `app/error.tsx` with a retry button.
+  - There is a site-wide `app/not-found.tsx`.
+  - Loading, error and empty blocks share `components/StateViews.tsx`.
+- **Phones**:
+  - The takhreej sidebar starts closed below 768px and opens over the canvas.
+  - The narrator and Ilal drawers take the full width.
+  - The legend starts collapsed.
+  - The tree header clamps the matn ("عرض المتن كاملاً").
+  - A node's anomaly reason and travel note also show in the narrator drawer, since hover tooltips don't work on touch screens.
+- **Accessibility**:
+  - Nodes show the grade as text.
+  - The مدلس/اختلط badges have readable contrast.
+  - The narrator drawer, the Ilal panel and the advanced-search modal share `useDialogFocus`: focus moves into the dialog and stays there, Escape closes it, and focus goes back to the element that opened it.
+  - Only one side drawer is open at a time.
+  - Selecting matn text no longer toggles a search card.
+- **Polish**: `tw-animate-css` was added, so the existing `animate-in …` classes now run. `scrollbar-none`, which isn't a Tailwind class, was removed.
+- **Tests**: `home.spec.ts` and `search.spec.ts` looked for text that is no longer on the page and were updated. The new `navigation.spec.ts` checks, without the API:
+  - the header is on each page;
+  - no page scrolls sideways at 375px;
+  - the current-page marker;
+  - the 404 page;
+  - the takhreej page with fewer than two ids.
+
+---
+
 ## 2026-10-05: Verify, search relevance and optional AI check
 
 - **`/verify`** (`POST /api/Verify`): checks a pasted text against the 31 books (retrieval by word stems and word windows, ordered word-pair scoring, a negation guard in code, a restricted model review with a verified quote). Answers: exact, variant, not-found, invalid; it never invents a source or a ruling. Notes in `docs/verify-feature-handoff.md`; 29 evaluation cases in `docs/challenge/verify-eval-cases.json` run by `scripts/eval_verify.py`.

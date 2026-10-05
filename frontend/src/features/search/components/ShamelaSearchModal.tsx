@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
+import { useDialogFocus } from "@/components/useDialogFocus";
 import { SearchRequestDto, SearchScope } from "@/types/api";
 import {
   X,
@@ -78,14 +79,8 @@ export default function ShamelaSearchModal({
     initialRequest?.scope ?? 1 // Default to Matn
   );
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, onClose]);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -174,10 +169,12 @@ export default function ShamelaSearchModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div
         dir="rtl"
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="shamela-modal-title"
-        className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
+        className="outline-none relative w-full max-w-2xl bg-surface rounded-3xl shadow-2xl border border-line overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
       >
         {/* Modal Header */}
         <div className="px-6 py-5 bg-gradient-to-r from-slate-900 via-brand-blue to-slate-900 text-white flex items-center justify-between">
@@ -215,20 +212,20 @@ export default function ShamelaSearchModal({
               <label className="text-xs font-bold text-slate-700 block">
                 أقسام وشروط البحث المنطقية:
               </label>
-              <span className="text-[11px] text-slate-500">
+              <span className="text-[11px] text-ink-subtle">
                 يمكن استخدام كافة الألسنة معاً
               </span>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80">
+            <div className="grid grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-2xl border border-line/80">
               {/* Tab AND */}
               <button
                 type="button"
                 onClick={() => setActiveTab("and")}
                 className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                   activeTab === "and"
-                    ? "bg-white text-brand-blue shadow-sm border border-slate-200"
-                    : "text-slate-500 hover:text-slate-800"
+                    ? "bg-surface text-brand-blue shadow-sm border border-line"
+                    : "text-ink-subtle hover:text-ink"
                 }`}
               >
                 <span className="text-base font-black text-brand-blue">[ و ]</span>
@@ -246,8 +243,8 @@ export default function ShamelaSearchModal({
                 onClick={() => setActiveTab("or")}
                 className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                   activeTab === "or"
-                    ? "bg-white text-brand-blue shadow-sm border border-slate-200"
-                    : "text-slate-500 hover:text-slate-800"
+                    ? "bg-surface text-brand-blue shadow-sm border border-line"
+                    : "text-ink-subtle hover:text-ink"
                 }`}
               >
                 <span className="text-base font-black text-amber-600">[ أو ]</span>
@@ -265,8 +262,8 @@ export default function ShamelaSearchModal({
                 onClick={() => setActiveTab("exclude")}
                 className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                   activeTab === "exclude"
-                    ? "bg-white text-rose-700 shadow-sm border border-slate-200"
-                    : "text-slate-500 hover:text-slate-800"
+                    ? "bg-surface text-rose-700 shadow-sm border border-line"
+                    : "text-ink-subtle hover:text-ink"
                 }`}
               >
                 <span className="text-base font-black text-rose-600">[ ليس ]</span>
@@ -289,7 +286,7 @@ export default function ShamelaSearchModal({
                     <span className="text-base font-black">[ و ]</span>
                     <span>يلزم وجود كل هذه العبارات معاً (AND)</span>
                   </h3>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <p className="text-[11px] text-ink-subtle mt-0.5">
                     لن تظهر النتيجة إلا إذا كانت جميع هذه العبارات واردة في الحديث
                   </p>
                 </div>
@@ -298,7 +295,7 @@ export default function ShamelaSearchModal({
               <div className="space-y-2.5">
                 {andPhrases.map((phrase, idx) => (
                   <div key={idx} className="flex items-center gap-2">
-                    <span className="w-7 h-9 rounded-xl bg-white border border-brand-blue/20 text-brand-blue font-bold text-sm flex items-center justify-center shrink-0 shadow-2xs">
+                    <span className="w-7 h-9 rounded-xl bg-surface border border-brand-blue/20 text-brand-blue font-bold text-sm flex items-center justify-center shrink-0 shadow-2xs">
                       {arabicNumbers[idx] || idx + 1}
                     </span>
                     <input
@@ -313,7 +310,7 @@ export default function ShamelaSearchModal({
                           ? "العبارة الإلزامية الثانية (مثال: عن بيع)..."
                           : `عبارة إلزامية ${idx + 1}...`
                       }
-                      className="flex-1 py-2.5 px-3.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-brand-teal focus:ring-3 focus:ring-brand-teal/15 outline-none transition-all"
+                      className="flex-1 py-2.5 px-3.5 text-sm bg-surface border border-line rounded-xl focus:border-brand-teal focus:ring-3 focus:ring-brand-teal/15 outline-none transition-all"
                     />
                     {andPhrases.length > 1 && (
                       <button
@@ -352,8 +349,8 @@ export default function ShamelaSearchModal({
                       className="mt-0.5 w-4 h-4 text-brand-blue rounded-md border-slate-300 focus:ring-brand-teal"
                     />
                     <div>
-                      <span className="font-bold text-slate-800 block">مرتبة (In-Order)</span>
-                      <span className="text-[11px] text-slate-500">
+                      <span className="font-bold text-ink block">مرتبة (In-Order)</span>
+                      <span className="text-[11px] text-ink-subtle">
                         تشترط ورود العبارة (٢) بعد (١) في سياق الحديث
                       </span>
                     </div>
@@ -367,8 +364,8 @@ export default function ShamelaSearchModal({
                       className="mt-0.5 w-4 h-4 text-brand-blue rounded-md border-slate-300 focus:ring-brand-teal"
                     />
                     <div>
-                      <span className="font-bold text-slate-800 block">متقاربة (Proximity)</span>
-                      <span className="text-[11px] text-slate-500">
+                      <span className="font-bold text-ink block">متقاربة (Proximity)</span>
+                      <span className="text-[11px] text-ink-subtle">
                         تشترط ورود العبارات في نفس الجملة/السياق
                       </span>
                     </div>
@@ -376,17 +373,17 @@ export default function ShamelaSearchModal({
                 </div>
 
                 {isProximity && (
-                  <div className="pt-2 border-t border-slate-200/60 flex items-center gap-3 animate-in fade-in">
-                    <span className="text-xs text-slate-600">أقصى مسافة فاصلة بين العبارات:</span>
+                  <div className="pt-2 border-t border-line/60 flex items-center gap-3 animate-in fade-in">
+                    <span className="text-xs text-ink-muted">أقصى مسافة فاصلة بين العبارات:</span>
                     <input
                       type="number"
                       min={3}
                       max={50}
                       value={proximityWords}
                       onChange={(e) => setProximityWords(Number(e.target.value))}
-                      className="w-16 py-1 px-2 text-xs text-center font-bold border border-slate-300 rounded-lg bg-white"
+                      className="w-16 py-1 px-2 text-xs text-center font-bold border border-slate-300 rounded-lg bg-surface"
                     />
-                    <span className="text-xs text-slate-500">كلمة</span>
+                    <span className="text-xs text-ink-subtle">كلمة</span>
                   </div>
                 )}
               </div>
@@ -401,7 +398,7 @@ export default function ShamelaSearchModal({
                     <span className="text-base font-black">[ أو ]</span>
                     <span>يكفي وجود أي من هذه العبارات (OR)</span>
                   </h3>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <p className="text-[11px] text-ink-subtle mt-0.5">
                     ستظهر النتيجة إذا وردت عبارة واحدة على الأقل من هذه القائمة
                   </p>
                 </div>
@@ -410,7 +407,7 @@ export default function ShamelaSearchModal({
               <div className="space-y-2.5">
                 {orPhrases.map((phrase, idx) => (
                   <div key={idx} className="flex items-center gap-2">
-                    <span className="w-7 h-9 rounded-xl bg-white border border-amber-500/25 text-amber-700 font-bold text-sm flex items-center justify-center shrink-0 shadow-2xs">
+                    <span className="w-7 h-9 rounded-xl bg-surface border border-amber-500/25 text-amber-700 font-bold text-sm flex items-center justify-center shrink-0 shadow-2xs">
                       {arabicNumbers[idx] || idx + 1}
                     </span>
                     <input
@@ -425,7 +422,7 @@ export default function ShamelaSearchModal({
                           ? "عبارة بديلة ثانية (مثال: الملامسة)..."
                           : `عبارة بديلة ${idx + 1}...`
                       }
-                      className="flex-1 py-2.5 px-3.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-amber-500 focus:ring-3 focus:ring-amber-500/15 outline-none transition-all"
+                      className="flex-1 py-2.5 px-3.5 text-sm bg-surface border border-line rounded-xl focus:border-amber-500 focus:ring-3 focus:ring-amber-500/15 outline-none transition-all"
                     />
                     {orPhrases.length > 1 && (
                       <button
@@ -462,7 +459,7 @@ export default function ShamelaSearchModal({
                     <span className="text-base font-black">[ ليس ]</span>
                     <span>استبعاد نصوص وكلمات (NOT)</span>
                   </h3>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <p className="text-[11px] text-ink-subtle mt-0.5">
                     أي حديث يحتوي على أي من هذه العبارات سيتم استبعاده تماماً من النتائج
                   </p>
                 </div>
@@ -471,7 +468,7 @@ export default function ShamelaSearchModal({
               <div className="space-y-2.5">
                 {excludePhrases.map((phrase, idx) => (
                   <div key={idx} className="flex items-center gap-2">
-                    <span className="w-7 h-9 rounded-xl bg-white border border-rose-500/25 text-rose-700 font-bold text-sm flex items-center justify-center shrink-0 shadow-2xs">
+                    <span className="w-7 h-9 rounded-xl bg-surface border border-rose-500/25 text-rose-700 font-bold text-sm flex items-center justify-center shrink-0 shadow-2xs">
                       {arabicNumbers[idx] || idx + 1}
                     </span>
                     <input
@@ -484,7 +481,7 @@ export default function ShamelaSearchModal({
                           ? "عبارة مستبعدة أولى (مثال: رمضان)..."
                           : `عبارة مستبعدة ${idx + 1}...`
                       }
-                      className="flex-1 py-2.5 px-3.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-rose-500 focus:ring-3 focus:ring-rose-500/15 outline-none transition-all"
+                      className="flex-1 py-2.5 px-3.5 text-sm bg-surface border border-line rounded-xl focus:border-rose-500 focus:ring-3 focus:ring-rose-500/15 outline-none transition-all"
                     />
                     {excludePhrases.length > 1 && (
                       <button
@@ -514,7 +511,7 @@ export default function ShamelaSearchModal({
           )}
 
           {/* Combined Summary Preview Bar */}
-          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl flex items-center gap-2 text-xs text-slate-600 flex-wrap">
+          <div className="p-3 bg-surface-muted border border-line/80 rounded-2xl flex items-center gap-2 text-xs text-ink-muted flex-wrap">
             <Layers className="w-4 h-4 text-brand-blue shrink-0" />
             <span className="font-bold text-slate-700">المعادلة المنطقية الحالية:</span>
             {activeAndCount > 0 ? (
@@ -522,7 +519,7 @@ export default function ShamelaSearchModal({
                 [و]: {activeAndCount} عبارة إلزامية
               </span>
             ) : (
-              <span className="text-slate-500">لا يوجد إلزام</span>
+              <span className="text-ink-subtle">لا يوجد إلزام</span>
             )}
             <span className="text-slate-300">•</span>
             {activeOrCount > 0 ? (
@@ -530,7 +527,7 @@ export default function ShamelaSearchModal({
                 [أو]: {activeOrCount} بدائل
               </span>
             ) : (
-              <span className="text-slate-500">لا توجد بدائل</span>
+              <span className="text-ink-subtle">لا توجد بدائل</span>
             )}
             <span className="text-slate-300">•</span>
             {activeExcludeCount > 0 ? (
@@ -538,14 +535,14 @@ export default function ShamelaSearchModal({
                 [ليس]: {activeExcludeCount} مستبعد
               </span>
             ) : (
-              <span className="text-slate-500">لا يوجد استبعاد</span>
+              <span className="text-ink-subtle">لا يوجد استبعاد</span>
             )}
           </div>
 
           {/* Search Scope */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-700 block">مجال البحث:</label>
-            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/60 text-xs">
+            <div className="flex bg-slate-100 p-1 rounded-xl border border-line/60 text-xs">
               {[
                 { label: "في المتن فقط (موصى به)", val: 1 },
                 { label: "في السند والرواة", val: 2 },
@@ -557,8 +554,8 @@ export default function ShamelaSearchModal({
                   onClick={() => setScope(item.val as SearchScope)}
                   className={`flex-1 py-1.5 px-2 rounded-lg font-medium transition-all cursor-pointer ${
                     scope === item.val
-                      ? "bg-white text-brand-blue shadow-xs font-bold"
-                      : "text-slate-500 hover:text-slate-800"
+                      ? "bg-surface text-brand-blue shadow-xs font-bold"
+                      : "text-ink-subtle hover:text-ink"
                   }`}
                 >
                   {item.label}
@@ -569,11 +566,11 @@ export default function ShamelaSearchModal({
         </form>
 
         {/* Modal Footer Controls */}
-        <div className="p-4 px-6 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+        <div className="p-4 px-6 bg-surface-muted border-t border-line flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={handleReset}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 rounded-xl transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-ink-muted hover:text-slate-900 hover:bg-slate-200/70 rounded-xl transition-colors cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>إعادة تعيين</span>
@@ -583,7 +580,7 @@ export default function ShamelaSearchModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 rounded-xl transition-colors cursor-pointer"
+              className="px-4 py-2 text-xs font-bold text-ink-muted hover:text-ink rounded-xl transition-colors cursor-pointer"
             >
               إلغاء
             </button>

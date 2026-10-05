@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useLegendOpen } from "../hooks/useLegendOpen";
+import { useGraphViewStore } from "../store/useGraphViewStore";
+import { GRADE_STYLE, UNRATED_STYLE } from "@/features/narrator-details/utils/gradeStyle";
 import { Panel } from "@xyflow/react";
 import {
-  ChevronDown,
+ 
   ChevronUp,
   Layers,
   BookOpen,
@@ -22,13 +25,15 @@ const ILAL_EDGES = [
   { label: "رواية عن مختلط", hint: "لم يتبين أسمع منه قبل الاختلاط", color: "#ca8a04", dash: "6 3" },
 ];
 
+/** Legend rows: a label per grade colour, taken from the same map the nodes use so they never drift apart. */
 const NARRATOR_RANKS = [
-  { label: "صحابي", color: "#9b59b6" },
-  { label: "ثقة / عدل ضابط", color: "#2ecc71" },
-  { label: "صدوق / حسن", color: "#f39c12" },
-  { label: "ضعيف", color: "#e74c3c" },
-  { label: "متروك / كذاب", color: "#8b0000" },
-  { label: "مجهول", color: "#95a5a6" },
+  { label: "صحابي", color: GRADE_STYLE.companion.color },
+  { label: "ثقة / عدل ضابط", color: GRADE_STYLE.reliable.color },
+  { label: "صدوق / حسن", color: GRADE_STYLE.mostly_reliable.color },
+  { label: "ضعيف", color: GRADE_STYLE.weak.color },
+  { label: "متروك / كذاب", color: GRADE_STYLE.fabricator.color },
+  { label: "مجهول", color: GRADE_STYLE.unknown.color },
+  { label: "غير مُقيَّم (لا حكم)", color: UNRATED_STYLE.color, dashed: true },
 ];
 
 interface BookLegendProps {
@@ -40,7 +45,9 @@ interface BookLegendProps {
 }
 
 export default function BookLegend({ activeBooks, focusBook, onFocusBook }: BookLegendProps) {
-  const [isOpen, setIsOpen] = useState(true);
+  // Opened and closed from the toolbar (and its own close button); see useLegendOpen.
+  const isOpen = useLegendOpen();
+  const setIsOpen = useGraphViewStore((s) => s.setLegendOpen);
   const [activeTab, setActiveTab] = useState<LegendTab>("all");
   const [showAllBooks, setShowAllBooks] = useState(false);
 
@@ -52,37 +59,23 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
     return uniqueNames.map((name) => getBookMeta(name));
   }, [activeTab, showAllBooks, activeBooks]);
 
-  if (!isOpen) {
-    return (
-      <Panel position="top-right" className="m-2" dir="rtl">
-        <button
-          onClick={() => setIsOpen(true)}
-          className="flex items-center gap-2 bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-xl shadow-md border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-all text-xs font-bold cursor-pointer"
-          title="فتح مفتاح الرموز"
-        >
-          <Layers className="w-4 h-4 text-brand-blue" />
-          <span>مفتاح الرموز</span>
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-        </button>
-      </Panel>
-    );
-  }
+  if (!isOpen) return null;
 
   return (
     <Panel
       position="top-right"
-      className="m-2 bg-white/95 backdrop-blur-md w-80 rounded-2xl shadow-xl border border-slate-200/90 text-xs transition-all overflow-hidden"
+      className="m-2 bg-surface/95 backdrop-blur-md w-80 max-w-[calc(100vw-1rem)] max-h-[70vh] overflow-y-auto rounded-2xl shadow-xl border border-line/90 text-xs transition-all"
       dir="rtl"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3.5 py-2.5 bg-slate-50/80 border-b border-slate-200">
+      <div className="flex items-center justify-between px-3.5 py-2.5 bg-surface-muted/80 border-b border-line">
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-brand-blue" />
-          <span className="font-bold text-slate-800 text-sm">مفتاح الرموز والمصطلحات</span>
+          <span className="font-bold text-ink text-sm">مفتاح الرموز والمصطلحات</span>
         </div>
         <button
           onClick={() => setIsOpen(false)}
-          className="p-1 rounded-lg hover:bg-slate-200/70 text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
+          className="p-1 rounded-lg hover:bg-slate-200/70 text-ink-subtle hover:text-slate-700 transition-colors cursor-pointer"
           title="تصغير المفتاح"
         >
           <ChevronUp className="w-4 h-4" />
@@ -90,13 +83,13 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-100 bg-slate-50/40 p-1 gap-1">
+      <div className="flex border-b border-slate-100 bg-surface-muted/40 p-1 gap-1">
         <button
           onClick={() => setActiveTab("all")}
           className={`flex-1 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
             activeTab === "all"
-              ? "bg-white text-brand-blue shadow-sm border border-slate-200/60"
-              : "text-slate-500 hover:text-slate-800"
+              ? "bg-surface text-brand-blue shadow-sm border border-line/60"
+              : "text-ink-subtle hover:text-ink"
           }`}
         >
           الكل
@@ -105,8 +98,8 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
           onClick={() => setActiveTab("books")}
           className={`flex-1 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
             activeTab === "books"
-              ? "bg-white text-brand-blue shadow-sm border border-slate-200/60"
-              : "text-slate-500 hover:text-slate-800"
+              ? "bg-surface text-brand-blue shadow-sm border border-line/60"
+              : "text-ink-subtle hover:text-ink"
           }`}
         >
           الكتب ({CANONICAL_31_BOOKS.length})
@@ -115,8 +108,8 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
           onClick={() => setActiveTab("paths")}
           className={`flex-1 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
             activeTab === "paths"
-              ? "bg-white text-brand-blue shadow-sm border border-slate-200/60"
-              : "text-slate-500 hover:text-slate-800"
+              ? "bg-surface text-brand-blue shadow-sm border border-line/60"
+              : "text-ink-subtle hover:text-ink"
           }`}
         >
           المسارات
@@ -125,8 +118,8 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
           onClick={() => setActiveTab("narrators")}
           className={`flex-1 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
             activeTab === "narrators"
-              ? "bg-white text-brand-blue shadow-sm border border-slate-200/60"
-              : "text-slate-500 hover:text-slate-800"
+              ? "bg-surface text-brand-blue shadow-sm border border-line/60"
+              : "text-ink-subtle hover:text-ink"
           }`}
         >
           الرواة
@@ -140,7 +133,7 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-1.5 text-slate-700 font-bold text-xs">
-                <BookOpen className="w-3.5 h-3.5 text-slate-500" />
+                <BookOpen className="w-3.5 h-3.5 text-ink-subtle" />
                 <span>
                   {activeTab === "all" && activeBooks && activeBooks.length > 0 && !showAllBooks
                     ? `كتب الشجرة الحالية (${displayedBooks.length})`
@@ -167,7 +160,7 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
                     >
                       {book.code}
                     </span>
-                    <span className="text-slate-600 text-[11px] truncate" title={book.name}>
+                    <span className="text-ink-muted text-[11px] truncate" title={book.name}>
                       {book.name}
                     </span>
                   </>
@@ -199,7 +192,7 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
         {(activeTab === "all" || activeTab === "paths") && (
           <div className={activeTab === "all" ? "border-t border-slate-100 pt-3" : ""}>
             <div className="flex items-center gap-1.5 text-slate-700 font-bold mb-2 text-xs">
-              <GitFork className="w-3.5 h-3.5 text-slate-500" />
+              <GitFork className="w-3.5 h-3.5 text-ink-subtle" />
               <span>مسارات الأسانيد والمتون</span>
             </div>
             <div className="space-y-2">
@@ -207,7 +200,7 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
                 <div className="w-6 h-0.5 bg-blue-600 rounded shrink-0"></div>
                 <div>
                   <span className="text-slate-700 font-medium block leading-tight">مسار كتاب منفرد</span>
-                  <span className="text-slate-500 text-[10px]">مصبوغ بلون المصدر</span>
+                  <span className="text-ink-subtle text-[10px]">مصبوغ بلون المصدر</span>
                 </div>
               </div>
 
@@ -215,7 +208,7 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
                 <div className="w-6 h-1 bg-slate-600 rounded shrink-0"></div>
                 <div>
                   <span className="text-slate-700 font-medium block leading-tight">مسار مشترك (جامع)</span>
-                  <span className="text-slate-500 text-[10px]">تلتقي فيه أسانيد عدة كتب</span>
+                  <span className="text-ink-subtle text-[10px]">تلتقي فيه أسانيد عدة كتب</span>
                 </div>
               </div>
 
@@ -226,7 +219,7 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
                     <span>انقطاع في السند</span>
                     <AlertTriangle className="w-3 h-3 text-red-500" />
                   </span>
-                  <span className="text-slate-500 text-[10px]">سقط تاريخي أو عدم ثبوت معاصرة</span>
+                  <span className="text-ink-subtle text-[10px]">سقط تاريخي أو عدم ثبوت معاصرة</span>
                 </div>
               </div>
 
@@ -237,7 +230,7 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
                     <span>اختلاف باللفظ</span>
                     <FileDiff className="w-3 h-3 text-amber-500" />
                   </span>
-                  <span className="text-slate-500 text-[10px]">تباين في المتن بين الروايات</span>
+                  <span className="text-ink-subtle text-[10px]">تباين في المتن بين الروايات</span>
                 </div>
               </div>
             </div>
@@ -248,24 +241,24 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
         {(activeTab === "all" || activeTab === "narrators") && (
           <div className={activeTab === "all" ? "border-t border-slate-100 pt-3" : ""}>
             <div className="flex items-center gap-1.5 text-slate-700 font-bold mb-2 text-xs">
-              <UserCheck className="w-3.5 h-3.5 text-slate-500" />
+              <UserCheck className="w-3.5 h-3.5 text-ink-subtle" />
               <span>الرواة ومدار الإسناد</span>
             </div>
 
             {/* Madar & Inqita' Indicators */}
-            <div className="space-y-1.5 mb-3 bg-slate-50/60 p-2 rounded-lg border border-slate-100">
+            <div className="space-y-1.5 mb-3 bg-surface-muted/60 p-2 rounded-lg border border-slate-100">
               <div className="flex items-center gap-2">
                 <div className="w-3.5 h-3.5 rounded-full border-2 border-amber-400 ring-2 ring-amber-400/50 shrink-0"></div>
                 <div>
                   <span className="text-slate-700 font-medium text-[11px]">مدار الإسناد: </span>
-                  <span className="text-slate-500 text-[10px]">الراوي الذي تلتقي وتتفرع عنده الطرق</span>
+                  <span className="text-ink-subtle text-[10px]">الراوي الذي تلتقي وتتفرع عنده الطرق</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
                 <div>
                   <span className="text-slate-700 font-medium text-[11px]">انقطاع زمني: </span>
-                  <span className="text-slate-500 text-[10px]">ولد التلميذ بعد وفاة الشيخ</span>
+                  <span className="text-ink-subtle text-[10px]">ولد التلميذ بعد وفاة الشيخ</span>
                 </div>
               </div>
               {ILAL_EDGES.map((edge) => (
@@ -275,22 +268,26 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
                   </svg>
                   <div>
                     <span className="text-slate-700 font-medium text-[11px]">{edge.label}: </span>
-                    <span className="text-slate-500 text-[10px]">{edge.hint}</span>
+                    <span className="text-ink-subtle text-[10px]">{edge.hint}</span>
                   </div>
                 </div>
               ))}
             </div>
 
             {/* Ranks Grid */}
-            <span className="text-slate-500 text-[10px] block mb-1.5 font-semibold">ألوان رتب الجرح والتعديل:</span>
+            <span className="text-ink-subtle text-[10px] block mb-1.5 font-semibold">ألوان رتب الجرح والتعديل:</span>
             <div className="grid grid-cols-2 gap-x-2 gap-y-1">
               {NARRATOR_RANKS.map((rank) => (
                 <div key={rank.label} className="flex items-center gap-1.5">
                   <span
                     className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs"
-                    style={{ backgroundColor: rank.color }}
+                    style={
+                      "dashed" in rank
+                        ? { border: `1.5px dashed ${rank.color}` }
+                        : { backgroundColor: rank.color }
+                    }
                   ></span>
-                  <span className="text-slate-600 text-[11px] truncate">{rank.label}</span>
+                  <span className="text-ink-muted text-[11px] truncate">{rank.label}</span>
                 </div>
               ))}
             </div>

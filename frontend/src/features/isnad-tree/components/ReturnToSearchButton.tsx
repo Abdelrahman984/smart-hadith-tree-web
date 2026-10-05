@@ -33,7 +33,7 @@ export default function ReturnToSearchButton({
         className={`flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer shadow-2xs hover:shadow-xs shrink-0 ${className}`}
         title={label}
       >
-        <ArrowRight className="w-4 h-4 text-slate-600" />
+        <ArrowRight className="w-4 h-4 text-ink-muted" />
         <span>{label}</span>
       </button>
     );
@@ -43,7 +43,7 @@ export default function ReturnToSearchButton({
     <button
       type="button"
       onClick={handleReturn}
-      className={`p-2 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl transition-colors cursor-pointer flex items-center justify-center ${className}`}
+      className={`p-2 hover:bg-slate-100 text-ink-muted hover:text-slate-900 rounded-xl transition-colors cursor-pointer flex items-center justify-center ${className}`}
       title={label}
       aria-label={label}
     >

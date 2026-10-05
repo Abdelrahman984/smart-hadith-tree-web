@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Noto_Sans_Arabic, Inter } from "next/font/google";
 import { QueryProvider } from "@/components/QueryProvider";
 import "./globals.css";
@@ -15,8 +15,16 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Smart Hadith Tree | شجرة الأسانيد الذكية",
+  title: {
+    default: "شجرة الأسانيد الذكية | Smart Hadith Tree",
+    template: "%s | شجرة الأسانيد الذكية",
+  },
   description: "A platform for digitizing and visualizing Hadith narrator chains (Isnad)",
+};
+
+// Browser UI colour on phones: the brand navy.
+export const viewport: Viewport = {
+  themeColor: "#1A3A5C",
 };
 
 export default function RootLayout({
@@ -26,10 +34,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" className={`${notoSansArabic.variable} ${inter.variable} font-arabic h-full antialiased`}>
-      <body suppressHydrationWarning className="min-h-full flex flex-col bg-slate-50 text-slate-900">
+      <body suppressHydrationWarning className="min-h-full flex flex-col bg-surface-muted text-slate-900">
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-brand-dark focus:shadow-lg focus:ring-2 focus:ring-brand-blue"
+          className="sr-only focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:z-[100] focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-brand-dark focus:shadow-lg focus:ring-2 focus:ring-brand-blue"
         >
           تخطَّ إلى المحتوى
         </a>

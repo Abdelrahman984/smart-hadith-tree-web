@@ -1,59 +1,45 @@
-"use client";
+import type { Metadata } from "next";
+import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
+import Breadcrumbs from "@/features/books/Breadcrumbs";
+import ChapterList from "@/features/books/ChapterList";
+import { decodeParam } from "@/features/books/bookParams";
+import { getBookMeta } from "@/lib/bookTheme";
+import { CORPUS_BOOKS } from "@/lib/corpus";
 
-import { getChapters } from "@/lib/api";
-import { useQuery } from "@tanstack/react-query";
-import { ListFilter } from "lucide-react";
-import Link from "next/link";
-import { use } from "react";
+type Params = Promise<{ bookName: string }>;
 
-export default function BookChaptersPage({ params }: { params: Promise<{ bookName: string }> }) {
-  const resolvedParams = use(params);
-  const bookName = decodeURIComponent(resolvedParams.bookName);
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { bookName } = await params;
+  return { title: `أبواب ${decodeParam(bookName)}` };
+}
 
-  const { data: chapters, isLoading, isError } = useQuery({
-    queryKey: ['chapters', bookName],
-    queryFn: () => getChapters(bookName),
-  });
+export default async function BookChaptersPage({ params }: { params: Params }) {
+  const bookName = decodeParam((await params).bookName);
+  const meta = getBookMeta(bookName);
+  const corpusBook = CORPUS_BOOKS.find((b) => b.name === bookName);
 
   return (
-    <div className="max-w-4xl mx-auto p-6 pt-12">
-      <div className="mb-8">
-        <Link href="/books" className="text-brand-blue hover:underline mb-2 inline-block">
-          &rarr; العودة إلى الكتب
-        </Link>
-        <h1 className="text-3xl font-bold text-brand-dark text-center">
-          أبواب {bookName}
-        </h1>
-      </div>
-
-      {isLoading && (
-        <div className="text-center text-slate-500 py-10">جاري التحميل...</div>
-      )}
-
-      {isError && (
-        <div className="text-center text-red-500 py-10">حدث خطأ أثناء جلب الأبواب.</div>
-      )}
-
-      {!isLoading && chapters && chapters.length === 0 && (
-        <div className="text-center text-slate-500 py-10">لا توجد أبواب متاحة لهذا الكتاب.</div>
-      )}
-
-      {!isLoading && chapters && chapters.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {chapters.map((chapter) => (
-            <Link 
-              key={chapter}
-              href={`/books/${encodeURIComponent(bookName)}/chapters/${encodeURIComponent(chapter)}`}
-              className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md hover:border-brand-teal transition-all flex items-center gap-4"
-            >
-              <div className="w-10 h-10 bg-brand-teal/10 rounded-xl flex items-center justify-center text-brand-teal">
-                <ListFilter className="w-5 h-5" />
-              </div>
-              <span className="text-lg font-semibold text-slate-800">{chapter}</span>
-            </Link>
-          ))}
+    <>
+      <SiteHeader />
+      <main id="main-content" className="mx-auto w-full max-w-4xl p-4 pt-6 sm:p-6 sm:pt-8">
+        <Breadcrumbs items={[{ label: "فهرس الدواوين", href: "/books" }, { label: bookName }]} />
+        <div className="mb-6 flex items-center gap-3">
+          <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border text-sm font-bold ${meta.badgeClass}`}>
+            {meta.code}
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-brand-dark sm:text-3xl">{bookName}</h1>
+            {corpusBook && (
+              <p className="text-sm text-ink-subtle">
+                {corpusBook.author} · <span className="font-latin">{corpusBook.hadithsCount}</span> حديث
+              </p>
+            )}
+          </div>
         </div>
-      )}
-    </div>
+        <ChapterList bookName={bookName} />
+      </main>
+      <SiteFooter />
+    </>
   );
 }

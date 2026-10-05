@@ -1,73 +1,30 @@
-import { getIsnadTree } from "@/lib/api";
-import TreeCanvas from "@/features/isnad-tree/components/TreeCanvas";
-import NarratorDrawer from "@/features/narrator-details/components/NarratorDrawer";
-import ReturnToSearchButton from "@/features/isnad-tree/components/ReturnToSearchButton";
-import EvidenceBadge from "@/components/EvidenceBadge";
-import IlalLauncher from "@/features/ilal/components/IlalLauncher";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { cache } from "react";
+import { getIsnadTree, NotFoundError } from "@/lib/api";
+import TreeWorkspace from "@/features/isnad-tree/components/TreeWorkspace";
 
-export default async function TreePage({
-  params,
-}: {
-  params: Promise<{ hadithId: string }>;
-}) {
-  const { hadithId } = await params;
-  
-  // Fetch tree data on the server
-  let treeData = null;
+type Params = Promise<{ hadithId: string }>;
+
+/** One request per render, shared by the metadata and the page. A 404 shows the not-found page; other errors the error page. */
+const loadTree = cache(async (hadithId: string) => {
   try {
-    treeData = await getIsnadTree(hadithId);
+    return await getIsnadTree(hadithId);
   } catch (error) {
-    console.error("Failed to load tree:", error);
+    if (error instanceof NotFoundError) notFound();
+    throw error;
   }
+});
 
-  if (!treeData) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full space-y-4">
-        <h2 className="text-2xl font-bold text-slate-800 mb-2">لم يتم العثور على الحديث</h2>
-        <ReturnToSearchButton variant="button" label="العودة للبحث" />
-      </div>
-    );
-  }
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { hadithId } = await params;
+  const tree = await loadTree(hadithId);
+  return { title: `شجرة إسناد ${tree.bookName} ${tree.hadithNumber}` };
+}
 
-  return (
-    <div className="flex flex-col h-screen overflow-hidden relative">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-start justify-between z-10 shadow-sm relative">
-        <div className="max-w-3xl">
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-xl font-bold text-brand-dark">
-              {treeData.bookName} - حديث رقم {treeData.hadithNumber}
-            </h1>
-          </div>
-          <p className="text-slate-700 font-arabic text-lg leading-relaxed">
-            {treeData.matnArabic}
-          </p>
-          <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
-            <span className="font-semibold">حكم الحديث:</span>
-            <EvidenceBadge status="insufficient" />
-            <span>
-              لا يحمل المشروع حكماً معتمداً لهذا الحديث؛ للتحقق راجع{" "}
-              <a href="https://dorar.net/hadith" target="_blank" rel="noopener noreferrer" className="font-semibold text-indigo-700 underline">
-                الدرر السنية
-              </a>
-              .
-            </span>
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-2 shrink-0">
-          <IlalLauncher hadithId={hadithId} />
-          <ReturnToSearchButton variant="button" label="عودة للبحث" />
-        </div>
-      </header>
+export default async function TreePage({ params }: { params: Params }) {
+  const { hadithId } = await params;
+  const treeData = await loadTree(hadithId);
 
-      {/* Tree Canvas */}
-      <main id="main-content" className="flex-1 relative bg-slate-50">
-        <TreeCanvas treeData={treeData} />
-        
-        {/* Drawer Component */}
-        <NarratorDrawer />
-      </main>
-    </div>
-  );
+  return <TreeWorkspace treeData={treeData} hadithId={hadithId} />;
 }

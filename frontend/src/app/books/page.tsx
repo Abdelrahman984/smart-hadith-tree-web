@@ -1,50 +1,27 @@
-"use client";
+import type { Metadata } from "next";
+import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
+import CorpusCatalog from "@/features/books/CorpusCatalog";
+import Breadcrumbs from "@/features/books/Breadcrumbs";
 
-import { getBooks } from "@/lib/api";
-import { useQuery } from "@tanstack/react-query";
-import { Book } from "lucide-react";
-import Link from "next/link";
+export const metadata: Metadata = {
+  title: "فهرس الدواوين",
+  description: "تصفح الدواوين الحديثية المسندة الـ 31 بأبوابها وأحاديثها.",
+};
 
 export default function BooksPage() {
-  const { data: books, isLoading, isError } = useQuery({
-    queryKey: ['books'],
-    queryFn: getBooks,
-  });
-
   return (
-    <main id="main-content" className="max-w-4xl mx-auto p-6 pt-12">
-      <h1 className="text-3xl font-bold text-brand-dark mb-8 text-center">
-        تصفح كتب الحديث
-      </h1>
-
-      {isLoading && (
-        <div className="text-center text-slate-500 py-10">جاري التحميل...</div>
-      )}
-
-      {isError && (
-        <div className="text-center text-red-500 py-10">حدث خطأ أثناء جلب الكتب. تأكد من تشغيل الخادم.</div>
-      )}
-
-      {!isLoading && books && books.length === 0 && (
-        <div className="text-center text-slate-500 py-10">لا توجد كتب متاحة.</div>
-      )}
-
-      {!isLoading && books && books.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {books.map((book) => (
-            <Link 
-              key={book}
-              href={`/books/${encodeURIComponent(book)}`}
-              className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md hover:border-brand-teal transition-all flex items-center gap-4"
-            >
-              <div className="w-12 h-12 bg-brand-blue/10 rounded-xl flex items-center justify-center text-brand-blue">
-                <Book className="w-6 h-6" />
-              </div>
-              <span className="text-lg font-semibold text-slate-800">{book}</span>
-            </Link>
-          ))}
-        </div>
-      )}
-    </main>
+    <>
+      <SiteHeader />
+      <main id="main-content" className="mx-auto w-full max-w-7xl p-4 pt-6 sm:p-6 sm:pt-8">
+        <Breadcrumbs items={[{ label: "الرئيسية", href: "/" }, { label: "فهرس الدواوين" }]} />
+        <h1 className="text-2xl font-bold text-brand-dark sm:text-3xl">فهرس الدواوين</h1>
+        <p className="mb-8 mt-1 text-sm text-ink-muted sm:text-base">
+          اختر ديواناً لتصفح أبوابه، ثم افتح أي حديث لرسم شجرة إسناده.
+        </p>
+        <CorpusCatalog headingLevel={2} />
+      </main>
+      <SiteFooter />
+    </>
   );
 }

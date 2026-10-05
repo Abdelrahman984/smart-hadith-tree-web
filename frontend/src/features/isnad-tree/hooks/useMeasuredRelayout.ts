@@ -1,4 +1,4 @@
-import { useEffect, useState, Dispatch, SetStateAction } from "react";
+import { useCallback, useEffect, useState, Dispatch, SetStateAction } from "react";
 import { Node, Edge } from "@xyflow/react";
 import { getLayoutedElements } from "../utils/elkLayout";
 
@@ -24,13 +24,21 @@ interface Options {
  * once the first-pass result is in state. Hide the graph until `phase === "ready"`.
  */
 export function useMeasuredRelayout({ nodes, edges, setNodes, setEdges, onRelaid }: Options) {
-  const [phase, setPhase] = useState<LayoutPhase>("idle");
+  const [phase, setPhaseState] = useState<LayoutPhase>("idle");
+  // True from the first finished layout on. Later passes (a density change) re-lay out without hiding the graph;
+  // asking for "idle" (a new graph) hides it again.
+  const [visible, setVisible] = useState(false);
+  const setPhase = useCallback((next: LayoutPhase) => {
+    setPhaseState(next);
+    if (next === "idle") setVisible(false);
+  }, []);
 
   // Fallback: never leave the graph hidden if measurement stalls (e.g. a background tab).
   useEffect(() => {
     if (phase !== "measure") return;
     const timer = setTimeout(() => {
-      setPhase("ready");
+      setPhaseState("ready");
+      setVisible(true);
       requestAnimationFrame(() => onRelaid?.());
     }, MEASURE_TIMEOUT_MS);
     return () => clearTimeout(timer);
@@ -45,7 +53,8 @@ export function useMeasuredRelayout({ nodes, edges, setNodes, setEdges, onRelaid
       if (cancelled) return;
       setNodes(laidOut);
       setEdges(laidOutEdges);
-      setPhase("ready");
+      setPhaseState("ready");
+      setVisible(true);
       requestAnimationFrame(() => onRelaid?.());
     });
     return () => {
@@ -53,5 +62,5 @@ export function useMeasuredRelayout({ nodes, edges, setNodes, setEdges, onRelaid
     };
   }, [phase, nodes, edges, setNodes, setEdges, onRelaid]);
 
-  return { phase, setPhase };
+  return { phase, visible, setPhase };
 }

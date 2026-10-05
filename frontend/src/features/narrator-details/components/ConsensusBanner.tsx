@@ -28,7 +28,7 @@ export default function ConsensusBanner({ consensus }: { consensus: ConsensusRes
       : "لا يوجد في البيانات إلا قول واحد مصنَّف، وهو لا يكفي للحكم باتفاق العلماء أو اختلافهم.";
 
   return (
-    <p role="note" className="mb-3 flex items-start gap-1.5 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs leading-relaxed text-slate-600">
+    <p role="note" className="mb-3 flex items-start gap-1.5 rounded-lg border border-line bg-surface-muted p-2.5 text-xs leading-relaxed text-ink-muted">
       <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
       <span>{text}</span>
     </p>

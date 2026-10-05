@@ -4,7 +4,7 @@ export default function SearchSkeleton({ count = 3 }: { count?: number }) {
       {Array.from({ length: count }).map((_, idx) => (
         <div
           key={idx}
-          className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4"
+          className="bg-surface p-5 rounded-2xl border border-line/80 shadow-xs space-y-4"
         >
           {/* Header row */}
           <div className="flex items-center justify-between">

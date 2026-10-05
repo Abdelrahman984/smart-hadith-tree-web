@@ -16,8 +16,8 @@ function tariqLabel(turuq: IlalTariqDto[], hadithId: string) {
  */
 export default function MatnDiffView({ comparison, turuq }: MatnDiffViewProps) {
   return (
-    <div className="mt-2 rounded-lg border border-slate-200 bg-white p-2.5 text-sm">
-      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+    <div className="mt-2 rounded-lg border border-line bg-surface p-2.5 text-sm">
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-subtle">
         <span>
           المرجع: <strong className="text-slate-700">{tariqLabel(turuq, comparison.referenceHadithId)}</strong>
         </span>
@@ -45,7 +45,7 @@ export default function MatnDiffView({ comparison, turuq }: MatnDiffViewProps) {
           return <span key={idx}> {segment.text} </span>;
         })}
       </p>
-      <div className="mt-2 flex gap-3 text-[10px] text-slate-500">
+      <div className="mt-2 flex gap-3 text-[10px] text-ink-subtle">
         <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-emerald-200" /> زيادة</span>
         <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-rose-200" /> نقص / مخالفة</span>
       </div>

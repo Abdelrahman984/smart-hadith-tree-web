@@ -20,7 +20,7 @@ const STYLES: Record<EvidenceStatus, { label: string; glossaryId: string; classe
   insufficient: {
     label: "لا يوجد مرجع كافٍ",
     glossaryId: "evidence-insufficient",
-    classes: "border-slate-300 bg-slate-100 text-slate-800",
+    classes: "border-slate-300 bg-slate-100 text-ink",
     Icon: CircleSlash,
   },
 };

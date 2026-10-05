@@ -20,7 +20,7 @@ export default function IlalAiExplanation({ report }: { report: IlalReportDto })
             إخفاء
           </button>
         </div>
-        <p className="whitespace-pre-wrap text-sm leading-loose text-slate-800">{data.explanationAr}</p>
+        <p className="whitespace-pre-wrap text-sm leading-loose text-ink">{data.explanationAr}</p>
         {data.caveats.length > 0 && (
           <ul className="list-disc space-y-1 ps-5 text-xs text-indigo-800">
             {data.caveats.map((c, i) => <li key={i}>{c}</li>)}
@@ -36,7 +36,7 @@ export default function IlalAiExplanation({ report }: { report: IlalReportDto })
       <button
         onClick={() => mutate(report)}
         disabled={isPending}
-        className="flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-700 transition-colors hover:bg-indigo-50 disabled:opacity-60 cursor-pointer"
+        className="flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-surface px-3 py-2 text-sm font-semibold text-indigo-700 transition-colors hover:bg-indigo-50 disabled:opacity-60 cursor-pointer"
       >
         {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
         {isPending ? "جاري توليد الشرح..." : "اشرح العلل بالذكاء الاصطناعي"}
