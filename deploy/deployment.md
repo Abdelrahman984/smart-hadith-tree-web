@@ -14,6 +14,7 @@ All environment-specific values are configuration; nothing is hardcoded.
 | Frontend (build time) | `NEXT_PUBLIC_API_BASE` | Public API URL, e.g. `https://api.example.com/api`. Inlined into the client bundle, so changing it needs a rebuild. Defaults to `http://localhost:5147/api`. |
 | API | `ConnectionStrings__DefaultConnection` | SQL Server connection string. |
 | API | `Together__ApiKey` | Together AI key (model `zai-org/GLM-5.3-Flash`, override with `Together__Model`) for AI summaries and Ilal explanations. Takes precedence over Gemini. |
+| API | `Together__ExtraBody` | JSON object merged into every chat request. Set `{"reasoning_effort":"low"}` for `zai-org/GLM-5.3-Flash` (turns the model's thinking down; AI check 3–4 s instead of 8–27 s). In Docker it comes from `TOGETHER_EXTRA_BODY`. |
 | API | `Gemini__ApiKey` | Gemini key for AI summaries and Ilal explanations. Without it those features fail gracefully. |
 | API | `VERIFY_REVIEW_TIMEOUT_SECONDS` | Time limit for the model review step of `/verify` (default 8, range 2–60). On timeout the answer comes from text matching alone. See `docs/verify-feature-handoff.md`. |
 | API | `Cors__AllowedOrigins__0`, `__1`, ... | Browser origins allowed to call the API (the frontend URL). Defaults to `http://localhost:3000`. |

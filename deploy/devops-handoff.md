@@ -142,6 +142,7 @@ Set in `.env`; compose maps them to the API's configuration keys.
 | `MSSQL_SA_PASSWORD` | yes | SQL Server `sa` password. |
 | `MSSQL_MEMORY_LIMIT_MB` | no (2048) | SQL Server memory cap. |
 | `TOGETHER_API_KEY`, `TOGETHER_MODEL` | no | Preferred LLM provider; the model defaults to `zai-org/GLM-5.3-Flash`. |
+| `TOGETHER_EXTRA_BODY` | recommended | JSON merged into every chat request. Keep `'{"reasoning_effort":"low"}'` (single quotes) for GLM-5.3-Flash: without it the AI check takes 8–27 s instead of 3–4 s. |
 | `GEMINI_API_KEY` | no | Fallback LLM provider. |
 | `VERIFY_REVIEW_TIMEOUT_SECONDS` | no (8) | Time limit of the model review in `/verify` (2–60). |
 

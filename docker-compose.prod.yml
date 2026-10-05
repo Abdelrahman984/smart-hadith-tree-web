@@ -36,6 +36,7 @@ services:
       ConnectionStrings__DefaultConnection: "Server=db;Database=SmartHadithTree;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=true"
       Together__ApiKey: ${TOGETHER_API_KEY:-}
       Together__Model: ${TOGETHER_MODEL:-zai-org/GLM-5.3-Flash}
+      Together__ExtraBody: ${TOGETHER_EXTRA_BODY:-}
       Gemini__ApiKey: ${GEMINI_API_KEY:-}
       Cors__AllowedOrigins__0: https://${WEB_DOMAIN:?set WEB_DOMAIN}
       VERIFY_REVIEW_TIMEOUT_SECONDS: ${VERIFY_REVIEW_TIMEOUT_SECONDS:-8}

@@ -43,7 +43,7 @@ Read these numbers with care:
 - The cases were written by the assistant and were adjusted after seeing results (negation, prepositions, windows). They show the tool behaves on known cases; they are **not** a general accuracy figure. Say "29 test cases", not a percentage.
 - `method=ai+lexical` means the model *reviewed*, not that it *changed* the outcome. The model's real contribution is **not yet measured** (see next steps).
 - Two expectations were changed after a run, and the owner should confirm them: `A01` (one swapped word, `الأقوال`) now accepts `variant` only if `unmatchedWords` names the changed word (it originally required `not-found` through the model's veto, which was too slow); `N05` (`خير الأمور أوساطها`) is recorded as present in the corpus (مصنف ابن أبي شيبة 37861, similarity 1.0), so `exact` is correct. Open it in `/verify` to see how the book attributes it.
-- The model review took 10–25 s in several runs. That is too slow for a live page. Try a faster, non-reasoning `Together__Model` before relying on it.
+- The model review took 10–25 s in several runs. That is too slow for a live page. Measured later: with `Together__ExtraBody={"reasoning_effort":"low"}` the model stops spending tokens on reasoning (about 410 answer tokens, 3–4 s for ten passages instead of 8–27 s). Set it in production (`TOGETHER_EXTRA_BODY`) and re-run the evaluation to confirm quality did not drop.
 
 ## How to run it
 
