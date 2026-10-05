@@ -39,7 +39,7 @@ public sealed class WaslIrsalRule : IIlalRule
                     TitleAr = "ظاهره الإرسال",
                     EvidenceAr = $"ينتهي الإسناد إلى {tabiiName} وهو تابعي يرفعه إلى النبي ﷺ دون ذكر الصحابي، ولم يوجد في الطرق المجموعة من وصله. وقد يكون سقوط الصحابي من استخراج الإسناد آلياً، فيُراجع.",
                     NarratorIds = [tabiiId],
-                    HadithIds = mursalChains.Select(c => c.HadithId).ToList(),
+                    HadithIds = mursalChains.Select(c => c.HadithId).Distinct().ToList(),
                     Confidence = 0.35
                 };
                 continue;

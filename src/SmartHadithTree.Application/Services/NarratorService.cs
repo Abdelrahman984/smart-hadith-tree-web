@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SmartHadithTree.Application.DTOs;
 using SmartHadithTree.Application.Interfaces;
+using SmartHadithTree.Application.Services.Ilal;
 
 namespace SmartHadithTree.Application.Services;
 
@@ -53,7 +54,7 @@ public class NarratorService(IHadithTreeDbContext context) : INarratorService
             IsMudallis = narrator.IsMudallis,
             HasMukhtalit = narrator.HasMukhtalit,
             Biography = narrator.Biography,
-            GradeEn = narrator.ItqanGrade,
+            GradeEn = narrator.ItqanGrade ?? NarratorGradeScale.ToGradeEn(narrator.IbnHajarRank),
             Evaluations = narrator.ScholarEvaluations.Select(e => new ScholarEvaluationDto
             {
                 ScholarName = e.ScholarName,
@@ -73,8 +74,8 @@ public class NarratorService(IHadithTreeDbContext context) : INarratorService
                 Id = n.Id,
                 FullName = n.KnownAs ?? n.FullName,
                 GenerationTier = n.GenerationTier,
-                GradeSummary = n.GawamiRank ?? n.ScholarEvaluations.Select(e => e.VerdictRating).FirstOrDefault() ?? "غير معروف",
-                GradeEn = n.ItqanGrade
+                GradeSummary = n.GawamiRank ?? n.Verdict ?? n.ScholarEvaluations.Select(e => e.VerdictRating).FirstOrDefault() ?? "غير معروف",
+                GradeEn = n.ItqanGrade ?? NarratorGradeScale.ToGradeEn(n.IbnHajarRank)
             })
             .FirstOrDefaultAsync(ct);
 

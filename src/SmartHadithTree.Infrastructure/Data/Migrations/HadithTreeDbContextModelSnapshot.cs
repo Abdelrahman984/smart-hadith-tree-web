@@ -105,14 +105,61 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                     b.ToTable("Hadiths", (string)null);
                 });
 
+            modelBuilder.Entity("SmartHadithTree.Domain.Entities.MukhtalitGroupRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("GroupAr")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .UseCollation("Arabic_100_CI_AI");
+
+                    b.Property<Guid>("MukhtalitId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Quote")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .UseCollation("Arabic_100_CI_AI");
+
+                    b.Property<string>("SourceBook")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .UseCollation("Arabic_100_CI_AI");
+
+                    b.Property<int>("Timing")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MukhtalitId")
+                        .HasDatabaseName("IX_MukhtalitGroupRules_MukhtalitId");
+
+                    b.ToTable("MukhtalitGroupRules", (string)null);
+                });
+
             modelBuilder.Entity("SmartHadithTree.Domain.Entities.MukhtalitHearing", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("Evidence")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .UseCollation("Arabic_100_CI_AI");
+
                     b.Property<Guid>("MukhtalitId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SourceBook")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .UseCollation("Arabic_100_CI_AI");
 
                     b.Property<Guid>("StudentId")
                         .HasColumnType("uniqueidentifier");
@@ -177,10 +224,16 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                     b.Property<bool>("HasMukhtalit")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("IbnHajarRank")
+                        .HasColumnType("int");
+
                     b.Property<string>("IkhtilatNote")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)")
                         .UseCollation("Arabic_100_CI_AI");
+
+                    b.Property<int?>("IkhtilatSeverity")
+                        .HasColumnType("int");
 
                     b.Property<bool>("IsMudallis")
                         .HasColumnType("bit");
@@ -205,14 +258,29 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                     b.Property<int?>("MudallisTier")
                         .HasColumnType("int");
 
+                    b.Property<bool>("NoHearingAfterIkhtilat")
+                        .HasColumnType("bit");
+
                     b.Property<string>("ResidencePlaces")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ShamelaManId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SourceKey")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<int?>("TotalNarrationsCount")
                         .HasColumnType("int");
 
                     b.Property<int?>("UniqueHadithCount")
                         .HasColumnType("int");
+
+                    b.Property<string>("Verdict")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .UseCollation("Arabic_100_CI_AI");
 
                     b.HasKey("Id");
 
@@ -229,6 +297,14 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
 
                     b.HasIndex("KnownAs")
                         .HasDatabaseName("IX_Narrators_KnownAs");
+
+                    b.HasIndex("ShamelaManId")
+                        .HasDatabaseName("IX_Narrators_ShamelaManId");
+
+                    b.HasIndex("SourceKey")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Narrators_SourceKey")
+                        .HasFilter("[SourceKey] IS NOT NULL");
 
                     b.ToTable("Narrators", (string)null);
                 });
@@ -293,6 +369,13 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                         .HasColumnType("nvarchar(300)")
                         .UseCollation("Arabic_100_CI_AI");
 
+                    b.Property<int?>("SourcePage")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SourceVolume")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("VerdictRating")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)")
@@ -353,6 +436,17 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                         .HasForeignKey("HadithClusterId");
 
                     b.Navigation("Cluster");
+                });
+
+            modelBuilder.Entity("SmartHadithTree.Domain.Entities.MukhtalitGroupRule", b =>
+                {
+                    b.HasOne("SmartHadithTree.Domain.Entities.Narrator", "Mukhtalit")
+                        .WithMany("MukhtalitGroupRules")
+                        .HasForeignKey("MukhtalitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Mukhtalit");
                 });
 
             modelBuilder.Entity("SmartHadithTree.Domain.Entities.MukhtalitHearing", b =>
@@ -437,6 +531,8 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("SmartHadithTree.Domain.Entities.Narrator", b =>
                 {
+                    b.Navigation("MukhtalitGroupRules");
+
                     b.Navigation("MukhtalitHearings");
 
                     b.Navigation("ScholarEvaluations");

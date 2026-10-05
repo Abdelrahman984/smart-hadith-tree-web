@@ -10,13 +10,19 @@ public sealed record IlalNarrator(
     string? GenerationTier,
     int? MudallisTier,
     bool IsMukhtalit,
-    string? IkhtilatNote)
+    string? IkhtilatNote,
+    int? IbnHajarRank = null,
+    IkhtilatSeverity? IkhtilatSeverity = null,
+    bool NoHearingAfterIkhtilat = false)
 {
-    public int Tier => NarratorGradeScale.ToTier(GradeEn);
-    public bool IsCompanion => NarratorGradeScale.IsCompanion(GradeEn, GenerationTier);
-    public bool? IsTabii => NarratorGradeScale.IsTabii(GradeEn, GenerationTier);
-    public string GradeLabel => NarratorGradeScale.ToArabicLabel(GradeEn);
+    public int Tier => NarratorGradeScale.ToTier(IbnHajarRank, GradeEn);
+    public bool IsCompanion => NarratorGradeScale.IsCompanion(IbnHajarRank, GradeEn, GenerationTier);
+    public bool? IsTabii => NarratorGradeScale.IsTabii(IbnHajarRank, GradeEn, GenerationTier);
+    public string GradeLabel => NarratorGradeScale.ToArabicLabel(IbnHajarRank, GradeEn);
 }
+
+/// <summary>A rule the books give for a group of a mukhtalit's students («من سمع منه قبل التغير»).</summary>
+public sealed record MukhtalitGroupRuleInfo(string Group, HearingTiming Timing, string Quote);
 
 /// <summary>One link of a chain: the student reports from the sheikh using <see cref="Term"/>.</summary>
 public sealed record IlalLink(Guid StudentId, Guid SheikhId, string? Term, int StepOrder);
@@ -67,6 +73,14 @@ public sealed class IlalContext
     /// <summary>When each student heard from a mukhtalit narrator.</summary>
     public IReadOnlyDictionary<(Guid MukhtalitId, Guid StudentId), HearingTiming> Hearings { get; init; } =
         new Dictionary<(Guid, Guid), HearingTiming>();
+
+    /// <summary>The critic's own words behind a recorded hearing, when the data has them.</summary>
+    public IReadOnlyDictionary<(Guid MukhtalitId, Guid StudentId), string> HearingEvidence { get; init; } =
+        new Dictionary<(Guid, Guid), string>();
+
+    /// <summary>Group rules by mukhtalit narrator.</summary>
+    public IReadOnlyDictionary<Guid, IReadOnlyList<MukhtalitGroupRuleInfo>> GroupRules { get; init; } =
+        new Dictionary<Guid, IReadOnlyList<MukhtalitGroupRuleInfo>>();
 
     public IlalNarrator? Narrator(Guid id) => Narrators.GetValueOrDefault(id);
 

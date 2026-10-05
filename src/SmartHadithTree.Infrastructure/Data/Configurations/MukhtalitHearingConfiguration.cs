@@ -25,6 +25,14 @@ public class MukhtalitHearingConfiguration : IEntityTypeConfiguration<MukhtalitH
             .HasForeignKey(h => h.StudentId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.Property(h => h.Evidence)
+            .HasMaxLength(1000)
+            .UseCollation("Arabic_100_CI_AI");
+
+        builder.Property(h => h.SourceBook)
+            .HasMaxLength(300)
+            .UseCollation("Arabic_100_CI_AI");
+
         builder.HasIndex(h => new { h.MukhtalitId, h.StudentId })
             .IsUnique()
             .HasDatabaseName("IX_MukhtalitHearings_MukhtalitId_StudentId");

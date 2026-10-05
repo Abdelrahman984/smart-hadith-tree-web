@@ -22,6 +22,7 @@ public class HadithTreeDbContext : DbContext, IHadithTreeDbContext
     public DbSet<HadithCluster> HadithClusters => Set<HadithCluster>();
     public DbSet<NarratorRelation> NarratorRelations => Set<NarratorRelation>();
     public DbSet<MukhtalitHearing> MukhtalitHearings => Set<MukhtalitHearing>();
+    public DbSet<MukhtalitGroupRule> MukhtalitGroupRules => Set<MukhtalitGroupRule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

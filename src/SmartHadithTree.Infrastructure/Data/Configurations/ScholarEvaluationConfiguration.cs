@@ -39,6 +39,9 @@ public class ScholarEvaluationConfiguration : IEntityTypeConfiguration<ScholarEv
             .HasMaxLength(300)
             .UseCollation("Arabic_100_CI_AI");
 
+        builder.Property(e => e.SourceVolume)
+            .HasMaxLength(20);
+
         builder.Property(e => e.VerdictRating)
             .HasMaxLength(100)
             .UseCollation("Arabic_100_CI_AI");

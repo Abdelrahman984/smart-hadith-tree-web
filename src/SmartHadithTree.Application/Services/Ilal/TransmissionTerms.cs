@@ -7,9 +7,12 @@ public static class TransmissionTerms
 {
     // Normalized forms (no hamza on alef, ta marbuta → ha).
     private static readonly string[] ExplicitHearing =
-        ["حدثنا", "حدثني", "اخبرنا", "اخبرني", "انبانا", "انباني", "سمعت", "سمع", "انه سمع", "انها سمعت", "قرات علي", "قرات على"];
+        ["حدثنا", "حدثني", "حدثه", "حدثناه", "اخبرنا", "اخبرني", "اخبره", "اخبرناه", "انبانا", "انباني", "انبا", "انباناه",
+         // The abbreviations of the later books: ثنا (حدثنا), نا, أنا, أبنا (أخبرنا).
+         "ثنا", "نا", "انا", "ابنا",
+         "سمعت", "سمع", "انه سمع", "انها سمعت", "قرات علي", "قرات على"];
 
-    private static readonly string[] Ambiguous = ["عن", "ان", "قال", "ذكر"];
+    private static readonly string[] Ambiguous = ["عن", "ان", "قال", "قالت", "يقول", "ذكر"];
 
     /// <summary>True for formulas that explicitly state hearing (تصريح بالسماع), e.g. حدثنا / سمعت.</summary>
     public static bool IsExplicitHearing(string? term)

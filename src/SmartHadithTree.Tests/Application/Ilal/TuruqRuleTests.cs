@@ -145,9 +145,9 @@ public class IlalTaqwiyahIntegrationTests
         var tree = new ComparativeTreeResponseDto
         {
             Sources = [new ComparativeHadithSourceDto { HadithId = h1 }],
-            Nodes = [new ComparativeIsnadNodeDto { Id = Guid.NewGuid(), StepOrder = 1, GradeEn = "reliable" }],
             IlalReport = new IlalReportDto
             {
+                Turuq = [new IlalTariqDto { HadithId = h1, WeakestTier = 3, WeakestNarratorId = Guid.NewGuid() }],
                 HasQadihah = true,
                 Findings = [new IlalFindingDto { Severity = IllahSeverity.Qadihah, TitleAr = "عنعنة مدلس", HadithIds = [h1] }]
             }
@@ -166,9 +166,9 @@ public class IlalTaqwiyahIntegrationTests
         var tree = new ComparativeTreeResponseDto
         {
             Sources = [new ComparativeHadithSourceDto { HadithId = h1 }, new ComparativeHadithSourceDto { HadithId = Guid.NewGuid() }],
-            Nodes = [new ComparativeIsnadNodeDto { Id = Guid.NewGuid(), StepOrder = 1, GradeEn = "reliable" }],
             IlalReport = new IlalReportDto
             {
+                Turuq = [new IlalTariqDto { HadithId = h1, WeakestTier = 3, WeakestNarratorId = Guid.NewGuid() }],
                 HasQadihah = true,
                 Findings = [new IlalFindingDto { Severity = IllahSeverity.Qadihah, TitleAr = "شذوذ", HadithIds = [h1] }]
             }
@@ -197,5 +197,19 @@ public class IlalAnalysisServiceTests
         report.HasQadihah.Should().BeFalse();
         report.Madars.Should().ContainSingle(m => m.NarratorId == b.Id("الزهري") && m.BranchCount == 2);
         report.SummaryAr.Should().Contain("لم تظهر علة");
+    }
+
+    [Fact]
+    public void Analyze_ReportsWeakestNarratorAboveTheCompiler()
+    {
+        var b = new IlalTestBuilder()
+            .Narrator("ك1", "weak").Narrator("مالك").Narrator("الزهري", "mostly_reliable").Narrator("أنس", "companion");
+        b.Chain("قال رسول الله ﷺ الدين النصيحة", "أ", "ك1", "حدثنا", "مالك", "عن", "الزهري", "عن", "أنس");
+
+        var tariq = IlalAnalysisService.Analyze(b.Build()).Turuq.Single();
+
+        // the weak compiler is ignored; الزهري (tier 4) is the weakest link
+        tariq.WeakestNarratorId.Should().Be(b.Id("الزهري"));
+        tariq.WeakestTier.Should().Be(4);
     }
 }

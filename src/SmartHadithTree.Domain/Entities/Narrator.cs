@@ -1,3 +1,5 @@
+using SmartHadithTree.Domain.Enums;
+
 namespace SmartHadithTree.Domain.Entities;
 
 /// <summary>
@@ -57,6 +59,22 @@ public class Narrator
     /// <summary>
     /// ID from the R3GENESI5/Itqan dataset (for mapping).
     /// </summary>
+    /// <summary>
+    /// Id of the narrator in the Shamela-built registry (<c>registry.json</c>), e.g. <c>tk3438s</c> or <c>rayy:260</c>.
+    /// Replaces <see cref="ItqanId"/> once the migration is complete (Phase 7).
+    /// </summary>
+    public string? SourceKey { get; set; }
+
+    /// <summary>Id in Shamela's narrator encyclopedia (S1.db), when the narrator is linked there.</summary>
+    public int? ShamelaManId { get; set; }
+
+    /// <summary>Ibn Hajar's rank in Taqrib al-Tahdhib, 1 (Companion) to 12. Replaces <see cref="ItqanGrade"/>.</summary>
+    public int? IbnHajarRank { get; set; }
+
+    /// <summary>Ibn Hajar's verdict in Taqrib al-Tahdhib, in his own words.</summary>
+    public string? Verdict { get; set; }
+
+    /// <summary>Legacy Itqan id; removed in Phase 7.</summary>
     public int? ItqanId { get; set; }
 
     public int? GawamiId { get; set; }
@@ -71,6 +89,14 @@ public class Narrator
 
     /// <summary>وصف الاختلاط — Note on when/how the narrator's memory deteriorated.</summary>
     public string? IkhtilatNote { get; set; }
+
+    /// <summary>How the books rate his ikhtilat; null when he is not a mukhtalit.</summary>
+    public IkhtilatSeverity? IkhtilatSeverity { get; set; }
+
+    /// <summary>The books state that nobody heard from him after the ikhtilat.</summary>
+    public bool NoHearingAfterIkhtilat { get; set; }
+
+    public ICollection<MukhtalitGroupRule> MukhtalitGroupRules { get; set; } = [];
 
     /// <summary>Records of which students heard from this narrator before/after their ikhtilat.</summary>
     public ICollection<MukhtalitHearing> MukhtalitHearings { get; set; } = [];

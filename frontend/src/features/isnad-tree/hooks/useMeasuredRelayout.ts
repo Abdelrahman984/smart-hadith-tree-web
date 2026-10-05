@@ -29,9 +29,12 @@ export function useMeasuredRelayout({ nodes, edges, setNodes, setEdges, onRelaid
   // Fallback: never leave the graph hidden if measurement stalls (e.g. a background tab).
   useEffect(() => {
     if (phase !== "measure") return;
-    const timer = setTimeout(() => setPhase("ready"), MEASURE_TIMEOUT_MS);
+    const timer = setTimeout(() => {
+      setPhase("ready");
+      requestAnimationFrame(() => onRelaid?.());
+    }, MEASURE_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, [phase]);
+  }, [phase, onRelaid]);
 
   useEffect(() => {
     if (phase !== "measure" || nodes.length === 0) return;

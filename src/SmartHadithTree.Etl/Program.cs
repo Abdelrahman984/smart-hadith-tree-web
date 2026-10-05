@@ -14,7 +14,9 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Configuration
     .SetBasePath(AppContext.BaseDirectory)
     .AddJsonFile("appsettings.json", optional: false)
-    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true);
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
+    // Last, so that ConnectionStrings__DefaultConnection overrides the file (a scratch database for a test load).
+    .AddEnvironmentVariables();
 
 // ── Register Services ──────────────────────────────────────────────
 builder.Services.AddDbContext<HadithTreeDbContext>(options =>
@@ -23,16 +25,13 @@ builder.Services.AddDbContext<HadithTreeDbContext>(options =>
         sql => sql.CommandTimeout(600))); // 10 minutes for bulk operations
 
 // Parsers (pluggable — add new parsers here)
-builder.Services.AddTransient<IDataSourceParser, SmartHadithTree.Etl.Parsers.Itqan.ItqanDatasetParser>();
-builder.Services.AddTransient<IDataSourceParser, SmartHadithTree.Etl.Parsers.Shamela.ShamelaSqliteParser>();
+builder.Services.AddTransient<IDataSourceParser, SmartHadithTree.Etl.Parsers.Shamela.ShamelaDatasetParser>();
 builder.Services.AddTransient<IDataSourceParser, SmartHadithTree.Etl.Parsers.Shamela.ShamelaJsonParser>();
 builder.Services.AddTransient<IDataSourceParser, SeedDataGenerator>();
 
 // Services
-builder.Services.AddSingleton<SmartHadithTree.Etl.Parsers.Itqan.ContextualDisambiguator>();
 builder.Services.AddTransient<BulkDataIngestionService>();
-builder.Services.AddTransient<ChainReprocessingService>();
-builder.Services.AddTransient<IlalSeedService>();
+builder.Services.AddTransient<ShamelaIlalService>();
 builder.Services.AddTransient<EtlOrchestrator>();
 
 var host = builder.Build();
@@ -41,7 +40,6 @@ var host = builder.Build();
 using var scope = host.Services.CreateScope();
 var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 var orchestrator = scope.ServiceProvider.GetRequiredService<EtlOrchestrator>();
-var reprocessor = scope.ServiceProvider.GetRequiredService<ChainReprocessingService>();
 
 // Determine the data source from command-line args or default to "seed"
 var source = args.Length > 0 ? args[0] : "seed";
@@ -51,36 +49,19 @@ logger.LogInformation("║   Smart Hadith Tree — ETL Data Pipeline     ║");
 logger.LogInformation("║   شجرة الأسانيد الذكية — خط أنابيب البيانات ║");
 logger.LogInformation("╚══════════════════════════════════════════════╝");
 logger.LogInformation("Source: {Source}", source);
+var target = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(
+    builder.Configuration.GetConnectionString("DefaultConnection"));
+logger.LogInformation("Database: {Server} / {Database}", target.DataSource, target.InitialCatalog);
 
 try
 {
-    if (source.Equals("reprocess-chains", StringComparison.OrdinalIgnoreCase) ||
-        source.Equals("reprocess-missing-chains", StringComparison.OrdinalIgnoreCase))
+    if (source.Equals("seed-ilal-shamela", StringComparison.OrdinalIgnoreCase))
     {
-        // Require the path to itqan data. E.g. dotnet run reprocess-chains data/itqan
-        var itqanPath = args.Length > 1 ? args[1] : "data/itqan";
-        var bookFilter = args.Length > 2 ? args[2] : null;
-        bool onlyMissing = source.Equals("reprocess-missing-chains", StringComparison.OrdinalIgnoreCase);
-        await reprocessor.ReprocessChainsAsync(itqanPath, bookFilter, CancellationToken.None, onlyMissing);
-    }
-    else if (source.Equals("reprocess-hadiths", StringComparison.OrdinalIgnoreCase))
-    {
-        var itqanPath = args.Length > 1 ? args[1] : "data/itqan";
-        var rawIds = args.Length > 2 ? args[2] : string.Empty;
-        var hadithIds = rawIds
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(s => Guid.TryParse(s, out var g) ? g : Guid.Empty)
-            .Where(g => g != Guid.Empty)
-            .ToList();
-        await reprocessor.ReprocessHadithIdsAsync(itqanPath, hadithIds, CancellationToken.None);
-    }
-    else if (source.Equals("seed-ilal", StringComparison.OrdinalIgnoreCase))
-    {
-        // Teacher/student relations + mudallisin/mukhtalitun seeds. E.g. dotnet run seed-ilal data/itqan
-        var itqanPath = args.Length > 1 ? args[1] : "data/itqan";
-        var seedsPath = Path.Combine(AppContext.BaseDirectory, "Seeds");
-        var ilalSeeder = scope.ServiceProvider.GetRequiredService<IlalSeedService>();
-        await ilalSeeder.RunAsync(itqanPath, seedsPath, CancellationToken.None);
+        // Mudallisin and mukhtalitun of the Shamela books, onto narrators loaded from data/shamela_rijal.
+        // E.g. dotnet run -- seed-ilal-shamela data/shamela_rijal
+        var rijalPath = args.Length > 1 ? args[1] : "data/shamela_rijal";
+        var shamelaIlal = scope.ServiceProvider.GetRequiredService<ShamelaIlalService>();
+        await shamelaIlal.RunAsync(Path.Combine(rijalPath, "ilal.json"), CancellationToken.None);
     }
     else
     {

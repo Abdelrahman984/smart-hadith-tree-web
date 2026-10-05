@@ -1,6 +1,6 @@
 import { Handle, Position } from '@xyflow/react';
 import { memo } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, FileDiff, MapPin } from 'lucide-react';
 import { useIlalStore } from '@/features/ilal/store/useIlalStore';
 import { getBookMeta } from '@/lib/bookTheme';
 
@@ -13,6 +13,9 @@ type ComparativeNarratorNodeData = {
   gradeEn?: string;
   isAnomaly?: boolean;
   anomalyReason?: string;
+  travelNote?: string;
+  hasMatnVariation?: boolean;
+  matnVariationSnippet?: string;
   isSelected?: boolean;
   showWeakOnly?: boolean;
   sourceBooks: string[];
@@ -100,6 +103,22 @@ const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: Com
           title={data.anomalyReason}
         >
           <AlertTriangle className="w-5 h-5 text-red-500" />
+        </div>
+      )}
+      {data.travelNote && (
+        <div
+          className="absolute -bottom-3 -right-3 bg-white rounded-full p-1 shadow border border-sky-200"
+          title={data.travelNote}
+        >
+          <MapPin className="w-4 h-4 text-sky-500" />
+        </div>
+      )}
+      {data.hasMatnVariation && (
+        <div
+          className="absolute -bottom-3 -left-3 bg-white rounded-full p-1 shadow border border-amber-200"
+          title={data.matnVariationSnippet || 'اختلاف باللفظ'}
+        >
+          <FileDiff className="w-4 h-4 text-amber-500" />
         </div>
       )}
 

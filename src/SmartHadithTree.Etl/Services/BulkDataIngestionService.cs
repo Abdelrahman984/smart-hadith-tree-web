@@ -56,6 +56,12 @@ public class BulkDataIngestionService(
                 await context.BulkInsertAsync(dataset.Narrators, DefaultBulkConfig, cancellationToken: ct);
             }
 
+            if (dataset.NarratorRelations.Count > 0)
+            {
+                logger.LogInformation("Inserting {Count} narrator relations...", dataset.NarratorRelations.Count);
+                await context.BulkInsertAsync(dataset.NarratorRelations, DefaultBulkConfig, cancellationToken: ct);
+            }
+
             if (dataset.Hadiths.Count > 0)
             {
                 logger.LogInformation("Inserting {Count} hadiths...", dataset.Hadiths.Count);

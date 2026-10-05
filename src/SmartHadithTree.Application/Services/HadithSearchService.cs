@@ -525,6 +525,9 @@ public class HadithSearchService(
 
         if (hadiths.Count == 0) return null;
 
+        // Keep the order the caller asked for (the database returns rows in no particular order).
+        hadiths = hadiths.OrderBy(h => hadithIds.IndexOf(h.Id)).ToList();
+
         var sources = hadiths.Select(h => new ComparativeHadithSourceDto
         {
             HadithId = h.Id,
@@ -545,38 +548,24 @@ public class HadithSearchService(
             Nodes = nodes
         };
 
-        // Matn Variation Detection on the extracted Matn body (excluding Isnad and trailing commentary)
+        // Matn variation: flag the turuq whose wording differs substantively from the most typical text.
         if (sources.Count > 1)
         {
-            var baseSource = sources.First();
-            var baseHadith = hadiths.First(h => h.Id == baseSource.HadithId);
-            var baseTokens = MatnText.Tokenize(MatnText.ExtractBody(baseHadith.MatnArabic));
+            var bodies = hadiths
+                .Select(h => MatnText.Tokenize(MatnText.ExtractBody(h.MatnArabic)))
+                .ToList();
 
-            foreach (var source in sources.Skip(1))
+            foreach (var index in MatnVariation.FindVariants(bodies))
             {
-                var compareHadith = hadiths.First(h => h.Id == source.HadithId);
-                var compareTokens = MatnText.Tokenize(MatnText.ExtractBody(compareHadith.MatnArabic));
-                if (baseTokens.Length == 0 || compareTokens.Length == 0) continue;
-
-                var diff = MatnAligner.Align(baseTokens, compareTokens);
-                var addedOnly = diff.AddedCount - diff.SubstitutedCount;
-                var removedOnly = diff.RemovedCount - diff.SubstitutedCount;
-                bool hasSubstantiveVariation =
-                    (diff.SubstitutedCount >= 2 && diff.Similarity < 0.85) ||
-                    (addedOnly >= 5 && diff.LongestAddedRun >= 3) ||
-                    (removedOnly >= 5);
-
-                if (hasSubstantiveVariation)
+                var hadithId = hadiths[index].Id;
+                var matchingEdgeNodes = nodes.Where(n =>
+                    n.StepOrder == 1 &&
+                    n.ParentNodeId.HasValue &&
+                    n.SourceHadithIds.Contains(hadithId));
+                foreach (var edgeNode in matchingEdgeNodes)
                 {
-                    var matchingEdgeNodes = nodes.Where(n =>
-                        n.StepOrder == 1 &&
-                        n.ParentNodeId.HasValue &&
-                        n.SourceHadithIds.Contains(source.HadithId));
-                    foreach (var edgeNode in matchingEdgeNodes)
-                    {
-                        edgeNode.HasMatnVariation = true;
-                        edgeNode.MatnVariationSnippet = "يوجد اختلاف أو زيادة في لفظ المتن مقارنة بالرواية الأساسية.";
-                    }
+                    edgeNode.HasMatnVariation = true;
+                    edgeNode.MatnVariationSnippet = "يوجد اختلاف أو زيادة في لفظ المتن مقارنة بأغلب الروايات.";
                 }
             }
         }

@@ -1,6 +1,6 @@
 import { Handle, Position } from '@xyflow/react';
 import { memo } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, MapPin } from 'lucide-react';
 import { useIlalStore } from '@/features/ilal/store/useIlalStore';
 
 type NarratorNodeData = {
@@ -12,6 +12,7 @@ type NarratorNodeData = {
   gradeEn?: string;
   isAnomaly?: boolean;
   anomalyReason?: string;
+  travelNote?: string;
   isSelected?: boolean;
   showWeakOnly?: boolean;
   isMudallis?: boolean;
@@ -88,6 +89,14 @@ const NarratorNode = ({ id, data, selected }: { id: string; data: NarratorNodeDa
           title={data.anomalyReason}
         >
           <AlertTriangle className="w-5 h-5 text-red-500" />
+        </div>
+      )}
+      {data.travelNote && (
+        <div
+          className="absolute -bottom-3 -right-3 bg-white rounded-full p-1 shadow border border-sky-200"
+          title={data.travelNote}
+        >
+          <MapPin className="w-4 h-4 text-sky-500" />
         </div>
       )}
 
