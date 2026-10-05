@@ -8,6 +8,7 @@ using SmartHadithTree.Application.Services.Ilal;
 using SmartHadithTree.Infrastructure.Data.Repositories;
 using Microsoft.SemanticKernel;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -70,6 +71,24 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.DefaultIgnoreCondition =
             System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
     });
+
+// ── Reverse proxy ──────────────────────────────────────────────────
+// Behind Caddy/nginx every request reaches the API from the proxy's address. Reading X-Forwarded-For/-Proto gives
+// the real client address (the rate limiter below is per client) and the original scheme. Only the last hop is
+// trusted (ForwardLimit 1), so a client cannot choose its own address by sending the header itself, provided the
+// API is reachable only through the proxy (docker-compose.prod.yml binds it to localhost). Set
+// ForwardedHeaders__Enabled=false when the API is exposed directly.
+var forwardedHeadersEnabled = builder.Configuration.GetValue("ForwardedHeaders:Enabled", true);
+if (forwardedHeadersEnabled)
+{
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.ForwardLimit = 1;
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+}
 
 // ── Rate limiting ──────────────────────────────────────────────────
 // The AI endpoints call a paid model without a login, so each client address gets a small budget per minute
@@ -141,6 +160,11 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+}
+
+if (forwardedHeadersEnabled)
+{
+    app.UseForwardedHeaders();
 }
 
 // Behind a TLS-terminating proxy (container platforms) the app only sees plain HTTP.

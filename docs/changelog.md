@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-05: Verify, search relevance and optional AI check
+
+- **`/verify`** (`POST /api/Verify`): checks a pasted text against the 31 books (retrieval by word stems and word windows, ordered word-pair scoring, a negation guard in code, a restricted model review with a verified quote). Answers: exact, variant, not-found, invalid; it never invents a source or a ruling. Notes in `docs/verify-feature-handoff.md`; 29 evaluation cases in `docs/challenge/verify-eval-cases.json` run by `scripts/eval_verify.py`.
+- **`/search`**: every result has a relevance score and a reason computed by the server (`RelevanceScorer`: coverage, closeness in words, phrase/order, repeated query words must repeat); a long hadith that contains the exact phrase is no longer cut by the shortest-first candidate cap; the search runs on the search button or Enter, not while typing (3 characters minimum).
+- **Optional AI check of a page of results** (`POST /api/Search/ai-judge`, button on `/search`): labels match / partial / scattered with a quote verified in the matn; an unverifiable answer is "not judged"; hiding "scattered" results is the user's switch and is always counted. Evaluation: `scripts/eval_search.py`, plan and findings in `docs/search-relevance-plan.md`.
+- **Operations**: the AI endpoint is rate limited per client (`RateLimit__AiPermitPerMinute`, default 10 per minute); the API now reads `X-Forwarded-For`/`X-Forwarded-Proto` from the reverse proxy (`ForwardedHeaders__Enabled`, default on, last hop only), otherwise every visitor behind Caddy/nginx would share one rate-limit bucket. Time limits: `SEARCH_AI_TIMEOUT_SECONDS` (default 20), `VERIFY_REVIEW_TIMEOUT_SECONDS` (default 8). `scripts/model_latency.py` times the configured chat model directly.
+
+---
+
 ## 2026-10-05: Shamela data and review fixes (merged into `master`)
 
 - **Data source**: all 31 books and the narrator registry are built from Shamela 4 (Tahdhib al-Kamal, Taqrib and the compilers' shaykh books); Itqan is no longer read. Database `SmartHadithTree_ShamelaV5`: 274,597 hadiths, 1,217,978 transmissions, 23,502 narrators, 116,670 quotes, 115,816 relations. The migration is documented in `docs/shamela_migration.md`.
