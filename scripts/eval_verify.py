@@ -53,6 +53,8 @@ def main():
     ap.add_argument("--api", default="http://localhost:5147/api")
     ap.add_argument("--runs", type=int, default=1)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--save", help="write per-case results to this JSON file")
+    ap.add_argument("--compare", help="a file written by --save; print the cases whose status differs")
     args = ap.parse_args()
 
     cases = load_cases()
@@ -68,6 +70,7 @@ def main():
     latencies = []
     unstable = []
     failures = []
+    results = {}
 
     for c in cases:
         seen = []
@@ -78,6 +81,7 @@ def main():
         if len(set(seen)) > 1:
             unstable.append((c["id"], seen))
         status = seen[0]
+        results[c["id"]] = {"status": status, "method": body.get("method")}
         ok = status in c["accept"] and status not in c.get("reject", [])
         groups[c["group"]][0] += ok
         groups[c["group"]][1] += 1
@@ -102,6 +106,16 @@ def main():
         print(f"Unstable across {args.runs} runs: {unstable}")
     elif args.runs > 1:
         print(f"Stable across {args.runs} runs")
+    ai_cases = [i for i, r in results.items() if r["method"] == "ai+lexical"]
+    print(f"Cases where the model reviewed: {len(ai_cases)}/{len(results)} {ai_cases}")
+    if args.save:
+        Path(args.save).write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"Saved results to {args.save}")
+    if args.compare:
+        before = json.loads(Path(args.compare).read_text(encoding="utf-8"))
+        diff = {i: (before[i]["status"], r["status"]) for i, r in results.items()
+                if i in before and before[i]["status"] != r["status"]}
+        print(f"Status differs from {args.compare}: {diff if diff else 'none'}")
     for f in failures:
         print(f"FAILED {f[0]}: got {f[1]}, accept {f[2]}, method {f[3]}")
     return 1 if failures else 0
