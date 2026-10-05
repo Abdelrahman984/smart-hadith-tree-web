@@ -111,3 +111,7 @@ Read the numbers with the usual care: the targets were written from memory (chec
 ### Settings
 
 `SEARCH_AI_TIMEOUT_SECONDS` (5-90, default 20 per call), `RateLimit__AiPermitPerMinute`, and the model keys as for `/verify` (`Together__ApiKey`, `Together__Model`). If the model needs more than 5-10 seconds for a chunk of 20, the button will feel slow: use a faster non-reasoning model.
+
+### Search starts on demand (added 2026-10-05)
+
+`/search` no longer searches while typing (it used to wait 350 ms after the last keystroke). The search runs when the user presses the **بحث** button or Enter, or picks a suggestion; the text must have at least 3 characters (`MIN_QUERY_LENGTH` in `useHadithSearch.ts`). Reasons: every search scans the matns of the whole corpus with `Contains`, partial words gave useless intermediate queries, and the AI labels belong to one page of results, which used to change under the user at every keystroke. Behavior worth knowing: editing the box keeps the current results and labels until the next search; the clear button empties both the box and the results; pressing search while advanced (Shamela) conditions are active replaces them with the simple search. Checked in a browser with a mock API: 0 requests while typing, 1 after the click, 1 while editing, 2 after Enter.

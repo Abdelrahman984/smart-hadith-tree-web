@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useHadithSearch } from "@/features/search/hooks/useHadithSearch";
+import { useHadithSearch, MIN_QUERY_LENGTH } from "@/features/search/hooks/useHadithSearch";
 import { getRelatedHadiths, judgeSearchResults, RateLimitedError } from "@/lib/api";
 import AiNotice from "@/components/AiNotice";
 import type { SearchJudgeItemDto } from "@/types/api";
@@ -42,7 +42,9 @@ function SearchContent() {
     page,
     setPage,
     pageSize,
-    debouncedQuery,
+    submittedQuery,
+    submitSearch,
+    clearSearch,
     advancedRequest,
     setAdvancedRequest,
     data: results,
@@ -58,17 +60,27 @@ function SearchContent() {
   const [selectedBook, setSelectedBook] = useState<string | null>(null);
   const [isShamelaModalOpen, setIsShamelaModalOpen] = useState(false);
 
-  // Sync URL when debounced query updates
+  // Sync URL when the submitted query updates
   useEffect(() => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    if (debouncedQuery.trim().length > 2) {
-      url.searchParams.set("q", debouncedQuery.trim());
+    if (submittedQuery.trim().length >= MIN_QUERY_LENGTH) {
+      url.searchParams.set("q", submittedQuery.trim());
     } else {
       url.searchParams.delete("q");
     }
     window.history.replaceState(null, "", url.toString());
-  }, [debouncedQuery]);
+  }, [submittedQuery]);
+
+  // Search runs when the user presses the button or Enter, not on every keystroke.
+  const typed = query.trim();
+  const canSubmit = typed.length >= MIN_QUERY_LENGTH;
+  const hasUnsubmittedChange = canSubmit && typed !== submittedQuery.trim();
+  const handleSubmitSearch = () => {
+    if (!canSubmit) return;
+    if (advancedRequest) setAdvancedRequest(null); // a new simple search replaces the advanced conditions
+    submitSearch();
+  };
 
   // Global shortcut "/" or "Ctrl+K" to focus search bar
   useEffect(() => {
@@ -106,7 +118,7 @@ function SearchContent() {
   const resultsKey = useMemo(() => (results ?? []).map((h) => h.id).join(","), [results]);
   const judgeQuery = advancedRequest
     ? [...(advancedRequest.andPhrases ?? []), ...(advancedRequest.orPhrases ?? []), ...(advancedRequest.phrases ?? [])].join(" ")
-    : debouncedQuery;
+    : submittedQuery;
   const [judge, setJudge] = useState<{ key: string; byId: Record<string, SearchJudgeItemDto>; status: string } | null>(null);
   const [judgeError, setJudgeError] = useState<{ key: string; message: string } | null>(null);
   const [isJudging, setIsJudging] = useState(false);
@@ -202,7 +214,7 @@ function SearchContent() {
     }
   };
 
-  const isSearchActive = !!advancedRequest || debouncedQuery.trim().length > 2;
+  const isSearchActive = !!advancedRequest || submittedQuery.trim().length >= MIN_QUERY_LENGTH;
 
   return (
     <div className="min-h-screen bg-slate-50/60 flex flex-col selection:bg-brand-teal/20 selection:text-brand-dark">
@@ -265,8 +277,16 @@ function SearchContent() {
         </section>
 
         {/* Search Bar Input */}
-        <div className="relative mb-6">
-          <div className="relative flex items-center">
+        <form
+          role="search"
+          className="relative mb-6"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmitSearch();
+          }}
+        >
+          <div className="flex items-stretch gap-2">
+          <div className="relative flex flex-1 items-center">
             {/* Search Icon */}
             <div className="absolute inset-y-0 start-0 flex items-center ps-4 pointer-events-none text-slate-400">
               <Search className="w-5 h-5" />
@@ -281,6 +301,9 @@ function SearchContent() {
               placeholder="ابحث بمتن الحديث، اسم الراوي، أو المصدر..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              enterKeyHint="search"
+              autoComplete="off"
+              aria-label="نص البحث"
             />
 
             {/* Right-side Controls (Clear & Shortcut / Loading) */}
@@ -293,7 +316,7 @@ function SearchContent() {
                 <button
                   type="button"
                   onClick={() => {
-                    setQuery("");
+                    clearSearch();
                     inputRef.current?.focus();
                   }}
                   className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
@@ -326,13 +349,28 @@ function SearchContent() {
             </div>
           </div>
 
-          {/* Under-input helper if short query */}
-          {query.trim().length > 0 && query.trim().length <= 2 && (
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-brand-blue px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+            title={canSubmit ? "ابدأ البحث (Enter)" : `اكتب ${MIN_QUERY_LENGTH} أحرف على الأقل`}
+          >
+            <Search className="h-4 w-4" aria-hidden />
+            <span>بحث</span>
+          </button>
+          </div>
+
+          {/* Under-input helper */}
+          {typed.length > 0 && !canSubmit ? (
             <p className="text-xs text-amber-600 mt-2 pr-1 font-medium animate-in fade-in">
-              * أدخل 3 أحرف على الأقل لبدء البحث...
+              * أدخل {MIN_QUERY_LENGTH} أحرف على الأقل ثم اضغط «بحث» أو Enter.
             </p>
-          )}
-        </div>
+          ) : hasUnsubmittedChange ? (
+            <p className="text-xs text-slate-500 mt-2 pr-1 animate-in fade-in">
+              اضغط «بحث» أو Enter لعرض النتائج.
+            </p>
+          ) : null}
+        </form>
 
         {/* Active Shamela Advanced Query Banner */}
         {advancedRequest && (
@@ -527,7 +565,8 @@ function SearchContent() {
             <SearchEmptyState
               type="initial"
               onSelectSuggestion={(sug) => {
-                setQuery(sug);
+                if (advancedRequest) setAdvancedRequest(null);
+                submitSearch(sug);
                 inputRef.current?.focus();
               }}
             />
@@ -561,9 +600,9 @@ function SearchContent() {
           {!isLoading && !isError && isSearchActive && results && results.length === 0 && (
             <SearchEmptyState
               type="no_results"
-              query={debouncedQuery}
+              query={submittedQuery}
               onResetSearch={() => {
-                setQuery("");
+                clearSearch();
                 inputRef.current?.focus();
               }}
             />
@@ -606,7 +645,7 @@ function SearchContent() {
                     <HadithCard
                       key={hadith.id}
                       hadith={hadith}
-                      searchQuery={debouncedQuery}
+                      searchQuery={submittedQuery}
                       highlightPhrases={advancedRequest?.phrases}
                       judgement={activeJudge?.byId[hadith.id]}
                       isSelected={selectedIds.has(hadith.id)}
@@ -667,7 +706,7 @@ function SearchContent() {
           isOpen={isShamelaModalOpen}
           onClose={() => setIsShamelaModalOpen(false)}
           onSearch={(req) => {
-            setQuery("");
+            clearSearch();
             setAdvancedRequest(req);
           }}
           initialRequest={advancedRequest ?? undefined}
