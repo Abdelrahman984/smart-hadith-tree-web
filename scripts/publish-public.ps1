@@ -91,8 +91,7 @@ try {
         $path = Join-Path $wt $f
         if (-not (Test-Path -LiteralPath $path)) { continue }
         $t = [IO.File]::ReadAllText($path)
-        $n = [regex]::Replace($t, '[A-Za-z]:\[^
-"'']*?\Smart-Hadith-Tree\', '')
+        $n = [regex]::Replace($t, '[A-Za-z]:\\[^\r\n"'']*?\\Smart-Hadith-Tree\\', '')
         if ($n -ne $t) { [IO.File]::WriteAllText($path, $n) }
     }
 
