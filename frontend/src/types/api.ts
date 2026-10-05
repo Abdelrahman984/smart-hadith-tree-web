@@ -5,6 +5,10 @@ export interface HadithSearchResultDto {
   chapter: string | null;
   matnArabic?: string;
   matnSnippet: string;
+  /** 0-100: how well the matn matches the searched words (coverage, closeness, phrase/order). */
+  relevancePercent?: number;
+  /** One-line Arabic reason for the percentage. */
+  relevanceReason?: string;
 }
 
 export interface IsnadNodeDto {
@@ -184,6 +188,21 @@ export interface HadithVerificationResultDto {
   /** Words of the checked text that are not in the closest matn. */
   unmatchedWords?: string[];
   matches: VerifiedHadithMatchDto[];
+}
+
+export type SearchJudgeLevel = "match" | "partial" | "scattered" | "not-judged";
+
+export interface SearchJudgeItemDto {
+  id: string;
+  level: SearchJudgeLevel;
+  reason: string;
+  /** A phrase copied from the matn that supports the label (verified on the server). */
+  quote: string;
+}
+
+export interface SearchJudgeResponseDto {
+  status: "reviewed" | "partial" | "timeout" | "unavailable" | "invalid";
+  items: SearchJudgeItemDto[];
 }
 
 export type SearchScope = 0 | 1 | 2; // 0: All, 1: Matn, 2: Isnad

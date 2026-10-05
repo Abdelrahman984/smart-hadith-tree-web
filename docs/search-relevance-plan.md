@@ -1,6 +1,6 @@
 # Plan: relevance scoring and AI judging on `/search`
 
-**Status: plan only, nothing implemented (2026-10-05).** Branch `claude/friendly-keller-81748m`. The deferred `/verify` feature is in `docs/verify-feature-handoff.md`.
+**Status: implemented (2026-10-05), not yet measured on the real corpus. See "Implementation status" at the end.** Branch `claude/friendly-keller-81748m`. The deferred `/verify` feature is in `docs/verify-feature-handoff.md`.
 
 ## Context
 
@@ -25,11 +25,13 @@ What the code does today (`src/SmartHadithTree.Application/Services/HadithSearch
 
 New pure class `RelevanceScorer` (in `Application/Services/`), unit-tested, used for every result of both the standard and the advanced path.
 
-| Component | Meaning | Weight |
-|---|---|---|
-| coverage | share of the query words found in the matn (after the project's normalization) | 40 |
-| proximity | smallest window **in words** that contains all found words; `min(1, termCount / windowWords)` | 40 |
-| phrase/order | exact phrase present, or words appear in the query order | 20 |
+`percent = 100 x coverage x (0.25 + 0.50 x proximity + 0.25 x phrase/order)` (the first draft added the parts; multiplying by coverage keeps a hadith with missing words low).
+
+| Component | Meaning |
+|---|---|
+| coverage | share of the query words found in the matn (after the project's normalization) |
+| proximity | smallest window **in words** that contains all found words; `min(1, (words + gaps allowed) / window)`, one filler word between words is free |
+| phrase/order | 1 if the exact phrase is present, 0.5 if the words appear in the query order, else 0 |
 
 Output per result: `relevancePercent` (0–100) and `relevanceReason` (one Arabic line, for example "كل الكلمات (3 من 3) داخل 5 كلمات"). Both are added to `HadithSearchResultDto` and `frontend/src/types/api.ts`. Sorting uses the score first, then the existing tie-breakers (so current behavior is kept where scores tie). The weights are a starting point to tune on the evaluation set, not a measured truth.
 
@@ -76,3 +78,36 @@ The user chooses to use it; it never runs on its own.
 5. **Hiding results is a recall risk.** A wrong `scattered` label would hide a correct hadith. That is why hiding is opt-in, reversible and always counted, and why `not judged` is never hidden. The evaluation (step 6) must report how often the AI labels a target hadith `scattered`.
 6. **Cost abuse on the public demo** (see the protection above).
 7. **Search ordering changes** affect everyone using `/search`; keep the existing tests green and compare the baseline run before merging.
+
+## Implementation status (2026-10-05)
+
+Built and unit-tested (208 tests pass on Linux, .NET 10 SDK with `DOTNET_ROLL_FORWARD=Major`); UI checked in a browser against a mock API; **not yet run against the real corpus**.
+
+| Step | Status |
+|---|---|
+| 0. Baseline | **Owner to run** (needs the corpus), see below |
+| 1. Candidate cap | Reproduced by a test that fails on the old code, fixed: when the cap is reached, exact-phrase hits are fetched too (`HadithSearchService`, `ExactPhraseCandidateCap = 300`) |
+| 2. `RelevanceScorer` + tests | Done (`Services/RelevanceScorer.cs`, `RelevanceScorerTests.cs`) |
+| 3. Wiring and card bar | Done: standard and advanced paths return `relevancePercent` and `relevanceReason`; results sort by relevance first, then the old tie-breakers; the card shows a bar and the reason. Not computed for Isnad-only scope or when no word is in the matn |
+| 4. AI judge endpoint | Done: `POST /api/Search/ai-judge`, `SearchJudgeService`, 10 tests with a fake chat model (valid answer, quote not in matn, quote under three words, repeated / missing / out-of-range index, no model, timeout, chunking 20+20+5, cache, invalid input, fenced JSON). Rate limit `RateLimit:AiPermitPerMinute` (default 10 per client address per minute) on this endpoint only |
+| 5. Page button, badges, hide switch | Done (`app/search/page.tsx`, `HadithCard.tsx`): the labels belong to one page of results and disappear when the results change; "not judged" is never hidden; the hide switch is off by default and the hidden count is always shown with a link to show them |
+| 6. Evaluation | `docs/challenge/search-eval-cases.json` (18 queries) and `scripts/eval_search.py`. The list has no scattered-decoy cases yet: only the owner can find long hadiths in the corpus where the words are far apart; add them under `decoys_contains` |
+
+### How to measure (owner)
+
+```powershell
+# BEFORE: an API built from the commit before the relevance change
+git worktree add ..\baseline 6fcc33c     # the "docs: search plan - opt-in AI judging" commit
+# run that API (dotnet run --project ..\baseline\src\SmartHadithTree.Api), then:
+python scripts/eval_search.py --save baseline.json
+
+# AFTER: this branch's API
+python scripts/eval_search.py --save current.json --compare baseline.json
+python scripts/eval_search.py --judge --save with_ai.json      # opt-in AI check; needs the model key
+```
+
+Read the numbers with the usual care: the targets were written from memory (check the wording if one is never found), the set is small, and the weights of the score are a first guess to tune after seeing these numbers. With `--judge`, the line "Target labelled 'scattered'" is the cost of hiding: if it is above zero, say so. The runner warns when the model did not answer.
+
+### Settings
+
+`SEARCH_AI_TIMEOUT_SECONDS` (5-90, default 20 per call), `RateLimit__AiPermitPerMinute`, and the model keys as for `/verify` (`Together__ApiKey`, `Together__Model`). If the model needs more than 5-10 seconds for a chunk of 20, the button will feel slow: use a faster non-reasoning model.
