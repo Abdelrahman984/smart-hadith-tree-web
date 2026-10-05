@@ -13,13 +13,14 @@ import {
   Edge,
 } from "@xyflow/react";
 import { X } from "lucide-react";
+import { useMediaQuery } from "@/components/useMediaQuery";
 import { useNarratorDrawerStore } from "@/features/narrator-details/store/useNarratorDrawerStore";
 import { useIlalStore } from "@/features/ilal/store/useIlalStore";
 import { getIlalEdgeDecorations } from "@/features/ilal/utils/ilalLabels";
 import { useMeasuredRelayout } from "../hooks/useMeasuredRelayout";
 import { useRefitOnResize } from "../hooks/useRefitOnResize";
 import { useGraphViewStore } from "../store/useGraphViewStore";
-import { decorateEdgeWithIlal } from "../utils/edgeStyle";
+import { COMPACT_LABELS_MIN_EDGES, decorateEdgeWithIlal } from "../utils/edgeStyle";
 import { getLayoutedElements } from "../utils/elkLayout";
 import { applyGraphFocus } from "../utils/graphFocus";
 import type { BuiltGraph } from "../utils/graphTypes";
@@ -28,6 +29,9 @@ import ElkEdge from "./ElkEdge";
 import GraphControls from "./GraphControls";
 import NarratorNode from "./NarratorNode";
 import ReferenceNode from "./ReferenceNode";
+
+/** Width of the open legend (w-80) plus its margin and a gap. */
+const LEGEND_RESERVE_PX = 352;
 
 const edgeTypes = { elk: ElkEdge };
 const nodeTypes = { narrator: NarratorNode, reference: ReferenceNode };
@@ -52,14 +56,27 @@ export default function IsnadGraphCanvas({ graph, bookFocus = false }: IsnadGrap
   const focusBook = useGraphViewStore((s) => s.focusBook);
   const setHoveredNodeId = useGraphViewStore((s) => s.setHoveredNodeId);
   const setFocusBook = useGraphViewStore((s) => s.setFocusBook);
+  const reveal = useGraphViewStore((s) => s.reveal);
   const resetView = useGraphViewStore((s) => s.reset);
   useEffect(() => resetView, [resetView]);
 
   const flowRef = useRef<ReactFlowInstance | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const refit = useCallback(() => flowRef.current?.fitView({ duration: 0, padding: 0.1 }), []);
+  // While the legend is open beside the graph, fit the graph into the space it leaves, so no card hides under it.
+  const isWide = useMediaQuery("(min-width: 768px)", true);
+  const legendOpenSetting = useGraphViewStore((s) => s.legendOpen);
+  const reserveLegend = (legendOpenSetting ?? isWide) && isWide;
+  const fitOptions = useMemo(
+    () => ({ duration: 0, padding: reserveLegend ? { top: 0.1, bottom: 0.1, left: 0.1, right: `${LEGEND_RESERVE_PX}px` as const } : 0.1 }),
+    [reserveLegend]
+  );
+  const refit = useCallback(() => flowRef.current?.fitView(fitOptions), [fitOptions]);
   const { phase, setPhase } = useMeasuredRelayout({ nodes, edges, setNodes, setEdges, onRelaid: refit });
   useRefitOnResize(containerRef, refit, phase === "ready");
+  useEffect(() => {
+    if (phase === "ready") refit(); // the legend was opened or closed
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reserveLegend]);
 
   // First layout pass, with estimated sizes; useMeasuredRelayout does the second one with the measured sizes.
   useEffect(() => {
@@ -77,6 +94,26 @@ export default function IsnadGraphCanvas({ graph, bookFocus = false }: IsnadGrap
     };
   }, [graph, setNodes, setEdges, setPhase]);
 
+  // Bring narrators into view when a panel asks (a madar chip, an Ilal finding), selecting a single one.
+  useEffect(() => {
+    if (!reveal || phase !== "ready") return;
+    const ids = reveal.ids.filter((id) => nodes.some((n) => n.id === id));
+    if (ids.length === 0) return;
+    if (reveal.select) {
+      setNodes((nds) => nds.map((n) => (n.selected === (n.id === ids[0]) ? n : { ...n, selected: n.id === ids[0] })));
+    }
+    flowRef.current?.fitView({ nodes: ids.map((id) => ({ id })), duration: 400, padding: 0.6, maxZoom: 1.1 });
+    // Only a new request (seq) should act, not a re-layout that merely changes `nodes`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reveal?.seq, phase]);
+
+  // An Ilal finding selected in the panel brings its narrators into view.
+  const highlightedNarratorIds = useIlalStore((s) => s.highlightedNarratorIds);
+  const revealNodes = useGraphViewStore((s) => s.revealNodes);
+  useEffect(() => {
+    if (highlightedNarratorIds.length > 0) revealNodes(highlightedNarratorIds, { select: false });
+  }, [highlightedNarratorIds, revealNodes]);
+
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
       const data = node.data as { anomalyReason?: string | null; travelNote?: string | null };
@@ -87,30 +124,54 @@ export default function IsnadGraphCanvas({ graph, bookFocus = false }: IsnadGrap
 
   // Overlay isnad-link ilal (tadlis, unproven meeting, ikhtilat) on the laid-out edges.
   const ilalReport = useIlalStore((s) => s.report);
+  const showLowConfidence = useIlalStore((s) => s.showLowConfidence);
   const decoratedEdges = useMemo(() => {
-    const decorations = getIlalEdgeDecorations(ilalReport);
+    const decorations = getIlalEdgeDecorations(ilalReport, showLowConfidence);
     if (decorations.size === 0) return edges;
     return edges.map((edge) => {
       const decoration = decorations.get(edge.id);
       return decoration ? decorateEdgeWithIlal(edge, decoration) : edge;
     });
-  }, [edges, ilalReport]);
+  }, [edges, ilalReport, showLowConfidence]);
 
-  // Escape clears the book focus.
+  // A selected narrator (click, tap, or Enter on the focused card) keeps its chain highlighted; hovering only previews
+  // while nothing is selected. Escape clears the selection first, then the book focus.
+  const selectedId = nodes.find((n) => n.selected)?.id ?? null;
   const activeBook = bookFocus ? focusBook : null;
   useEffect(() => {
-    if (!activeBook) return;
+    if (!selectedId && !activeBook) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setFocusBook(null);
+      if (e.key !== "Escape") return;
+      if (selectedId) setNodes((nds) => nds.map((n) => (n.selected ? { ...n, selected: false } : n)));
+      else setFocusBook(null);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeBook, setFocusBook]);
+  }, [selectedId, activeBook, setNodes, setFocusBook]);
 
-  // Dim everything except the hovered narrator's chain or the focused book.
+  // Enter on a focused card opens the narrator details, like a click does (React Flow itself only selects it).
+  const onKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key !== "Enter") return;
+      const id = (e.target as HTMLElement).closest<HTMLElement>(".react-flow__node")?.dataset.id;
+      const node = id ? nodes.find((n) => n.id === id) : undefined;
+      if (node) onNodeClick(e as unknown as React.MouseEvent, node);
+    },
+    [nodes, onNodeClick]
+  );
+
+  // Dim everything except the focused narrator's chain or the focused book.
   const focused = useMemo(
-    () => applyGraphFocus(nodes, decoratedEdges, { nodeId: hoveredNodeId, book: activeBook }),
-    [nodes, decoratedEdges, hoveredNodeId, activeBook]
+    () => applyGraphFocus(nodes, decoratedEdges, { nodeId: selectedId ?? hoveredNodeId, book: activeBook }),
+    [nodes, decoratedEdges, selectedId, hoveredNodeId, activeBook]
+  );
+
+  // On a big graph the edge labels are markers until a narrator or book is focused, then the focused chain is labelled.
+  const hasFocus = Boolean(selectedId ?? hoveredNodeId ?? activeBook);
+  const compactLabels = focused.edges.length > COMPACT_LABELS_MIN_EDGES && !hasFocus;
+  const displayEdges = useMemo(
+    () => focused.edges.map((e) => (e.label ? { ...e, data: { ...e.data, compact: compactLabels } } : e)),
+    [focused.edges, compactLabels]
   );
 
   return (
@@ -118,10 +179,11 @@ export default function IsnadGraphCanvas({ graph, bookFocus = false }: IsnadGrap
       ref={containerRef}
       className={`absolute inset-0 bg-surface-muted transition-opacity duration-150 ${phase === "ready" ? "opacity-100" : "opacity-0"}`}
       dir="ltr"
+      onKeyDown={onKeyDown}
     >
       <ReactFlow
         nodes={focused.nodes}
-        edges={focused.edges}
+        edges={displayEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
@@ -134,6 +196,7 @@ export default function IsnadGraphCanvas({ graph, bookFocus = false }: IsnadGrap
           flowRef.current = instance;
         }}
         fitView
+        fitViewOptions={fitOptions}
         attributionPosition="bottom-right"
         className="bg-surface-muted"
       >

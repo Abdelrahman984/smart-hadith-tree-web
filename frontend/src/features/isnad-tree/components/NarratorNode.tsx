@@ -2,7 +2,7 @@ import { Handle, Position } from "@xyflow/react";
 import { memo } from "react";
 import { AlertTriangle, FileDiff, MapPin } from "lucide-react";
 import { useIlalStore } from "@/features/ilal/store/useIlalStore";
-import { getGradeStyle, getNodeColors } from "@/features/narrator-details/utils/gradeStyle";
+import { getGradeStyle, getNodeColors, isUnrated, UNRATED_HINT, UNRATED_STYLE } from "@/features/narrator-details/utils/gradeStyle";
 import { useGraphViewStore } from "../store/useGraphViewStore";
 import type { NarratorNodeData } from "../utils/graphTypes";
 import { NarratorBadges, SourceBookBadges } from "./NarratorBadges";
@@ -17,7 +17,9 @@ const NarratorNode = ({ id, data, selected }: { id: string; data: NarratorNodeDa
 
   const { borderColor, bgColor } = getNodeColors(data.gradeEn);
   const grade = getGradeStyle(data.gradeEn);
-  const opacity = showWeakOnly && (grade?.isReliable ?? false) ? 0.3 : 1;
+  const unrated = isUnrated(data.gradeEn);
+  // «إبراز الضعفاء» dims everyone who is not known to be weak: the reliable, and the unrated (no verdict is not weakness).
+  const opacity = showWeakOnly && (unrated || (grade?.isReliable ?? false)) ? 0.3 : 1;
   const books = data.sourceBooks ?? [];
 
   const ringClass = selected
@@ -32,7 +34,12 @@ const NarratorNode = ({ id, data, selected }: { id: string; data: NarratorNodeDa
     <div
       dir="rtl"
       className={`px-4 py-3 shadow-md rounded-lg border-2 min-w-[200px] max-w-[250px] text-center transition-all break-words relative ${ringClass}`}
-      style={{ backgroundColor: bgColor, borderColor: selected ? undefined : borderColor, opacity }}
+      style={{
+        backgroundColor: bgColor,
+        borderColor: selected ? undefined : borderColor,
+        borderStyle: unrated ? "dashed" : undefined,
+        opacity,
+      }}
     >
       {data.isAnomaly && (
         <div className="absolute -top-3 -right-3 bg-surface rounded-full p-1 shadow border border-red-200" title={data.anomalyReason}>
@@ -68,9 +75,16 @@ const NarratorNode = ({ id, data, selected }: { id: string; data: NarratorNodeDa
 
       {data.generationTier && <div className="text-sm text-ink-subtle mt-1">{data.generationTier}</div>}
 
-      {grade && (
+      {grade ? (
         <span className={`inline-block mt-1.5 px-2 py-0.5 text-[11px] font-bold rounded-full border ${grade.badgeClass}`}>
           {grade.label}
+        </span>
+      ) : (
+        <span
+          className={`inline-block mt-1.5 px-2 py-0.5 text-[11px] font-semibold rounded-full border ${UNRATED_STYLE.badgeClass}`}
+          title={UNRATED_HINT}
+        >
+          {UNRATED_STYLE.label}
         </span>
       )}
 

@@ -1,11 +1,15 @@
 "use client";
 
 import EvidenceBadge from "@/components/EvidenceBadge";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useTakhreej } from "@/features/isnad-tree/hooks/useTakhreej";
 import ComparativeTreeCanvas from "@/features/isnad-tree/components/ComparativeTreeCanvas";
+import SourceChips from "@/features/isnad-tree/components/SourceChips";
+import TakhreejSummary from "@/features/isnad-tree/components/TakhreejSummary";
+import { useGraphViewStore } from "@/features/isnad-tree/store/useGraphViewStore";
+import type { ComparativeHadithSourceDto } from "@/types/api";
 import NarratorDrawer from "@/features/narrator-details/components/NarratorDrawer";
 import ReturnToSearchButton from "@/features/isnad-tree/components/ReturnToSearchButton";
 import { ChevronLeft, ChevronRight, Copy, Check, BookOpen, ShieldAlert, ExternalLink, X } from "lucide-react";
@@ -15,8 +19,8 @@ import IlalPanel from "@/features/ilal/components/IlalPanel";
 import { useIlalStore } from "@/features/ilal/store/useIlalStore";
 import { countVisibleFindings } from "@/features/ilal/utils/ilalLabels";
 import { getBookMeta } from "@/lib/bookTheme";
+import { isPhone } from "@/lib/viewport";
 
-const MAX_HEADER_SOURCES = 4;
 
 function TakhreejContent() {
   const searchParams = useSearchParams();
@@ -28,13 +32,13 @@ function TakhreejContent() {
 
   const { data, isLoading, isError, refetch } = useTakhreej(hadithIds);
   // On phones the sidebar covers the canvas, so it starts closed there.
-  const [isSidebarOpen, setIsSidebarOpen] = useState(
-    () => typeof window === "undefined" || !window.matchMedia("(max-width: 767px)").matches
-  );
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => !isPhone());
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
-  const [showAllSources, setShowAllSources] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<"mutun" | "ilal">("mutun");
   const { setReport, reset } = useIlalStore();
+  const router = useRouter();
+  const focusBook = useGraphViewStore((s) => s.focusBook);
+  const setFocusBook = useGraphViewStore((s) => s.setFocusBook);
 
   // Share the ilal report with the canvas so it can decorate edges and highlight narrators.
   useEffect(() => {
@@ -42,6 +46,39 @@ function TakhreejContent() {
   }, [data, setReport]);
 
   useEffect(() => reset, [reset]);
+
+  // On a phone the sidebar covers the graph: picking a finding closes it, so its narrators can be seen.
+  useEffect(
+    () =>
+      useIlalStore.subscribe((state, prev) => {
+        if (state.activeFindingIndex !== null && state.activeFindingIndex !== prev.activeFindingIndex && isPhone()) {
+          setIsSidebarOpen(false);
+        }
+      }),
+    []
+  );
+
+  const openIlalTab = () => {
+    setSidebarTab("ilal");
+    setIsSidebarOpen(true);
+  };
+
+  // A chip highlights that book's routes; with room for the sidebar it also scrolls to the narration's matn.
+  const handleSelectSource = (source: ComparativeHadithSourceDto) => {
+    const book = getBookMeta(source.bookName).name;
+    setFocusBook(focusBook === book ? null : book);
+    if (isPhone()) return;
+    setSidebarTab("mutun");
+    setIsSidebarOpen(true);
+    requestAnimationFrame(() =>
+      document.getElementById(`matn-card-${source.hadithId}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" })
+    );
+  };
+
+  const handleRemoveSource = (source: ComparativeHadithSourceDto) => {
+    const rest = hadithIds.filter((id) => id !== source.hadithId);
+    if (rest.length >= 2) router.replace(`/takhreej?ids=${rest.join(",")}`);
+  };
 
   const handleCopy = (text: string, idx: number) => {
     navigator.clipboard.writeText(text);
@@ -91,39 +128,10 @@ function TakhreejContent() {
           <h1 className="text-lg sm:text-xl font-bold text-ink">شجرة التخريج المقارنة</h1>
         </div>
         
-        <div className="flex gap-2 items-center flex-nowrap overflow-x-auto sm:flex-wrap min-w-0 pb-0.5">
-          {(showAllSources ? data.sources : data.sources.slice(0, MAX_HEADER_SOURCES)).map((source, idx) => {
-            const meta = getBookMeta(source.bookName);
-            return (
-              <div
-                key={idx}
-                className={`shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full border text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors ${meta.badgeClass}`}
-              >
-                <span
-                  className="min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[9px] text-white rounded-full font-bold shrink-0"
-                  style={{ backgroundColor: meta.color }}
-                >
-                  {meta.code}
-                </span>
-                <span>{source.bookName}</span>
-                <span className="opacity-50">|</span>
-                <span>{source.hadithNumber}</span>
-              </div>
-            );
-          })}
-          {data.sources.length > MAX_HEADER_SOURCES && (
-            <button
-              type="button"
-              onClick={() => setShowAllSources((v) => !v)}
-              aria-expanded={showAllSources}
-              title={showAllSources ? "إخفاء" : data.sources.slice(MAX_HEADER_SOURCES).map((s) => `${s.bookName} ${s.hadithNumber}`).join("، ")}
-              className="shrink-0 px-2.5 py-1 rounded-full border border-slate-300 bg-slate-100 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
-            >
-              {showAllSources ? "إخفاء" : `+${data.sources.length - MAX_HEADER_SOURCES}`}
-            </button>
-          )}
-        </div>
+        <SourceChips sources={data.sources} focusBook={focusBook} onSelect={handleSelectSource} onRemove={handleRemoveSource} />
       </header>
+
+      <TakhreejSummary data={data} onOpenIlal={openIlalTab} />
 
       <div className="flex-1 flex overflow-hidden relative">
         {/* Main Canvas Area */}
@@ -214,7 +222,7 @@ function TakhreejContent() {
               {data.sources.map((source, idx) => {
                 const meta = getBookMeta(source.bookName);
                 return (
-                  <div key={idx} className="bg-surface-muted/70 p-3.5 rounded-xl border border-line/80 space-y-2.5">
+                  <div id={`matn-card-${source.hadithId}`} key={idx} className="bg-surface-muted/70 p-3.5 rounded-xl border border-line/80 space-y-2.5 scroll-mt-2">
                     <div className="flex items-center justify-between gap-2">
                       <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-bold ${meta.badgeClass}`}>
                         <span

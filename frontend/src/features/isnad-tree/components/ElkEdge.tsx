@@ -1,11 +1,8 @@
 "use client";
 
-import {
-  BaseEdge,
-  EdgeProps,
-  getBezierPath,
-  useInternalNode,
-} from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, EdgeProps, getBezierPath, useInternalNode } from "@xyflow/react";
+import { AlertTriangle, FileDiff, ShieldAlert } from "lucide-react";
+import type { EdgeKind } from "../utils/edgeStyle";
 
 export interface ElkPoint {
   x: number;
@@ -19,7 +16,12 @@ export interface ElkEdgeData extends Record<string, unknown> {
   /** Positions of the source/target nodes when the route was computed. */
   sourcePos?: ElkPoint;
   targetPos?: ElkPoint;
+  /** Draw the label as a small marker (hover for the text) instead of printing it on the edge. */
+  compact?: boolean;
+  kind?: EdgeKind;
 }
+
+const MARKER_ICON = { anomaly: AlertTriangle, variation: FileDiff, ilal: ShieldAlert } as const;
 
 const CORNER_RADIUS = 14;
 
@@ -131,19 +133,39 @@ export default function ElkEdge({
     });
   }
 
+  const compact = Boolean(edgeData?.compact && label);
+  const MarkerIcon = MARKER_ICON[edgeData?.kind ?? "ilal"];
+  const color = (style?.stroke as string | undefined) ?? "#64748b";
+
   return (
-    <BaseEdge
-      id={id}
-      path={path}
-      markerEnd={markerEnd}
-      style={style}
-      label={label}
-      labelX={labelX}
-      labelY={labelY}
-      labelStyle={labelStyle}
-      labelBgStyle={labelBgStyle}
-      labelBgPadding={labelBgPadding}
-      labelShowBg={Boolean(labelBgStyle)}
-    />
+    <>
+      <BaseEdge
+        id={id}
+        path={path}
+        markerEnd={markerEnd}
+        style={style}
+        label={compact ? undefined : label}
+        labelX={labelX}
+        labelY={labelY}
+        labelStyle={labelStyle}
+        labelBgStyle={labelBgStyle}
+        labelBgPadding={labelBgPadding}
+        labelShowBg={Boolean(labelBgStyle)}
+      />
+      {compact && (
+        <EdgeLabelRenderer>
+          <span
+            role="img"
+            aria-label={String(label)}
+            title={String(label)}
+            data-edge-marker={id}
+            className="nodrag nopan absolute flex h-5 w-5 items-center justify-center rounded-full border bg-surface shadow-xs"
+            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`, borderColor: color, pointerEvents: "all" }}
+          >
+            <MarkerIcon className="h-3 w-3" style={{ color }} aria-hidden />
+          </span>
+        </EdgeLabelRenderer>
+      )}
+    </>
   );
 }

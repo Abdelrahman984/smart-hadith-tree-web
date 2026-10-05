@@ -115,6 +115,187 @@ test.describe('comparative tree (/takhreej)', () => {
   });
 });
 
+test.describe('selecting a narrator', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/takhreej?ids=h1,h2,h3');
+    await graphReady(page);
+  });
+
+  test('keeps its chain highlighted after the details close; Escape clears it', async ({ page }) => {
+    // N5 (Abu Dawud's branch) lights N5, N2, N4 and the compiler; the Bukhari branch is dimmed.
+    await card(page, 'قتيبة بن سعيد').click();
+    await page.keyboard.press('Escape'); // closes the details
+    await expect(page.getByRole('dialog', { name: 'تفاصيل الراوي' })).toBeHidden();
+
+    await expect(card(page, 'عبد الله بن الزبير الحميدي')).toHaveCSS('opacity', '0.25');
+    await expect(card(page, 'قتيبة بن سعيد')).toHaveCSS('opacity', '1');
+
+    // Escape clears the selection. (While the pointer rests on the card, hovering still previews its chain.)
+    await page.keyboard.press('Escape');
+    await page.mouse.move(5, 300);
+    await expect(card(page, 'عبد الله بن الزبير الحميدي')).toHaveCSS('opacity', '1');
+  });
+
+  test('a click on empty canvas clears it', async ({ page }) => {
+    await card(page, 'قتيبة بن سعيد').click();
+    await page.keyboard.press('Escape');
+    await expect(card(page, 'عبد الله بن الزبير الحميدي')).toHaveCSS('opacity', '0.25');
+
+    await page.locator('.react-flow__pane').click({ position: { x: 5, y: 5 } });
+    await expect(card(page, 'عبد الله بن الزبير الحميدي')).toHaveCSS('opacity', '1');
+  });
+
+  test('Enter on a focused card opens its details', async ({ page }) => {
+    await card(page, 'عمر بن الخطاب').focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('dialog', { name: 'تفاصيل الراوي' })).toBeVisible();
+  });
+});
+
+test.describe('a narrator without a grade', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/takhreej?ids=h1,h2,h3');
+    await graphReady(page);
+  });
+
+  test('is «غير مُقيَّم», dashed, and not mistaken for weak', async ({ page }) => {
+    const unrated = card(page, 'قتيبة بن سعيد');
+    await expect(unrated).toContainText('غير مُقيَّم');
+    await expect(unrated.locator('> div')).toHaveCSS('border-style', 'dashed');
+
+    // «إبراز الضعفاء» dims the reliable and the unrated alike.
+    await page.getByRole('button', { name: 'إبراز الضعفاء' }).click();
+    await expect(unrated.locator('> div')).toHaveCSS('opacity', '0.3');
+  });
+
+  test('the legend lists it', async ({ page }) => {
+    await expect(page.getByText('غير مُقيَّم (لا حكم)')).toBeVisible();
+  });
+});
+
+test.describe('edge labels on a big graph', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/takhreej?ids=big,h1'); // the fixture returns its 14-link graph for `big`
+    await graphReady(page);
+  });
+
+  test('are markers at rest and printed on the focused chain', async ({ page }) => {
+    const marker = page.locator('[data-edge-marker="e-N2-N1"]');
+    await expect(page.locator('.react-flow__edge')).toHaveCount(14);
+    await expect(marker).toHaveAttribute('aria-label', /عنعنة مدلس/);
+    await expect(page.locator('.react-flow__edge-text')).toHaveCount(0);
+
+    await card(page, 'عبد الله بن الزبير الحميدي').click();
+    await page.keyboard.press('Escape'); // close the details, keep the selection
+    await expect(page.locator('.react-flow__edge-text', { hasText: 'عنعنة مدلس' })).toBeVisible();
+    await expect(marker).toHaveCount(0);
+
+    await page.keyboard.press('Escape'); // clear the selection
+    await page.mouse.move(5, 300); // and let go of the hover preview
+    await expect(marker).toHaveCount(1);
+  });
+});
+
+test.describe('the legend and a big graph', () => {
+  test('no narrator card sits under the open legend', async ({ page }) => {
+    await page.goto('/takhreej?ids=big,h1');
+    await graphReady(page);
+
+    const overlaps = () =>
+      page.evaluate(() => {
+        const legend = document.querySelector('.react-flow__panel.top.right')?.getBoundingClientRect();
+        if (!legend) return -1;
+        return [...document.querySelectorAll('.react-flow__node')].filter((n) => {
+          const r = n.getBoundingClientRect();
+          return r.left < legend.right && r.right > legend.left && r.top < legend.bottom && r.bottom > legend.top;
+        }).length;
+      });
+
+    expect(await overlaps()).toBe(0);
+
+    // Closing the legend gives the room back; opening it again reserves it again.
+    await page.getByRole('button', { name: 'تصغير المفتاح' }).click();
+    await page.getByRole('button', { name: /مفتاح الرموز/ }).click();
+    await expect.poll(overlaps).toBe(0);
+  });
+});
+
+test.describe('the takhreej summary', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/takhreej?ids=h1,h2,h3');
+    await graphReady(page);
+  });
+
+  test('gives the routes, madar, grade and findings at a glance', async ({ page }) => {
+    const summary = page.getByRole('region', { name: 'ملخص التخريج' });
+    await expect(summary).toContainText('3 روايات من 3 كتب');
+    await expect(summary).toContainText('سفيان بن عيينة');
+    await expect(summary).toContainText('صحيح');
+    // One real finding; the low-confidence note is not counted.
+    await expect(summary.getByRole('button', { name: '1 علة قادحة' })).toBeVisible();
+  });
+
+  test('a madar chip selects that narrator on the graph', async ({ page }) => {
+    await page.getByRole('region', { name: 'ملخص التخريج' }).getByRole('button', { name: 'سفيان بن عيينة' }).click();
+    await expect(card(page, 'سفيان بن عيينة').locator('> div')).toHaveClass(/ring-brand-blue/);
+  });
+
+  test('a severity pill opens the findings', async ({ page }) => {
+    await page.getByRole('region', { name: 'ملخص التخريج' }).getByRole('button', { name: '1 علة قادحة' }).click();
+    await expect(page.locator('#takhreej-sidebar')).toContainText('عنعنة مدلس');
+  });
+});
+
+test.describe('the source chips', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/takhreej?ids=h1,h2,h3');
+    await graphReady(page);
+  });
+
+  test('a chip highlights that book\'s routes and shows its matn', async ({ page }) => {
+    const chip = page.getByRole('button', { name: /صحيح مسلم/ }).filter({ hasText: '1907' });
+    await chip.click();
+    await expect(chip).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: /إبراز: صحيح مسلم/ })).toBeVisible();
+    await expect(page.locator('#matn-card-h2')).toBeInViewport();
+  });
+
+  test('removing a narration updates the address and the graph; two must remain', async ({ page }) => {
+    await page.getByRole('button', { name: /إزالة صحيح مسلم 1907/ }).click();
+    await expect(page).toHaveURL(/ids=h1,h3$/);
+    await expect(page.getByRole('region', { name: 'ملخص التخريج' })).toContainText('2 روايات من 2 كتب');
+    await expect(page.getByRole('button', { name: /إزالة/ }).first()).toBeDisabled();
+  });
+});
+
+test.describe('Ilal findings and the graph', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/takhreej?ids=h1,h2,h3');
+    await graphReady(page);
+  });
+
+  test('picking a finding brings its narrators into view and rings them', async ({ page }) => {
+    const viewport = page.locator('.react-flow__viewport');
+    const before = await viewport.getAttribute('style');
+
+    await page.locator('#takhreej-sidebar').getByRole('button', { name: /العلل/ }).click();
+    await page.locator('#takhreej-sidebar').getByRole('button', { name: /عنعنة مدلس/ }).first().click();
+
+    await expect(card(page, 'سفيان بن عيينة').locator('> div')).toHaveClass(/ring-rose-400/);
+    await expect(async () => expect(await viewport.getAttribute('style')).not.toBe(before)).toPass();
+  });
+
+  test('a low-confidence finding is not drawn on an edge until its group is opened', async ({ page }) => {
+    const path = edge(page, 'e-N4-N2').locator('path.react-flow__edge-path');
+    await expect(path).toHaveCSS('stroke', 'rgb(51, 65, 85)'); // shared by three books, no finding on it
+
+    await page.locator('#takhreej-sidebar').getByRole('button', { name: /العلل/ }).click();
+    await page.getByRole('button', { name: /ملاحظات منخفضة الثقة/ }).click();
+    await expect(path).toHaveCSS('stroke', 'rgb(217, 119, 6)');
+    await expect(edge(page, 'e-N4-N2').locator('.react-flow__edge-text')).toContainText('لم يثبت اللقاء');
+  });
+});
+
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
@@ -139,5 +320,17 @@ test.describe('on a phone', () => {
     await expect(page.getByRole('button', { name: /مفتاح الرموز/ })).toBeVisible();
     await card(page, 'راو متروك للاختبار').click(); // not covered by an open legend
     await expect(page.getByRole('dialog', { name: 'تفاصيل الراوي' })).toBeVisible();
+  });
+
+  test('picking a finding closes the sidebar so the graph can be seen', async ({ page }) => {
+    await page.goto('/takhreej?ids=h1,h2,h3');
+    await graphReady(page);
+
+    await page.getByRole('button', { name: 'إظهار المتون' }).click();
+    await page.locator('#takhreej-sidebar').getByRole('button', { name: /العلل/ }).click();
+    await page.locator('#takhreej-sidebar').getByRole('button', { name: /عنعنة مدلس/ }).first().click();
+
+    await expect(page.locator('#takhreej-sidebar')).toHaveCSS('width', '0px');
+    await expect(card(page, 'سفيان بن عيينة').locator('> div')).toHaveClass(/ring-rose-400/);
   });
 });

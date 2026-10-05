@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-05: Tree and takhreej pages, step 2: selection, clearer data, a summary
+
+- **Tap, click or Enter selects a narrator and keeps its chain highlighted** (sheikhs above, students below) until Escape or a click on empty canvas; hovering only previews while nothing is selected. Enter on a focused card opens the details like a click. Touch screens no longer depend on hover.
+- **«غير مُقيَّم»**: a narrator with no grade is shown neutrally (dashed card and badge, also in the drawer and the legend) and is not treated as weak by «إبراز الضعفاء». Before, a missing grade looked like nothing was said.
+- **Quieter edges**: on a graph of more than 12 links, edge labels («انقطاع», «عنعنة مدلس», …) become small icon markers with a tooltip, and the full label prints on the chain you select or hover.
+- **Takhreej summary strip** above the graph: routes and books, the madar (a chip that selects it on the graph), the automatic grade with its «يتطلب تحققاً» badge, and the findings by severity (a button that opens the «العلل» tab). Before, the grade was only in the sidebar.
+- **Source chips are interactive**: click one to highlight that book's routes (and scroll to its matn when the sidebar is beside the graph); ✕ removes a narration by updating `?ids=` (two must remain). The page keeps the current graph while the next one loads (`keepPreviousData`) instead of replacing everything with a spinner.
+- **Findings act on the graph**: picking one in the panel brings its narrators into view; on a phone it also closes the panel/sidebar so they can be seen (takhreej and tree pages).
+- **Low-confidence findings are not drawn on edges** unless the panel's «ملاحظات منخفضة الثقة» group is open (backlog §3, "Panel"); that state now lives in `useIlalStore`.
+- **The legend no longer covers the graph**: while it is open beside the graph, the graph is fitted into the space left; its open state moved to `useGraphViewStore`.
+- **Tests**: 13 more e2e tests and 8 more unit tests; the fixture API honours `ids` (and serves a 14-link graph for `ids=big,h1`). `next.config.ts` gets `allowedDevOrigins: ["127.0.0.1"]`: since Next 16.3.8 `next dev` blocks dev resources from that origin, which Playwright uses, and the page never hydrated.
+
+---
+
 ## 2026-10-05: Tree and takhreej pages, step 1: one graph core
 
 - **One canvas, pure builders.** `IsnadGraphCanvas` now draws both the single tree and the takhreej tree; `TreeCanvas` and `ComparativeTreeCanvas` are 17-line wrappers. The transmissions-to-graph logic left the canvases for pure functions, `buildSingleGraph` and `buildComparativeGraph` (`utils/buildIsnadGraph.ts`), with the parent lookup now a `Map` instead of a scan per transmission. `ComparativeNarratorNode` was merged into `NarratorNode` (badges in `NarratorBadges.tsx`), so a madar ring now also shows on the single tree once its Ilal report is loaded.

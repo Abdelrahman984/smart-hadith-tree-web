@@ -8,6 +8,9 @@ interface IlalState {
   highlightedNarratorIds: string[];
   /** Index of the selected finding in report.findings. */
   activeFindingIndex: number | null;
+  /** The panel's folded low-confidence group is open: its findings are drawn on the graph too. */
+  showLowConfidence: boolean;
+  setShowLowConfidence: (show: boolean) => void;
   setReport: (report: IlalReportDto | null) => void;
   selectFinding: (index: number | null) => void;
   reset: () => void;
@@ -17,7 +20,9 @@ export const useIlalStore = create<IlalState>((set, get) => ({
   report: null,
   highlightedNarratorIds: [],
   activeFindingIndex: null,
-  setReport: (report) => set({ report, highlightedNarratorIds: [], activeFindingIndex: null }),
+  showLowConfidence: false,
+  setShowLowConfidence: (showLowConfidence) => set({ showLowConfidence }),
+  setReport: (report) => set({ report, highlightedNarratorIds: [], activeFindingIndex: null, showLowConfidence: false }),
   selectFinding: (index) => {
     const finding = index === null ? undefined : get().report?.findings[index];
     set({
@@ -25,5 +30,5 @@ export const useIlalStore = create<IlalState>((set, get) => ({
       highlightedNarratorIds: finding?.narratorIds ?? [],
     });
   },
-  reset: () => set({ report: null, highlightedNarratorIds: [], activeFindingIndex: null }),
+  reset: () => set({ report: null, highlightedNarratorIds: [], activeFindingIndex: null, showLowConfidence: false }),
 }));

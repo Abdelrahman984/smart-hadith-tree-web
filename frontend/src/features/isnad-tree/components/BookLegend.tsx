@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { useMediaQuery } from "@/components/useMediaQuery";
-import { GRADE_STYLE } from "@/features/narrator-details/utils/gradeStyle";
+import { useGraphViewStore } from "../store/useGraphViewStore";
+import { GRADE_STYLE, UNRATED_STYLE } from "@/features/narrator-details/utils/gradeStyle";
 import { Panel } from "@xyflow/react";
 import {
   ChevronDown,
@@ -32,6 +33,7 @@ const NARRATOR_RANKS = [
   { label: "ضعيف", color: GRADE_STYLE.weak.color },
   { label: "متروك / كذاب", color: GRADE_STYLE.fabricator.color },
   { label: "مجهول", color: GRADE_STYLE.unknown.color },
+  { label: "غير مُقيَّم (لا حكم)", color: UNRATED_STYLE.color, dashed: true },
 ];
 
 interface BookLegendProps {
@@ -45,7 +47,8 @@ interface BookLegendProps {
 export default function BookLegend({ activeBooks, focusBook, onFocusBook }: BookLegendProps) {
   // Open by default where there is room; on phones the open legend would cover the graph.
   const isWideScreen = useMediaQuery("(min-width: 768px)", true);
-  const [userOpen, setIsOpen] = useState<boolean | null>(null);
+  const userOpen = useGraphViewStore((s) => s.legendOpen);
+  const setIsOpen = useGraphViewStore((s) => s.setLegendOpen);
   const isOpen = userOpen ?? isWideScreen;
   const [activeTab, setActiveTab] = useState<LegendTab>("all");
   const [showAllBooks, setShowAllBooks] = useState(false);
@@ -294,7 +297,11 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
                 <div key={rank.label} className="flex items-center gap-1.5">
                   <span
                     className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs"
-                    style={{ backgroundColor: rank.color }}
+                    style={
+                      "dashed" in rank
+                        ? { border: `1.5px dashed ${rank.color}` }
+                        : { backgroundColor: rank.color }
+                    }
                   ></span>
                   <span className="text-ink-muted text-[11px] truncate">{rank.label}</span>
                 </div>

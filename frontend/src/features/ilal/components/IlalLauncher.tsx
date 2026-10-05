@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useDialogFocus } from "@/components/useDialogFocus";
+import { isPhone } from "@/lib/viewport";
 import { useNarratorDrawerStore } from "@/features/narrator-details/store/useNarratorDrawerStore";
 import { ShieldQuestion, X, Loader2 } from "lucide-react";
 import { useIlalForHadith } from "../hooks/useIlal";
@@ -36,6 +37,17 @@ export default function IlalLauncher({ hadithId }: { hadithId: string }) {
   }, [data, setReport]);
 
   useEffect(() => reset, [reset]);
+
+  // On a phone the panel covers the graph: picking a finding closes it, so the narrators it names can be seen.
+  useEffect(
+    () =>
+      useIlalStore.subscribe((state, prev) => {
+        if (state.activeFindingIndex !== null && state.activeFindingIndex !== prev.activeFindingIndex && isPhone()) {
+          setIsOpen(false);
+        }
+      }),
+    []
+  );
 
   const open = () => {
     setRequested(true);

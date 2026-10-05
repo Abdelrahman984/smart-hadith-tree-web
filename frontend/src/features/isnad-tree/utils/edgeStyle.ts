@@ -18,6 +18,12 @@ const COLOR_VARIATION = "#f59e0b";
 const LABEL_BG_ANOMALY = { fill: "#fef2f2", stroke: "#fca5a5", strokeWidth: 1, rx: 4, ry: 4 };
 const LABEL_BG_VARIATION = { fill: "#fffbeb", stroke: "#fcd34d", strokeWidth: 1, rx: 4, ry: 4 };
 
+/** Above this many edges the labels would crowd the graph: they become markers until a chain is focused. */
+export const COMPACT_LABELS_MIN_EDGES = 12;
+
+/** What an edge's label says, for the marker's icon. */
+export type EdgeKind = "anomaly" | "variation" | "ilal";
+
 const marker = (color: string) => ({ type: MarkerType.ArrowClosed, width: 20, height: 20, color });
 
 /**
@@ -31,17 +37,20 @@ export function buildEdge(id: string, source: string, target: string, facts: Edg
   let color = COLOR_DEFAULT;
   let strokeWidth = 2;
   let label: string | undefined;
+  let kind: EdgeKind | undefined;
   let labelBg: typeof LABEL_BG_ANOMALY | undefined;
 
   if (facts.isAnomaly) {
     color = COLOR_ANOMALY;
     strokeWidth = 3;
     label = "انقطاع";
+    kind = "anomaly";
     labelBg = LABEL_BG_ANOMALY;
   } else if (facts.hasMatnVariation) {
     color = COLOR_VARIATION;
     strokeWidth = 3;
     label = "اختلاف باللفظ";
+    kind = "variation";
     labelBg = LABEL_BG_VARIATION;
   } else if (books.length === 1) {
     color = getBookMeta(books[0]).color;
@@ -63,7 +72,7 @@ export function buildEdge(id: string, source: string, target: string, facts: Edg
     labelStyle: { fill: color, fontWeight: "bold", fontSize: 11 },
     labelBgStyle: labelBg,
     labelBgPadding: [4, 8],
-    data: { books: [...books], isAnomaly: Boolean(facts.isAnomaly) },
+    data: { books: [...books], isAnomaly: Boolean(facts.isAnomaly), kind },
   };
 }
 
@@ -81,6 +90,7 @@ export function decorateEdgeWithIlal(edge: Edge, decoration: IlalEdgeDecoration)
     ...edge,
     animated: true,
     label,
+    data: { ...edge.data, kind: "ilal" satisfies EdgeKind },
     style: { ...edge.style, stroke: decoration.color, strokeWidth: 3, strokeDasharray: decoration.dash },
     markerEnd: marker(decoration.color),
     labelStyle: { fill: decoration.color, fontWeight: "bold", fontSize: 11 },

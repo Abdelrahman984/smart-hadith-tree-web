@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { buildComparativeGraph, buildSingleGraph } from '../src/features/isnad-tree/utils/buildIsnadGraph';
 import { decorateEdgeWithIlal } from '../src/features/isnad-tree/utils/edgeStyle';
-import type { ComparativeIsnadNodeDto, ComparativeTreeResponseDto, IsnadNodeDto } from '../src/types/api';
+import { getIlalEdgeDecorations } from '../src/features/ilal/utils/ilalLabels';
+import { isUnrated } from '../src/features/narrator-details/utils/gradeStyle';
+import type { ComparativeIsnadNodeDto, ComparativeTreeResponseDto, IlalReportDto, IsnadNodeDto } from '../src/types/api';
 
 const node = (over: Partial<IsnadNodeDto> & Pick<IsnadNodeDto, 'id' | 'narratorId' | 'stepOrder' | 'parentNodeId'>): IsnadNodeDto => ({
   narratorName: `name-${over.narratorId}`,
@@ -146,5 +148,49 @@ test.describe('decorateEdgeWithIlal', () => {
     const out = decorateEdgeWithIlal(single.edges[1], deco);
     expect(out.style?.stroke).toBe('#ef4444');
     expect(out.label).toBe('انقطاع · عنعنة مدلس');
+  });
+});
+
+test.describe('edge kinds', () => {
+  test('each marker kind follows the rule that styled the edge', () => {
+    const g = buildSingleGraph({ hadithId: 'h', bookName: 'b', hadithNumber: 1, matnArabic: '', nodes: chain });
+    expect(g.edges.map((e) => e.data?.kind)).toEqual([undefined, 'anomaly']);
+    expect(decorateEdgeWithIlal(g.edges[0], { label: 'x', color: '#000', dash: '1' }).data?.kind).toBe('ilal');
+    // A broken link keeps its own kind when a finding lands on it.
+    expect(decorateEdgeWithIlal(g.edges[1], { label: 'x', color: '#000', dash: '1' }).data?.kind).toBe('anomaly');
+  });
+});
+
+test.describe('getIlalEdgeDecorations', () => {
+  const finding = (type: 'Tadlis' | 'HiddenInqita', severity: 'Qadihah' | 'Tanbih', confidence: number, narratorIds: string[]) => ({
+    type, severity, confidence, narratorIds, hadithIds: [], titleAr: '', evidenceAr: '',
+  });
+  const report = {
+    analyzedHadithIds: [], turuq: [], madars: [], hasQadihah: true, summaryAr: '',
+    findings: [
+      finding('Tadlis', 'Qadihah', 0.8, ['STUDENT', 'SHEIKH']), // tadlis lists [student, sheikh]
+      finding('HiddenInqita', 'Tanbih', 0.2, ['SHEIKH2', 'STUDENT2']), // low confidence: a data gap
+    ],
+  } as IlalReportDto;
+
+  test('maps a finding to the sheikh → student edge, whatever the order the rule lists them in', () => {
+    expect([...getIlalEdgeDecorations(report).keys()]).toEqual(['e-SHEIKH-STUDENT']);
+  });
+
+  test('low-confidence findings are drawn only when asked', () => {
+    expect([...getIlalEdgeDecorations(report, true).keys()]).toEqual(['e-SHEIKH-STUDENT', 'e-SHEIKH2-STUDENT2']);
+  });
+
+  test('null report: nothing', () => {
+    expect(getIlalEdgeDecorations(null).size).toBe(0);
+  });
+});
+
+test.describe('isUnrated', () => {
+  test('no grade, an empty one or a code the app does not know is "no verdict"', () => {
+    expect([undefined, null, '', 'something-new'].map(isUnrated)).toEqual([true, true, true, true]);
+  });
+  test('every known grade, including «مجهول», is a verdict', () => {
+    expect(['reliable', 'weak', 'unknown', 'fabricator', 'companion'].map(isUnrated)).toEqual([false, false, false, false, false]);
   });
 });

@@ -29,7 +29,8 @@ const cn = (id, narratorId, name, stepOrder, parentNodeId, hadith, book, over = 
 const N1 = ['N1', 'عبد الله بن الزبير الحميدي', { generationTier: 'العاشرة', gradeEn: 'reliable', residencePlaces: 'مكة', uniqueHadithCount: 800 }];
 const N2 = ['N2', 'سفيان بن عيينة', { knownAs: 'سفيان', generationTier: 'الثامنة', gradeEn: 'mostly_reliable', isMudallis: true, hasMukhtalit: true, uniqueHadithCount: 3 }];
 const N4 = ['N4', 'عمر بن الخطاب', { knownAs: 'عمر', generationTier: 'صحابي', gradeEn: 'companion' }];
-const N5 = ['N5', 'قتيبة بن سعيد', { generationTier: 'العاشرة', gradeEn: 'reliable' }];
+// No gradeEn: a narrator outside Taqrib, shown as «غير مُقيَّم».
+const N5 = ['N5', 'قتيبة بن سعيد', { generationTier: 'العاشرة' }];
 const COMPARATIVE = [
   cn('c1', 'C', 'محمد بن إسماعيل البخاري', 0, null, ['h1'], [BUKHARI], { knownAs: 'البخاري', gradeEn: 'reliable', generationTier: 'الحادية عشرة' }),
   cn('c2', 'D', 'مسلم بن الحجاج', 0, null, ['h2'], [MUSLIM], { knownAs: 'مسلم', gradeEn: 'reliable', generationTier: 'الحادية عشرة' }),
@@ -45,11 +46,39 @@ const COMPARATIVE = [
   cn('n4c', ...N4.slice(0, 2), 3, 'n2c', ['h3'], [ABU_DAWUD], { ...N4[2], transmissionTerm: 'سمعت' }),
 ];
 
-const SOURCES = [
+const ALL_SOURCES = [
   { hadithId: 'h1', bookName: BUKHARI, hadithNumber: 1, matnArabic: LONG, matnSnippet: SHORT },
   { hadithId: 'h2', bookName: MUSLIM, hadithNumber: 1907, matnArabic: SHORT, matnSnippet: SHORT },
   { hadithId: 'h3', bookName: ABU_DAWUD, hadithNumber: 2201, matnArabic: SHORT, matnSnippet: SHORT },
 ];
+
+const SOURCES = ALL_SOURCES;
+
+// `ids` selects which of the three narrations are compared: the graph keeps their books' chains.
+function takhreejFor(ids) {
+  const wanted = ids.length > 0 ? ALL_SOURCES.filter((src) => ids.includes(src.hadithId)) : ALL_SOURCES;
+  const books = new Set(wanted.map((src) => src.bookName));
+  const keep = new Set(wanted.map((src) => src.hadithId));
+  const nodes = COMPARATIVE.filter((n) => n.sourceBooks.some((b) => books.has(b)) && (n.stepOrder > 0 || n.sourceHadithIds.some((h) => keep.has(h))))
+    // A shared narrator only lists the books that are still compared.
+    .map((n) => ({ ...n, sourceBooks: n.sourceBooks.filter((b) => books.has(b)) }));
+  const ids2 = new Set(nodes.map((n) => n.id));
+  return { sources: wanted, nodes: nodes.filter((n) => !n.parentNodeId || ids2.has(n.parentNodeId)), calculatedGrade: 'صحيح', taqwiyahDetails: 'تقوّى بتعدد الطرق إلى المدار.', ilalReport: ILAL_REPORT };
+}
+
+// `ids=big`: more than 12 links, so the edge labels become markers.
+function bigTakhreej() {
+  const base = takhreejFor([]);
+  const extra = [];
+  for (let k = 1; k <= 4; k += 1) {
+    extra.push(
+      cn(`kc${k}`, `K${k}`, `مصنف إضافي ${k}`, 0, null, ['h2'], [MUSLIM], { gradeEn: 'reliable', generationTier: 'الحادية عشرة' }),
+      cn(`kn${k}`, `M${k}`, `راو إضافي ${k}`, 1, `kc${k}`, ['h2'], [MUSLIM], { gradeEn: 'reliable', generationTier: 'العاشرة' }),
+      cn(`kx${k}`, 'N2', 'سفيان بن عيينة', 2, `kn${k}`, ['h2'], [MUSLIM], { ...N2[2] })
+    );
+  }
+  return { ...base, nodes: [...base.nodes, ...extra] };
+}
 
 // Findings: [sheikh, student] for most rules, [student, sheikh] for tadlis (see getIlalEdgeDecorations).
 const ILAL_REPORT = {
@@ -72,7 +101,7 @@ const routes = [
   [/^\/api\/Tree\/[^/]+$/, () => [200, { hadithId: 'h1', bookName: BUKHARI, hadithNumber: 1, matnArabic: LONG, nodes: SINGLE }]],
   [/^\/api\/Takhreej\/related\/h2$/, () => [200, []]],
   [/^\/api\/Takhreej\/related\//, () => [200, [hadith(2), hadith(3)]]],
-  [/^\/api\/Takhreej$/, () => [200, { sources: SOURCES, nodes: COMPARATIVE, calculatedGrade: 'صحيح', taqwiyahDetails: 'تقوّى بتعدد الطرق إلى المدار.', ilalReport: ILAL_REPORT }]],
+  [/^\/api\/Takhreej$/, (u) => { const ids = (u.searchParams.get('ids') ?? '').split(',').filter(Boolean); return [200, ids.includes('big') ? bigTakhreej() : takhreejFor(ids)]; }],
   [/^\/api\/Ilal\/explain$/, () => [200, { explanationAr: 'شرح تجريبي.', caveats: [] }]],
   [/^\/api\/Ilal(\/[^/]+)?$/, () => [200, ILAL_REPORT]],
   [/^\/api\/Narrators\/N3$/, () => [200, { id: 'N3', fullName: 'راو متروك للاختبار', knownAs: null, kunyah: null, generationTier: 'السادسة', birthYearHijri: null, deathYearHijri: 150, biography: null, gradeEn: 'fabricator', evaluations: [{ scholarName: 'يحيى بن معين', evaluationText: 'كذاب', sourceBook: 'تهذيب الكمال', verdictRating: 'fabricator' }] }]],

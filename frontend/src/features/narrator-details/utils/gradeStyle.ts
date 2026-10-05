@@ -23,6 +23,24 @@ export const GRADE_STYLE: Record<string, GradeStyle> = {
   fabricator: { label: "كذاب", color: "#8b0000", badgeClass: "bg-red-900 text-white border-red-900", isReliable: false },
 };
 
+/**
+ * A narrator with no grade at all (Ibn Hajar's Taqrib covers about a third of the registry). This is "no verdict",
+ * not "weak" and not "majhul": it is shown neutrally and never counted as weak.
+ */
+export const UNRATED_STYLE: GradeStyle = {
+  label: "غير مُقيَّم",
+  color: "#94a3b8",
+  badgeClass: "bg-surface text-ink-muted border-slate-300 border-dashed",
+  isReliable: false,
+};
+
+export const UNRATED_HINT = "لا حكم على هذا الراوي في الكتب المعتمدة في الأداة؛ وليس ذلك حكماً بضعفه.";
+
+/** True when there is no grade to show (missing, or a code the app does not know). */
+export function isUnrated(gradeEn?: string | null): boolean {
+  return getGradeStyle(gradeEn) === null;
+}
+
 const DEFAULT_NODE_BORDER = "#cbd5e1"; // slate-300
 
 export function getGradeStyle(gradeEn?: string | null): GradeStyle | null {

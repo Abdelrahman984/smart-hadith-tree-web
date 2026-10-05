@@ -21,9 +21,8 @@ interface IlalPanelProps {
  * narrators on the canvas; textual findings can expand an aligned matn comparison.
  */
 export default function IlalPanel({ report }: IlalPanelProps) {
-  const { activeFindingIndex, selectFinding } = useIlalStore();
+  const { activeFindingIndex, selectFinding, showLowConfidence: showLow, setShowLowConfidence: setShowLow } = useIlalStore();
   const [openDiffIndex, setOpenDiffIndex] = useState<number | null>(null);
-  const [showLow, setShowLow] = useState(false);
   const groups = groupFindings(report.findings, (f) => !isLowConfidenceFinding(f));
   const lowGroups = groupFindings(report.findings, isLowConfidenceFinding);
   const lowCount = lowGroups.reduce((n, g) => n + g.items.length, 0);

@@ -11,7 +11,7 @@ import AiNotice from '@/components/AiNotice';
 import GlossaryTerm from '@/features/glossary/GlossaryTerm';
 import ConsensusBanner from './ConsensusBanner';
 import EvidenceBadge from '@/components/EvidenceBadge';
-import { getGradeStyle, getVerdictAr } from '../utils/gradeStyle';
+import { getGradeStyle, getVerdictAr, UNRATED_HINT, UNRATED_STYLE } from '../utils/gradeStyle';
 import { analyzeEvaluations, narratorEvidence, type EvaluationGroup } from '../utils/evaluationConsensus';
 
 const SCHOLAR_AR: Record<string, string> = {
@@ -189,13 +189,16 @@ export default function NarratorDrawer() {
                       {narrator.generationTier}
                     </span>
                   )}
-                  {narrator.gradeEn && (
-                    <span
-                      className={`px-2 py-1 rounded border text-xs font-semibold ${
-                        getGradeStyle(narrator.gradeEn)?.badgeClass ?? "bg-slate-100 text-slate-700 border-slate-300"
-                      }`}
-                    >
+                  {narrator.gradeEn && getGradeStyle(narrator.gradeEn) ? (
+                    <span className={`px-2 py-1 rounded border text-xs font-semibold ${getGradeStyle(narrator.gradeEn)!.badgeClass}`}>
                       {getVerdictAr(narrator.gradeEn)}
+                    </span>
+                  ) : (
+                    <span
+                      className={`px-2 py-1 rounded border text-xs font-semibold ${UNRATED_STYLE.badgeClass}`}
+                      title={UNRATED_HINT}
+                    >
+                      {UNRATED_STYLE.label}
                     </span>
                   )}
                   {narrator.gawamiRank && (

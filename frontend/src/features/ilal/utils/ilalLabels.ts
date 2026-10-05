@@ -54,14 +54,19 @@ const EDGE_DECORATIONS: Partial<Record<IllahType, IlalEdgeDecoration>> = {
  * Maps edge ids (`e-{sheikhId}-{studentId}`, as built by the canvases) to the styling of the
  * isnad-link finding on that edge. Finding narrator order is [student, sheikh] for tadlis and
  * [sheikh, student] for the others.
+ * Low-confidence findings (mostly data gaps, folded away in the panel) are left off unless `includeLowConfidence`.
  */
-export function getIlalEdgeDecorations(report: IlalReportDto | null): Map<string, IlalEdgeDecoration> {
+export function getIlalEdgeDecorations(
+  report: IlalReportDto | null,
+  includeLowConfidence = false
+): Map<string, IlalEdgeDecoration> {
   const map = new Map<string, IlalEdgeDecoration>();
   if (!report) return map;
 
   for (const finding of report.findings) {
     const decoration = EDGE_DECORATIONS[finding.type];
     if (!decoration || finding.narratorIds.length < 2) continue;
+    if (!includeLowConfidence && isLowConfidenceFinding(finding)) continue;
 
     const [a, b] = finding.narratorIds;
     const [sheikh, student] = finding.type === 'Tadlis' ? [b, a] : [a, b];
