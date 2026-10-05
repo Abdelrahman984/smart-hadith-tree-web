@@ -44,7 +44,7 @@ $Exclude = @(
 # Content that aborts the run if it appears anywhere in the snapshot.
 $Forbidden = @(
     '169\.58\.190\.201',
-    'C:\\Users\\rafee', 'D:\\Programming',
+    '[A-Za-z]:\\Users\\[A-Za-z]', '[A-Za-z]:\\Programming',
     'AIza[0-9A-Za-z_\-]{30,}', 'sk-[A-Za-z0-9]{20,}', 'ghp_[A-Za-z0-9]{30,}', 'AKIA[0-9A-Z]{16}',
     '-----BEGIN [A-Z ]*PRIVATE KEY'
 )
