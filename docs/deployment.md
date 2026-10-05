@@ -29,7 +29,7 @@ Single-host stack with SQL Server:
 
 ```bash
 export MSSQL_SA_PASSWORD='<strong password>'
-export GEMINI_API_KEY='<key>'
+export TOGETHER_API_KEY='<key>'   # preferred; or GEMINI_API_KEY as the fallback
 docker compose up --build
 ```
 
