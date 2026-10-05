@@ -45,7 +45,7 @@ def load_cases():
     for c in cases:
         assert c["id"] not in ids, f"duplicate id {c['id']}"
         ids.add(c["id"])
-        assert c["query"].strip() and c["target_contains"].strip(), f"{c['id']}: empty query or target"
+        assert c["query"].strip() and (c["target_contains"].strip() or c.get("probe")), f"{c['id']}: empty query or target"
     return cases
 
 
@@ -128,8 +128,9 @@ def main():
         level, reasons, judge_info, judged = {}, {}, "", None
         qs = urllib.parse.urlencode({"query": c["query"], "scope": c.get("scope", 1), "match": c.get("match", 0), "page": 1, "pageSize": 50})
         results, ms = http_json(f"{api}/Search?{qs}")
-        rank = rank_of(results, c["target_contains"])
-        entry = {"rank": rank, "results": len(results)}
+        probe = bool(c.get("probe"))
+        rank = None if probe else rank_of(results, c["target_contains"])
+        entry = {"rank": rank, "results": len(results), "probe": probe}
         if rank:
             entry["relevance"] = results[rank - 1].get("relevancePercent")
         decoys = [rank_of(results, d) for d in c.get("decoys_contains", [])]
@@ -144,12 +145,32 @@ def main():
             judge_info = f"AI check status: {judged['status']}; {judged.get('diagnostics')}"
             # Only the results the AI saw are re-ordered; the rest keep their place after them.
             reordered = sorted(sent, key=lambda r: LEVEL_ORDER.get(level.get(r["id"], "not-judged"), 2)) + results[args.judge_top:]
-            jr = rank_of(reordered, c["target_contains"])
+            jr = None if probe else rank_of(reordered, c["target_contains"])
             entry["rank_after_ai"] = jr
             entry["ai_status"] = judged["status"]
             entry["ai_diagnostics"] = judged.get("diagnostics")
             if rank:
                 entry["target_level"] = level.get(results[rank - 1]["id"])
+        # Which of the top results contain a relevant wording (when the case lists some), and what the AI said about them.
+        relevant = [norm(x) for x in c.get("relevant_contains", [])]
+        confusion = None
+        if relevant:
+            top = results[:args.judge_top]
+            flags = [any(x in norm(r.get("matnArabic") or r.get("matnSnippet") or "") for x in relevant) for r in top]
+            entry["precision_top"] = round(sum(flags) / max(1, len(top)), 2)
+            if judged is not None:
+                confusion = {"rel_match": 0, "rel_other": 0, "nonrel_match": 0, "nonrel_other": 0, "not_judged": 0}
+                for r, is_rel in zip(top, flags):
+                    lv = level.get(r["id"], "not-judged")
+                    if lv == "not-judged":
+                        confusion["not_judged"] += 1
+                    elif lv == "match":
+                        confusion["rel_match" if is_rel else "nonrel_match"] += 1
+                    else:
+                        confusion["rel_other" if is_rel else "nonrel_other"] += 1
+                entry["ai_vs_relevant"] = confusion
+        if judged is not None:
+            entry["labels"] = {k: sum(1 for v in level.values() if v == k) for k in ("match", "partial", "scattered", "not-judged")}
         elapsed = time.perf_counter() - started
         block = review_block(c, results, level, reasons, judge_info) if args.review_pack else ""
         return {"case": c, "entry": entry, "ms": ms, "rank": rank, "jr": jr, "decoy_above": decoy_above,
@@ -173,17 +194,26 @@ def main():
     print(f"Done in {time.perf_counter() - t0:.0f}s")
 
     out, ranks, judged_ranks, latencies = {}, [], [], []
+    precision, conf_total, label_total = [], {}, {}
     scattered_targets, model_status, decoy_above, pack = [], {}, [], []
     for c in cases:  # report in the order of the cases file
         r = done[c["id"]]
         out[c["id"]] = r["entry"]
-        ranks.append(r["rank"])
+        if not c.get("probe"):
+            ranks.append(r["rank"])
+        if "precision_top" in r["entry"]:
+            precision.append(r["entry"]["precision_top"])
+        for k, v in (r["entry"].get("ai_vs_relevant") or {}).items():
+            conf_total[k] = conf_total.get(k, 0) + v
+        for k, v in (r["entry"].get("labels") or {}).items():
+            label_total[k] = label_total.get(k, 0) + v
         latencies.append(r["ms"])
         if r["decoy_above"]:
             decoy_above.append(c["id"])
         if r["judged"] is not None:
             model_status[r["judged"]["status"]] = model_status.get(r["judged"]["status"], 0) + 1
-            judged_ranks.append(r["jr"])
+            if not c.get("probe"):
+                judged_ranks.append(r["jr"])
             if r["entry"].get("target_level") == "scattered":
                 scattered_targets.append(c["id"])
         if args.review_pack:
@@ -197,9 +227,17 @@ def main():
 
     print()
     summary("search order", ranks)
+    if precision:
+        print(f"Precision of the top results (cases with relevant_contains): {sum(precision)/len(precision):.2f} over {len(precision)} cases")
     if args.judge:
         summary("after AI labels", judged_ranks)
         print(f"AI status per case: {model_status}")
+        print(f"AI labels over all results sent: {label_total}")
+        if conf_total:
+            print("AI vs relevant wording (cases with relevant_contains): "
+                  f"relevant labelled match={conf_total.get('rel_match', 0)}, relevant labelled partial/scattered={conf_total.get('rel_other', 0)}, "
+                  f"NOT relevant labelled match={conf_total.get('nonrel_match', 0)}, NOT relevant labelled partial/scattered={conf_total.get('nonrel_other', 0)}, "
+                  f"not judged={conf_total.get('not_judged', 0)}")
         print(f"Target labelled 'scattered' (would be hidden if the user hides): {len(scattered_targets)} {scattered_targets}")
         if any(s != "reviewed" for s in model_status):
             print("WARNING: the model did not fully answer for some cases; this run does not measure its value.")

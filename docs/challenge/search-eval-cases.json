@@ -1,5 +1,5 @@
 {
-  "_note": "Search evaluation cases. 'query' is what a user might type (words, not always a phrase); 'target_contains' is a distinctive piece of the matn the user is looking for (found by substring after removing diacritics and folding hamza), so cases do not depend on book numbers. Targets were written from memory: if one is never found, check the wording in your corpus before blaming the search. Add your own cases, especially long hadiths where the searched words are far apart: put a piece of that decoy in 'decoys_contains' and the runner reports when a decoy ranks above the target.",
+  "_note": "Search evaluation cases. 'query' is what a user might type (words, not always a phrase); 'target_contains' is a distinctive piece of the matn the user is looking for (found by substring after removing diacritics and folding hamza), so cases do not depend on book numbers. Targets were written from memory: if one is never found, check the wording in your corpus before blaming the search. Add your own cases, especially long hadiths where the searched words are far apart: put a piece of that decoy in 'decoys_contains' and the runner reports when a decoy ranks above the target. 'relevant_contains' (optional) lists substrings that any relevant result contains, so precision of the top 10 and the AI labels can be checked even when the exact wording in 'target_contains' is rare. 'probe' cases have no target: they only show the labels and the review pack for queries of common words, where hadiths with the words far apart are likely.",
   "cases": [
     {
       "id": "S01",
@@ -15,7 +15,11 @@
       "scope": 1,
       "match": 0,
       "target_contains": "الطهور شطر الإيمان",
-      "decoys_contains": []
+      "decoys_contains": [],
+      "relevant_contains": [
+        "الطهور شطر الايمان",
+        "الطهور نصف الايمان"
+      ]
     },
     {
       "id": "S03",
@@ -23,7 +27,10 @@
       "scope": 1,
       "match": 0,
       "target_contains": "المسلم من سلم المسلمون من لسانه ويده",
-      "decoys_contains": []
+      "decoys_contains": [],
+      "relevant_contains": [
+        "من سلم المسلمون من لسانه ويده"
+      ]
     },
     {
       "id": "S04",
@@ -87,7 +94,12 @@
       "scope": 1,
       "match": 0,
       "target_contains": "إن الحلال بين وإن الحرام بين",
-      "decoys_contains": []
+      "decoys_contains": [],
+      "relevant_contains": [
+        "الحلال بين والحرام بين",
+        "الحلال بين وان الحرام بين",
+        "الحلال بين وان الحرام بين"
+      ]
     },
     {
       "id": "S12",
@@ -143,6 +155,33 @@
       "scope": 1,
       "match": 0,
       "target_contains": "الراحمون يرحمهم الرحمن",
+      "decoys_contains": []
+    },
+    {
+      "id": "D01",
+      "query": "الصلاة الوضوء الماء الطهارة",
+      "scope": 1,
+      "match": 0,
+      "probe": true,
+      "target_contains": "",
+      "decoys_contains": []
+    },
+    {
+      "id": "D02",
+      "query": "الله رسوله الجنة المسجد",
+      "scope": 1,
+      "match": 0,
+      "probe": true,
+      "target_contains": "",
+      "decoys_contains": []
+    },
+    {
+      "id": "D03",
+      "query": "الصدقة اليتيم الجار المسكين",
+      "scope": 1,
+      "match": 0,
+      "probe": true,
+      "target_contains": "",
       "decoys_contains": []
     }
   ]
