@@ -33,13 +33,17 @@ New pure class `RelevanceScorer` (in `Application/Services/`), unit-tested, used
 
 Output per result: `relevancePercent` (0–100) and `relevanceReason` (one Arabic line, for example "كل الكلمات (3 من 3) داخل 5 كلمات"). Both are added to `HadithSearchResultDto` and `frontend/src/types/api.ts`. Sorting uses the score first, then the existing tie-breakers (so current behavior is kept where scores tie). The weights are a starting point to tune on the evaluation set, not a measured truth.
 
-### Layer B: on-demand AI judging of the top 10 (one model call)
+### Layer B: opt-in AI judging of the results on the page
 
-- New endpoint `POST /api/Search/ai-judge` with `{ query, ids }` (at most 10). The server loads the matn from the database (the client text is not trusted), cuts each to a window around the query words (about 400 characters) and makes **one** Semantic Kernel call.
+The user chooses to use it; it never runs on its own.
+
+- New endpoint `POST /api/Search/ai-judge` with `{ query, ids }`: the ids of the current page's results (at most **50**, the page size). The server loads the matn from the database (client text is not trusted) and sends, for each result, only a **window of about 300–400 characters around the searched words**, not the whole matn. The call count is an implementation detail: one call up to about 20 results; above that, split into chunks of 15–20 sent **in parallel**, so total time stays close to one call. (The payload size and the time per call are estimates, not measured; measure them in step 4.)
 - The model returns, per result, one of three levels: `match` (يطابق), `partial` (يطابق جزئياً), `scattered` (كلمات متفرقة), plus a short reason that quotes a phrase from the matn. Three levels, not a percentage.
-- Validation in code, same pattern as `/verify`: the index must be in the list, and the quote must occur verbatim in that matn (reuse `AiEvaluationService.IsQuoteGrounded`); otherwise the item gets no label. Prompt rules: judge only whether the matn matches the meaning of the query; never grade authenticity; add no content.
-- Time limit (env `SEARCH_AI_TIMEOUT_SECONDS`, default 20) and a status field like `/verify` (`reviewed|timeout|unavailable`); in-memory cache by normalized query and hadith id. On failure the page keeps the Layer A score.
-- UI: a button "تحقق بالذكاء الاصطناعي (أول 10)" above the results; badges appear on the cards when the answer arrives, without blocking the page; `AiNotice` is shown. Results are not silently reordered: labelled `scattered` items are marked and optionally moved down after the user clicks.
+- Validation in code, same pattern as `/verify`: every index must come back, be in range and occur once; the quote must occur verbatim in that matn (reuse `AiEvaluationService.IsQuoteGrounded`). A result that comes back missing, duplicated or with an unverified quote is marked `not judged` (لم يُحكم عليه), never counted as match or non-match. Prompt rules: judge only whether the matn matches the meaning of the query; never grade authenticity; add no content.
+- Time limit per call (env `SEARCH_AI_TIMEOUT_SECONDS`, default 20) and a status per response like `/verify` (`reviewed|partial|timeout|unavailable`); in-memory cache by normalized query and hadith id. On failure the page keeps the Layer A score and says the AI check did not finish.
+- **Public-demo protection:** the endpoint calls a paid model without login, so cap the ids per request (50), add ASP.NET rate limiting per client, and use the cache. Without this, anyone can run up the cost.
+- UI (`app/search/page.tsx`, `HadithCard.tsx`): a button "تحقق بالذكاء الاصطناعي من نتائج هذه الصفحة" above the results; while it runs, the Layer A scores stay usable; badges appear on the cards when the answer arrives; `AiNotice` is shown. After the check, a switch **"إخفاء غير المطابق"** (off by default, the user's choice) hides results labelled `scattered`, with a permanent counter "تم إخفاء N نتيجة (عرضها)". **Nothing is deleted or hidden silently**: a model mistake must never make a correct hadith disappear without the user knowing. Results marked `not judged` are never hidden.
+- Only the current page is judged; changing the page, query or filters clears the labels.
 
 ## Steps (in order)
 
@@ -47,8 +51,8 @@ Output per result: `relevancePercent` (0–100) and `relevanceReason` (one Arabi
 1. **Reproduce and fix the candidate cap.** Add a test (in-memory database, like the existing ones in `HadithSearchServiceTests.cs`) with more than 150 short matches plus one long matn containing the exact phrase; show it is dropped. Fix: always include the SQL matches of the exact normalized phrase (cheap `Contains`) in the candidate set in addition to the shortest N, and raise N if latency allows. Re-run the existing tests.
 2. **`RelevanceScorer` + tests** (coverage, proximity in words, phrase/order; scattered long matn scores low; exact phrase scores high; diacritics and hamza forms do not matter). Reuse `ArabicNormalizer` and the tokenizer from `HadithVerificationService` instead of writing a new one.
 3. **Wire the scorer into `HadithSearchService`** (both paths), add DTO fields, show a bar and the reason on `HadithCard.tsx`. Keep the existing sort tie-breakers.
-4. **AI judge endpoint + tests** with a fake kernel (valid answer, answer with a quote that is not in the matn, index out of range, timeout, no model).
-5. **Search page button and badges.** Mutation through react-query like the existing search hook; Arabic labels; `AiNotice`.
+4. **AI judge endpoint + tests** with a fake kernel (valid answer; quote not in the matn; index out of range, missing or duplicated; chunking of more than 20 results; timeout; no model; request over 50 ids; rate limit). Measure the real payload size and time for 20 and 50 results with the configured model before choosing the chunk size.
+5. **Search page button, badges and the "hide non-matching" switch with its counter.** Mutation through react-query like the existing search hook; Arabic labels; `AiNotice`; labels are cleared when the page, query or filters change.
 6. **Evaluation set and runner.** `docs/challenge/search-eval-cases.json` (about 20 queries, each with a target identified by a distinctive matn substring so it does not depend on book numbers, plus decoys: long hadiths with the words scattered) and `scripts/eval_search.py` reporting the rank of the target, hit@1/3/10 and MRR for: baseline, Layer A, Layer A + B. Report `modelStatus` and warn when the model did not answer, so a timeout is not read as "the model added nothing".
 
 ## Files
@@ -66,7 +70,9 @@ Output per result: `relevancePercent` (0–100) and `relevanceReason` (one Arabi
 ## Risks and decisions for the owner
 
 1. **Time.** Submission closes 2026-10-06 23:59 (Riyadh) and the Live Demo, video and presentation are still open (`docs/challenge/gap-analysis.md`). Rough effort: steps 0–3 and 6 (deterministic, no model) about 3–4 hours; steps 4–5 (AI judge) about 2–3 more. Recommended cut if time is short: do steps 0–3 and 6, keep the AI judge for later.
-2. **Model speed.** The AI judge needs an answer in roughly 5–8 seconds for 10 results. If the configured model needs 10–25 seconds, switch `Together__Model` to a faster non-reasoning model first, or the button will feel broken.
+2. **Model speed.** The AI check should finish in roughly 5–10 seconds for a page of results. If the configured model needs 10–25 seconds even for one review, switch `Together__Model` to a faster non-reasoning model first, or the button will feel broken. Longer lists also make models skip or mis-number items, which is why the code checks that every result came back.
 3. **Fairness of the comparison.** Layer A is the "simpler alternative" the AI is compared against. If Layer A alone solves the cases, say so; the AI judge then stays an optional second opinion.
 4. **Weights are a guess** until tuned on the evaluation set; the evaluation set is written by the assistant and the owner should extend it with their own queries.
-5. **Search ordering changes** affect everyone using `/search`; keep the existing tests green and compare the baseline run before merging.
+5. **Hiding results is a recall risk.** A wrong `scattered` label would hide a correct hadith. That is why hiding is opt-in, reversible and always counted, and why `not judged` is never hidden. The evaluation (step 6) must report how often the AI labels a target hadith `scattered`.
+6. **Cost abuse on the public demo** (see the protection above).
+7. **Search ordering changes** affect everyone using `/search`; keep the existing tests green and compare the baseline run before merging.
