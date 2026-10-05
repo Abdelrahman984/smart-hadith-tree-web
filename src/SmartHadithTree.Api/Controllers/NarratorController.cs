@@ -51,9 +51,9 @@ public class NarratorController(INarratorService narratorService) : ControllerBa
             var summary = await aiService.GenerateNarratorEvaluationSummaryAsync(narrator, ct);
             return Ok(summary);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return StatusCode(500, $"AI Evaluation Failed: {ex.Message}");
+            return StatusCode(500, "AI evaluation failed.");
         }
     }
 }

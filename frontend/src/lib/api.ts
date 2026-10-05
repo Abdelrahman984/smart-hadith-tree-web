@@ -9,7 +9,11 @@ import {
   IlalExplanationDto,
 } from "@/types/api";
 
-const API_BASE = "http://localhost:5147/api"; // Default ASP.NET Core dev port
+/**
+ * Backend base URL. Set NEXT_PUBLIC_API_BASE (e.g. https://api.example.com/api) at build time;
+ * it is inlined into the client bundle. Defaults to the local ASP.NET Core dev port.
+ */
+export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:5147/api").replace(/\/+$/, "");
 
 export async function searchHadiths(
   query: string,

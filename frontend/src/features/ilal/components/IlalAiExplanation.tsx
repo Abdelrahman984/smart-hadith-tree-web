@@ -3,6 +3,7 @@
 import { Sparkles, Loader2 } from "lucide-react";
 import { IlalReportDto } from "@/types/api";
 import { useIlalExplanation } from "../hooks/useIlal";
+import AiNotice from "@/components/AiNotice";
 
 /** Button that asks the AI to explain the report, grounded only in the rule engine's findings. */
 export default function IlalAiExplanation({ report }: { report: IlalReportDto }) {
@@ -25,9 +26,7 @@ export default function IlalAiExplanation({ report }: { report: IlalReportDto })
             {data.caveats.map((c, i) => <li key={i}>{c}</li>)}
           </ul>
         )}
-        <p className="text-[10px] text-slate-500">
-          هذا الشرح مولَّد بالذكاء الاصطناعي من النتائج أعلاه فقط، فيُراجع قبل الاعتماد عليه.
-        </p>
+        <AiNotice />
       </div>
     );
   }

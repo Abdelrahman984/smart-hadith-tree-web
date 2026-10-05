@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SearchRequestDto, SearchScope } from "@/types/api";
 import {
   X,
@@ -77,6 +77,15 @@ export default function ShamelaSearchModal({
   const [scope, setScope] = useState<SearchScope>(
     initialRequest?.scope ?? 1 // Default to Matn
   );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -165,6 +174,9 @@ export default function ShamelaSearchModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div
         dir="rtl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shamela-modal-title"
         className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
       >
         {/* Modal Header */}
@@ -174,7 +186,7 @@ export default function ShamelaSearchModal({
               <Sliders className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold flex items-center gap-2">
+              <h2 id="shamela-modal-title" className="text-lg font-bold flex items-center gap-2">
                 <span>البحث المتقدم</span>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-brand-teal/20 text-brand-teal border border-brand-teal/30 font-normal">
                   نمط المكتبة الشاملة
@@ -203,7 +215,7 @@ export default function ShamelaSearchModal({
               <label className="text-xs font-bold text-slate-700 block">
                 أقسام وشروط البحث المنطقية:
               </label>
-              <span className="text-[11px] text-slate-400">
+              <span className="text-[11px] text-slate-500">
                 يمكن استخدام كافة الألسنة معاً
               </span>
             </div>
@@ -510,7 +522,7 @@ export default function ShamelaSearchModal({
                 [و]: {activeAndCount} عبارة إلزامية
               </span>
             ) : (
-              <span className="text-slate-400">لا يوجد إلزام</span>
+              <span className="text-slate-500">لا يوجد إلزام</span>
             )}
             <span className="text-slate-300">•</span>
             {activeOrCount > 0 ? (
@@ -518,7 +530,7 @@ export default function ShamelaSearchModal({
                 [أو]: {activeOrCount} بدائل
               </span>
             ) : (
-              <span className="text-slate-400">لا توجد بدائل</span>
+              <span className="text-slate-500">لا توجد بدائل</span>
             )}
             <span className="text-slate-300">•</span>
             {activeExcludeCount > 0 ? (
@@ -526,7 +538,7 @@ export default function ShamelaSearchModal({
                 [ليس]: {activeExcludeCount} مستبعد
               </span>
             ) : (
-              <span className="text-slate-400">لا يوجد استبعاد</span>
+              <span className="text-slate-500">لا يوجد استبعاد</span>
             )}
           </div>
 

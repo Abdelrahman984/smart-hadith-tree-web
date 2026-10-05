@@ -27,6 +27,12 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" className={`${notoSansArabic.variable} ${inter.variable} font-arabic h-full antialiased`}>
       <body suppressHydrationWarning className="min-h-full flex flex-col bg-slate-50 text-slate-900">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-brand-dark focus:shadow-lg focus:ring-2 focus:ring-brand-blue"
+        >
+          تخطَّ إلى المحتوى
+        </a>
         <QueryProvider>
           {children}
         </QueryProvider>

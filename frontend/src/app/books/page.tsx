@@ -12,7 +12,7 @@ export default function BooksPage() {
   });
 
   return (
-    <div className="max-w-4xl mx-auto p-6 pt-12">
+    <main id="main-content" className="max-w-4xl mx-auto p-6 pt-12">
       <h1 className="text-3xl font-bold text-brand-dark mb-8 text-center">
         تصفح كتب الحديث
       </h1>
@@ -45,6 +45,6 @@ export default function BooksPage() {
           ))}
         </div>
       )}
-    </div>
+    </main>
   );
 }

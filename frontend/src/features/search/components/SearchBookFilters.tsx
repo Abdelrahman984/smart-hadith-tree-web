@@ -17,7 +17,7 @@ export default function SearchBookFilters({
 
   return (
     <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none text-xs">
-      <span className="text-slate-400 shrink-0 font-medium ml-1">تصفية بالمصدر:</span>
+      <span className="text-slate-500 shrink-0 font-medium ml-1">تصفية بالمصدر:</span>
       
       {/* "All" button */}
       <button

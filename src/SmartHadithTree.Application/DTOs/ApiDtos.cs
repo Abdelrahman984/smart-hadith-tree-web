@@ -97,8 +97,18 @@ public class ExtractedAiEvaluationDto
 {
     public string VerbatimQuote { get; set; } = string.Empty;
     public string SourceBook { get; set; } = string.Empty;
-    public string Tier { get; set; } = string.Empty; // e.g. "T1", "T4", "T7"
+    public string Tier { get; set; } = string.Empty; // e.g. "T1", "T4"; empty unless Status is "ok"
     public string Justification { get; set; } = string.Empty;
+    public string Status { get; set; } = AiEvaluationStatus.Ok;
+}
+
+/// <summary>Outcome of the AI narrator summary. Only <see cref="Ok"/> carries a quote and tier.</summary>
+public static class AiEvaluationStatus
+{
+    public const string Ok = "ok";
+    public const string NoEvaluations = "no-evaluations";
+    public const string Unverified = "unverified";
+    public const string Unavailable = "unavailable";
 }
 
 /// <summary>

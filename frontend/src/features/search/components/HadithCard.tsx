@@ -182,7 +182,7 @@ export default function HadithCard({
               <span>✓ محدد للتخريج المقارن</span>
             </span>
           ) : (
-            <span className="text-slate-400">انقر على البطاقة لتحديد الحديث للمقارنة</span>
+            <span className="text-slate-500">انقر على البطاقة لتحديد الحديث للمقارنة</span>
           )}
         </div>
 

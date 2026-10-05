@@ -1,5 +1,6 @@
 "use client";
 
+import EvidenceBadge from "@/components/EvidenceBadge";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
@@ -114,21 +115,31 @@ function TakhreejContent() {
 
       <div className="flex-1 flex overflow-hidden relative">
         {/* Main Canvas Area */}
-        <div className="flex-1 relative h-full">
+        <main id="main-content" className="flex-1 relative h-full">
           <ComparativeTreeCanvas treeData={data} />
-        </div>
+        </main>
 
         {/* Sidebar for Matn texts */}
         <div className={`transition-all duration-300 ease-in-out border-r border-slate-200 bg-white z-10 flex flex-col overflow-hidden ${isSidebarOpen ? 'w-96' : 'w-0 border-r-0'}`}>
           <div className="flex-1 overflow-y-auto p-4 space-y-5 min-w-[24rem]">
             {data.calculatedGrade && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5">
-                <h3 className="font-bold text-emerald-900 mb-1 flex items-center gap-2 text-sm">
-                  <span>الحكم الكلي:</span>
-                  <span className="text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md">{data.calculatedGrade}</span>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+                <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2 text-sm">
+                  <span>التقدير الآلي للطرق:</span>
+                  <span className="text-slate-800 bg-slate-200/70 px-2 py-0.5 rounded-md">{data.calculatedGrade}</span>
                 </h3>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  <EvidenceBadge status="verify" />
+                  <span className="text-[11px] text-slate-800">
+                    تقدير آلي من الأسانيد المسجلة وليس حكماً معتمداً؛ للحكم المعتمد راجع{" "}
+                    <a href="https://dorar.net/hadith" target="_blank" rel="noopener noreferrer" className="font-semibold underline">
+                      الدرر السنية
+                    </a>
+                    .
+                  </span>
+                </div>
                 {data.taqwiyahDetails && (
-                  <p className="text-xs text-emerald-800 leading-relaxed mt-1">
+                  <p className="text-xs text-slate-700 leading-relaxed mt-1">
                     {data.taqwiyahDetails}
                   </p>
                 )}

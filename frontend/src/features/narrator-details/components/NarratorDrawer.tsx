@@ -1,10 +1,15 @@
 "use client";
 
 import { useQuery } from '@tanstack/react-query';
-import { getNarratorDetails } from '@/lib/api';
+import { API_BASE, getNarratorDetails } from '@/lib/api';
 import { useNarratorDrawerStore } from '../store/useNarratorDrawerStore';
 import { X, Sparkles, AlertCircle } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import AiNotice from '@/components/AiNotice';
+import GlossaryTerm from '@/features/glossary/GlossaryTerm';
+import ConsensusBanner from './ConsensusBanner';
+import EvidenceBadge from '@/components/EvidenceBadge';
+import { analyzeEvaluations, narratorEvidence, type EvaluationGroup } from '../utils/evaluationConsensus';
 
 const VERDICT_AR: Record<string, string> = {
   reliable: "ثقة",
@@ -40,11 +45,34 @@ const SCHOLAR_AR: Record<string, string> = {
 const getVerdictAr = (en: string) => VERDICT_AR[en.toLowerCase()] || en;
 const getScholarAr = (en: string) => SCHOLAR_AR[en.toLowerCase()] || en;
 
+const CAMP_HEADING: Record<EvaluationGroup["camp"], string> = {
+  tadil: "من عدّله ووثّقه",
+  jarh: "من جرّحه أو ضعّفه أو جهّله",
+  unclassified: "أقوال غير مصنَّفة",
+};
+
+function EvaluationCard({ evalRecord }: { evalRecord: { scholarName: string; verdictRating: string | null; evaluationText: string } }) {
+  return (
+    <div className="bg-slate-50 p-3 rounded border border-slate-100">
+      <div className="flex justify-between items-start mb-1">
+        <span className="font-semibold text-brand-teal text-sm">{getScholarAr(evalRecord.scholarName)}</span>
+        {evalRecord.verdictRating && (
+          <span className="text-xs px-1.5 py-0.5 bg-white border border-slate-200 rounded text-slate-600">
+            {getVerdictAr(evalRecord.verdictRating)}
+          </span>
+        )}
+      </div>
+      <p className="text-slate-700 text-sm italic">&quot;{evalRecord.evaluationText}&quot;</p>
+    </div>
+  );
+}
+
 interface ExtractedAiEvaluation {
   verbatimQuote: string;
   sourceBook: string;
   tier: string;
   justification: string;
+  status: "ok" | "no-evaluations" | "unverified" | "unavailable";
 }
 
 export default function NarratorDrawer() {
@@ -64,8 +92,8 @@ export default function NarratorDrawer() {
     setIsAiLoading(true);
     setAiError(null);
     try {
-      const res = await fetch(`http://localhost:5147/api/Narrators/${selectedNarratorId}/ai-summary`);
-      if (!res.ok) throw new Error("فشل استخراج البيانات. تأكد من إعداد مفتاح OpenAI.");
+      const res = await fetch(`${API_BASE}/Narrators/${selectedNarratorId}/ai-summary`);
+      if (!res.ok) throw new Error("فشل استخراج البيانات. حاول لاحقاً أو راجع أقوال العلماء الأصلية.");
       const data = await res.json();
       setAiSummary(data);
     } catch (err) {
@@ -86,6 +114,19 @@ export default function NarratorDrawer() {
     closeDrawer();
   };
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleClose only calls stable store/state setters
+  }, [isOpen]);
+
+  const consensus = narrator ? analyzeEvaluations(narrator.evaluations) : null;
+  const evidence = narrator && consensus ? narratorEvidence(consensus, narrator.evaluations.length) : null;
+
   if (!isOpen) return null;
 
   return (
@@ -100,11 +141,14 @@ export default function NarratorDrawer() {
       <div 
         className="absolute top-0 bottom-0 start-0 w-96 bg-white shadow-2xl z-50 flex flex-col transform transition-transform duration-300"
         dir="rtl"
+        role="dialog"
+        aria-label="تفاصيل الراوي"
       >
         <div className="flex items-center justify-between p-4 border-b border-slate-200">
           <h2 className="text-xl font-bold text-slate-800">تفاصيل الراوي</h2>
           <button 
             onClick={handleClose}
+            aria-label="إغلاق تفاصيل الراوي"
             className="p-1 rounded-full hover:bg-slate-100 text-slate-500"
           >
             <X size={20} />
@@ -159,12 +203,12 @@ export default function NarratorDrawer() {
                   )}
                   {narrator.isMudallis && (
                     <span className="px-2 py-1 bg-orange-100 text-orange-800 border border-orange-300 rounded text-xs font-bold">
-                      موصوف بالتدليس
+                      موصوف بـ<GlossaryTerm id="tadlis">التدليس</GlossaryTerm>
                     </span>
                   )}
                   {narrator.hasMukhtalit && (
                     <span className="px-2 py-1 bg-yellow-100 text-yellow-800 border border-yellow-300 rounded text-xs font-bold">
-                      اختلط بأخرة
+                      <GlossaryTerm id="ikhtilat">اختلط</GlossaryTerm> بأخرة
                     </span>
                   )}
                 </div>
@@ -252,6 +296,14 @@ export default function NarratorDrawer() {
                 </div>
               )}
 
+              {evidence && (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-2.5">
+                  <span className="text-xs font-semibold text-slate-600">حالة الدليل لحال الراوي:</span>
+                  <EvidenceBadge status={evidence.status} />
+                  <span className="text-xs text-slate-600">{evidence.reason}</span>
+                </div>
+              )}
+
               {/* AI Summary Section */}
               {narrator.evaluations.length > 0 && (
                 <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
@@ -284,18 +336,31 @@ export default function NarratorDrawer() {
 
                   {aiSummary && (
                     <div className="text-sm text-purple-900 leading-relaxed font-arabic space-y-2">
-                      <div className="bg-white p-3 rounded shadow-sm border border-purple-100">
-                        <p className="font-bold text-lg mb-1">«{aiSummary.verbatimQuote}»</p>
-                        <p className="text-xs text-purple-600 mb-3">— {aiSummary.sourceBook}</p>
-                        <div className="flex gap-2 items-center bg-purple-50 p-2 rounded">
-                          <span className="px-2 py-1 bg-purple-200 text-purple-900 rounded text-xs font-bold shadow-sm">
-                            {aiSummary.tier}
-                          </span>
-                          <span className="text-xs text-slate-700">
-                            {aiSummary.justification}
-                          </span>
+                      {aiSummary.status === "ok" && consensus?.status === "dispute" && (
+                        <p role="note" className="rounded border border-amber-300 bg-amber-50 p-2 text-xs font-semibold text-amber-900">
+                          العلماء مختلفون في هذا الراوي: الاقتباس أدناه قول واحد من أقوالهم وليس إجماعاً. راجع بقية الأقوال.
+                        </p>
+                      )}
+                      {aiSummary.status === "ok" ? (
+                        <div className="bg-white p-3 rounded shadow-sm border border-purple-100">
+                          <p className="font-bold text-lg mb-1">«{aiSummary.verbatimQuote}»</p>
+                          <p className="text-xs text-purple-600 mb-3">— {aiSummary.sourceBook}</p>
+                          <div className="flex gap-2 items-center bg-purple-50 p-2 rounded">
+                            <span className="px-2 py-1 bg-purple-200 text-purple-900 rounded text-xs font-bold shadow-sm">
+                              {aiSummary.tier}
+                            </span>
+                            <span className="text-xs text-slate-700">
+                              {aiSummary.justification}
+                            </span>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="bg-amber-50 p-3 rounded border border-amber-200 text-amber-900">
+                          <p className="font-bold mb-1">غير مصنَّف آلياً</p>
+                          <p className="text-xs">{aiSummary.justification}</p>
+                        </div>
+                      )}
+                      <AiNotice />
                     </div>
                   )}
                 </div>
@@ -304,22 +369,33 @@ export default function NarratorDrawer() {
               {/* Scholar Evaluations */}
               <div>
                 <h4 className="text-lg font-semibold text-slate-800 mb-3">أقوال الجرح والتعديل</h4>
-                {narrator.evaluations.length > 0 ? (
-                  <div className="space-y-3">
-                    {narrator.evaluations.map((evalRecord, idx) => (
-                      <div key={idx} className="bg-slate-50 p-3 rounded border border-slate-100">
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="font-semibold text-brand-teal text-sm">{getScholarAr(evalRecord.scholarName)}</span>
-                          {evalRecord.verdictRating && (
-                            <span className="text-xs px-1.5 py-0.5 bg-white border border-slate-200 rounded text-slate-600">
-                              {getVerdictAr(evalRecord.verdictRating)}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-slate-700 text-sm italic">&quot;{evalRecord.evaluationText}&quot;</p>
+                {narrator.evaluations.length > 0 && consensus ? (
+                  <>
+                    <ConsensusBanner consensus={consensus} />
+                    {consensus.status === "dispute" ? (
+                      <div className="space-y-4">
+                        {consensus.groups.map((group) => (
+                          <section key={group.camp} aria-label={CAMP_HEADING[group.camp]}>
+                            <h5 className="mb-2 text-sm font-bold text-slate-700">
+                              {CAMP_HEADING[group.camp]}{" "}
+                              <span className="font-normal text-slate-500">({group.items.length.toLocaleString("ar-EG")})</span>
+                            </h5>
+                            <div className="space-y-3">
+                              {group.items.map(({ evaluation, index }) => (
+                                <EvaluationCard key={index} evalRecord={evaluation} />
+                              ))}
+                            </div>
+                          </section>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {narrator.evaluations.map((evalRecord, idx) => (
+                          <EvaluationCard key={idx} evalRecord={evalRecord} />
+                        ))}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <p className="text-sm text-slate-500">لا توجد أقوال مسجلة لهذا الراوي.</p>
                 )}

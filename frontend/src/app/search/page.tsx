@@ -169,7 +169,7 @@ function SearchContent() {
                 <span className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
                   شجرة الأسانيد <span className="text-brand-teal">الذكية</span>
                 </span>
-                <span className="text-[10px] text-slate-400 font-normal">منصة التخريج ودراسة الأسانيد</span>
+                <span className="text-[10px] text-slate-500 font-normal">منصة التخريج ودراسة الأسانيد</span>
               </div>
             </Link>
 
@@ -201,7 +201,7 @@ function SearchContent() {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 md:pt-10 pb-28">
+      <main id="main-content" className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 md:pt-10 pb-28">
         {/* Search Hero */}
         <section className="text-center mb-8 space-y-2.5">
           <h1 className="text-2xl sm:text-4xl font-extrabold text-brand-dark tracking-tight">
@@ -267,7 +267,7 @@ function SearchContent() {
               </button>
 
               {query.length === 0 && (
-                <kbd className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 bg-slate-100 border border-slate-200 px-2 py-1 rounded-md">
+                <kbd className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-1 rounded-md">
                   /
                 </kbd>
               )}

@@ -5,6 +5,9 @@ import { ShieldAlert, ShieldCheck, GitFork, FileDiff, ChevronDown } from "lucide
 import { IlalReportDto } from "@/types/api";
 import { useIlalStore } from "../store/useIlalStore";
 import { groupFindings, isLowConfidenceFinding, ILLAH_TYPE_LABELS, SEVERITY_STYLES } from "../utils/ilalLabels";
+import GlossaryTerm from "@/features/glossary/GlossaryTerm";
+import EvidenceBadge from "@/components/EvidenceBadge";
+import { ILLAH_TYPE_GLOSSARY_ID, SEVERITY_GLOSSARY_ID } from "@/features/glossary/glossary";
 import MatnDiffView from "./MatnDiffView";
 import IlalAiExplanation from "./IlalAiExplanation";
 
@@ -33,7 +36,7 @@ export default function IlalPanel({ report }: IlalPanelProps) {
     list.map((group) => (
       <section key={group.type} className="space-y-2">
         <h4 className="border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
-          {ILLAH_TYPE_LABELS[group.type]}
+          <GlossaryTerm id={ILLAH_TYPE_GLOSSARY_ID[group.type]}>{ILLAH_TYPE_LABELS[group.type]}</GlossaryTerm>
           <span className="ms-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
             {group.items.length}
           </span>
@@ -50,13 +53,19 @@ export default function IlalPanel({ report }: IlalPanelProps) {
               role="button"
               tabIndex={0}
               onClick={() => selectFinding(isActive ? null : index)}
-              onKeyDown={(e) => e.key === "Enter" && selectFinding(isActive ? null : index)}
+              onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    selectFinding(isActive ? null : index);
+                  }
+                }}
+                aria-pressed={isActive}
               className={`cursor-pointer rounded-xl border p-3 transition-shadow ${style.card} ${isActive ? "ring-2 ring-brand-blue shadow-md" : "hover:shadow-sm"}`}
             >
               <div className="mb-1.5 flex items-center justify-between gap-2">
                 <span className="text-sm font-bold text-slate-800">{finding.titleAr}</span>
                 <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${style.badge}`}>
-                  {style.label}
+                  <GlossaryTerm id={SEVERITY_GLOSSARY_ID[finding.severity]}>{style.label}</GlossaryTerm>
                 </span>
               </div>
               <p className="text-xs leading-relaxed text-slate-700">{finding.evidenceAr}</p>
@@ -65,6 +74,7 @@ export default function IlalPanel({ report }: IlalPanelProps) {
                 {labels.map((l) => (
                   <span key={l} className="rounded bg-white/80 px-1.5 py-0.5 border border-slate-200">{l}</span>
                 ))}
+                <EvidenceBadge status="verify" compact />
                 <span className="ms-auto" title="درجة الثقة في الاستنتاج الآلي">
                   الثقة: {Math.round(finding.confidence * 100)}%
                 </span>
@@ -142,7 +152,7 @@ export default function IlalPanel({ report }: IlalPanelProps) {
 
       {report.findings.length > 0 && <IlalAiExplanation report={report} />}
 
-      <p className="text-[10px] leading-relaxed text-slate-400">
+      <p className="text-[10px] leading-relaxed text-slate-500">
         نتائج آلية مبنية على قواعد المحدثين في التدليس والاختلاط واللقاء والمخالفة، تُعين المحقق ولا تغني عن نظره في كتب العلل.
       </p>
     </div>
