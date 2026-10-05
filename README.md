@@ -32,8 +32,8 @@ A MENA-targeted SaaS platform and scholarly research tool designed to digitize, 
 - SQL Server (Local instance `.` or LocalDB)
 
 ### 1. Database Setup & Data Ingestion
-#### Option A: Instant Restore from Full Backup (Recommended if `.bak` is present)
-If `backups/SmartHadithTree_Shamela_v5_2026-10-05.bak` is present locally, restore the complete 31-book database in seconds (all versions are described in [`backups/README.md`](backups/README.md)). Run it from the repository root:
+#### Option A: Instant Restore from Full Backup (Recommended)
+The database is not stored in git. Download the full SQL Server backup (v5, about 474 MB, 31 books) from [Google Drive](https://drive.google.com/file/d/1vtrwf-egH_T1pImVwnzx2Z2eLJalifjR/view?usp=sharing) and place it at `backups/SmartHadithTree_Shamela_v5_2026-10-05.bak` (the folder is git-ignored). To only try the product, use the live demo instead: <https://smart-hadith.idealisticsolutions.com>. The source texts come from the Shamela library; see [`docs/challenge/sources-and-licenses.md`](docs/challenge/sources-and-licenses.md) for their rights status. All versions are described in [`backups/README.md`](backups/README.md). Run the restore from the repository root:
 ```powershell
 sqlcmd -S . -Q "RESTORE DATABASE [SmartHadithTree_ShamelaV5] FROM DISK = N'$((Get-Location).Path)\backups\SmartHadithTree_Shamela_v5_2026-10-05.bak' WITH REPLACE, STATS = 25;"
 ```
