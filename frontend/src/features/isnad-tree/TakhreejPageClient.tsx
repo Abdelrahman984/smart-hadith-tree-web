@@ -14,6 +14,7 @@ import SourceChips from "@/features/isnad-tree/components/SourceChips";
 import TakhreejSummary from "@/features/isnad-tree/components/TakhreejSummary";
 import { IlalTab, MatnTab } from "@/features/isnad-tree/components/TakhreejTabs";
 import { useTakhreej } from "@/features/isnad-tree/hooks/useTakhreej";
+import { takhreejTitle } from "@/features/isnad-tree/utils/takhreejTitle";
 import { useGraphViewStore } from "@/features/isnad-tree/store/useGraphViewStore";
 import { useWorkspaceStore } from "@/features/isnad-tree/store/useWorkspaceStore";
 import { getBookMeta } from "@/lib/bookTheme";
@@ -41,6 +42,12 @@ function TakhreejContent() {
   }, [data, setReport]);
 
   useEffect(() => reset, [reset]);
+
+  // The tab title says which hadith is compared (the page's static metadata cannot know).
+  const title = data ? takhreejTitle(data.sources) : null;
+  useEffect(() => {
+    if (title) document.title = `${title} | شجرة الأسانيد الذكية`;
+  }, [title]);
 
   // A chip highlights that book's routes; with room for the panel it also scrolls to the narration's matn.
   const handleSelectSource = (source: ComparativeHadithSourceDto) => {

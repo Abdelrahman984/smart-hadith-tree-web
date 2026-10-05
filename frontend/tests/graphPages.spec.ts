@@ -360,6 +360,59 @@ test.describe('the address keeps the view', () => {
   });
 });
 
+test.describe('the takhreej title', () => {
+  test('says which hadith is compared', async ({ page }) => {
+    await page.goto('/takhreej?ids=h1,h2,h3');
+    await graphReady(page);
+    await expect(page).toHaveTitle('تخريج صحيح البخاري 1 و2 روايات أخرى | شجرة الأسانيد الذكية');
+  });
+});
+
+test.describe('resizing the side panel', () => {
+  const width = async (page: Page) => Math.round((await page.locator('#workspace-panel').boundingBox())!.width);
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/takhreej?ids=h1,h2,h3');
+    await graphReady(page);
+    await page.evaluate(() => localStorage.clear());
+  });
+
+  test('dragging the edge changes the width, within limits, and it is remembered', async ({ page }) => {
+    expect(await width(page)).toBe(384);
+
+    const edge = page.getByRole('separator', { name: 'تغيير عرض اللوحة' });
+    const box = (await edge.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + 200);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 100, box.y + 200, { steps: 5 });
+    await page.mouse.up();
+    await expect.poll(() => width(page)).toBe(484);
+
+    // Never narrower than 320 or wider than 640.
+    await edge.focus();
+    await page.keyboard.press('Home');
+    await expect.poll(() => width(page)).toBe(320);
+    await page.keyboard.press('ArrowLeft');
+    await expect.poll(() => width(page)).toBe(320);
+    await page.keyboard.press('End');
+    await expect.poll(() => width(page)).toBeLessThanOrEqual(640);
+    await page.keyboard.press('Home');
+    await page.keyboard.press('ArrowRight');
+    await expect.poll(() => width(page)).toBe(344);
+
+    await page.reload();
+    await graphReady(page);
+    await expect.poll(() => width(page)).toBe(344);
+  });
+
+  test('the last tab is remembered on a fresh visit', async ({ page }) => {
+    await page.locator('#workspace-panel').getByRole('tab', { name: /العلل/ }).click();
+    await page.goto('/takhreej?ids=h1,h2,h3');
+    await graphReady(page);
+    await expect(page.locator('#workspace-panel').getByRole('tab', { name: /العلل/ })).toHaveAttribute('aria-selected', 'true');
+  });
+});
+
 test.describe('the single tree workspace', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/tree/x');
@@ -381,6 +434,11 @@ test.describe('the single tree workspace', () => {
 
   test('the hadith ruling note stays in the header', async ({ page }) => {
     await expect(page.getByText('حكم الحديث:')).toBeVisible();
+    await expect(page.locator('#ruling-note')).toBeVisible();
+  });
+
+  test('the book name links to its chapters', async ({ page }) => {
+    await expect(page.getByRole('link', { name: 'صحيح البخاري', exact: true })).toHaveAttribute('href', /\/books\//);
   });
 });
 
@@ -433,5 +491,16 @@ test.describe('on a phone', () => {
       })
     );
     expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(4);
+  });
+
+  test('the ruling note opens from its badge', async ({ page }) => {
+    await page.goto('/tree/x');
+    await graphReady(page);
+
+    const note = page.locator('#ruling-note');
+    await expect(note).toBeHidden();
+    await page.getByRole('button', { name: 'تفاصيل', exact: true }).click();
+    await expect(note).toBeVisible();
+    await expect(note).toContainText('الدرر السنية');
   });
 });

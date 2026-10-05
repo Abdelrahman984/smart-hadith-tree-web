@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { buildComparativeGraph, buildSingleGraph } from '../src/features/isnad-tree/utils/buildIsnadGraph';
 import { decorateEdgeWithIlal } from '../src/features/isnad-tree/utils/edgeStyle';
 import { getIlalEdgeDecorations } from '../src/features/ilal/utils/ilalLabels';
+import { takhreejTitle } from '../src/features/isnad-tree/utils/takhreejTitle';
 import { isUnrated } from '../src/features/narrator-details/utils/gradeStyle';
 import type { ComparativeIsnadNodeDto, ComparativeTreeResponseDto, IlalReportDto, IsnadNodeDto } from '../src/types/api';
 
@@ -192,5 +193,17 @@ test.describe('isUnrated', () => {
   });
   test('every known grade, including «مجهول», is a verdict', () => {
     expect(['reliable', 'weak', 'unknown', 'fabricator', 'companion'].map(isUnrated)).toEqual([false, false, false, false, false]);
+  });
+});
+
+test.describe('takhreejTitle', () => {
+  const src = (bookName: string, hadithNumber: number) => ({ hadithId: bookName, bookName, hadithNumber, matnSnippet: '' });
+  test('names the first narration and how many others are compared', () => {
+    expect(takhreejTitle([src('صحيح البخاري', 1)])).toBe('تخريج صحيح البخاري 1');
+    expect(takhreejTitle([src('صحيح البخاري', 1), src('صحيح مسلم', 2)])).toBe('تخريج صحيح البخاري 1 ورواية أخرى');
+    expect(takhreejTitle([src('صحيح البخاري', 1), src('a', 1), src('b', 1)])).toBe('تخريج صحيح البخاري 1 و2 روايات أخرى');
+  });
+  test('has a fallback for no sources', () => {
+    expect(takhreejTitle([])).toBe('شجرة التخريج المقارنة');
   });
 });

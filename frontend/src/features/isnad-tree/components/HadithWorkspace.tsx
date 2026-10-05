@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, UserCheck, X, type LucideIcon } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
 import { useMediaQuery } from "@/components/useMediaQuery";
@@ -10,7 +10,26 @@ import NarratorDrawer from "@/features/narrator-details/components/NarratorDrawe
 import { useNarratorDrawerStore } from "@/features/narrator-details/store/useNarratorDrawerStore";
 import { isPhone } from "@/lib/viewport";
 import { useWorkspaceUrlState } from "../hooks/useWorkspaceUrlState";
-import { NARRATOR_TAB, useWorkspaceStore } from "../store/useWorkspaceStore";
+import { NARRATOR_TAB, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH, useWorkspaceStore } from "../store/useWorkspaceStore";
+
+const STORAGE_WIDTH = "hadith-workspace:panel-width";
+const STORAGE_TAB = "hadith-workspace:tab";
+
+/** localStorage can throw (private windows, blocked storage): the workspace works without it. */
+const readStored = (key: string) => {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+const writeStored = (key: string, value: string) => {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    /* ignore */
+  }
+};
 
 export interface WorkspaceTab {
   id: string;
@@ -62,6 +81,8 @@ export default function HadithWorkspace({
   const panelOpen = useWorkspaceStore((s) => s.panelOpen);
   const activeTab = useWorkspaceStore((s) => s.activeTab);
   const previousTab = useWorkspaceStore((s) => s.previousTab);
+  const panelWidth = useWorkspaceStore((s) => s.panelWidth);
+  const setPanelWidth = useWorkspaceStore((s) => s.setPanelWidth);
   const setPanelOpen = useWorkspaceStore((s) => s.setPanelOpen);
   const setTab = useWorkspaceStore((s) => s.setTab);
   const openTab = useWorkspaceStore((s) => s.openTab);
@@ -73,6 +94,49 @@ export default function HadithWorkspace({
   const narratorInPanel = isWide && narratorOpen;
 
   useWorkspaceUrlState({ tabIds: tabs.map((t) => t.id), defaultTab, bookFocus });
+
+  // Remembered between visits: the panel's width and the tab last used (unless the address names one).
+  // Read after mount, so a server-rendered page and the browser start from the same markup.
+  const tabIds = tabs.map((t) => t.id).join(",");
+  useEffect(() => {
+    const width = Number(readStored(STORAGE_WIDTH));
+    if (width) setPanelWidth(width);
+    const tab = readStored(STORAGE_TAB);
+    const named = new URLSearchParams(window.location.search).has("tab");
+    if (!named && tab && tabIds.split(",").includes(tab)) setTab(tab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on mount
+  }, []);
+  useEffect(
+    () =>
+      useWorkspaceStore.subscribe((state, prev) => {
+        if (state.activeTab !== prev.activeTab && state.activeTab !== NARRATOR_TAB && state.activeTab) {
+          writeStored(STORAGE_TAB, state.activeTab);
+        }
+      }),
+    []
+  );
+
+  // Dragging the panel's edge (or the arrow keys on it) resizes it.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [resizing, setResizing] = useState(false);
+  const maxWidth = () => Math.min(PANEL_MAX_WIDTH, (bodyRef.current?.getBoundingClientRect().width ?? 1200) * 0.6);
+  const resizeTo = (width: number) => setPanelWidth(Math.min(maxWidth(), width));
+  const onResizeMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (resizing) resizeTo(e.clientX - (bodyRef.current?.getBoundingClientRect().left ?? 0));
+  };
+  const endResize = () => {
+    setResizing(false);
+    writeStored(STORAGE_WIDTH, String(useWorkspaceStore.getState().panelWidth));
+  };
+  const onResizeKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const step = e.shiftKey ? 96 : 24;
+    // The panel is on the left: moving its edge right widens it.
+    const next = { ArrowRight: panelWidth + step, ArrowLeft: panelWidth - step, Home: PANEL_MIN_WIDTH, End: PANEL_MAX_WIDTH }[e.key];
+    if (next === undefined) return;
+    e.preventDefault();
+    resizeTo(next);
+    writeStored(STORAGE_WIDTH, String(useWorkspaceStore.getState().panelWidth));
+  };
 
   // A selected narrator opens the narrator tab on wide screens, and closing it returns to the previous tab.
   useEffect(() => {
@@ -102,7 +166,7 @@ export default function HadithWorkspace({
       {header}
       {summary}
 
-      <div className="flex-1 flex overflow-hidden relative">
+      <div ref={bodyRef} className="flex-1 flex overflow-hidden relative" style={{ "--panel-w": `${panelWidth}px` } as CSSProperties}>
         <main id="main-content" className="flex-1 relative h-full">
           {canvas}
           {!isWide && <NarratorDrawer />}
@@ -111,11 +175,13 @@ export default function HadithWorkspace({
         <aside
           id="workspace-panel"
           aria-label={`لوحة ${panelLabel}`}
-          className={`absolute inset-y-0 left-0 z-20 md:relative md:z-10 transition-all duration-300 ease-in-out border-r border-line bg-surface flex flex-col overflow-hidden shadow-xl md:shadow-none ${
-            panelOpen ? "w-full sm:w-96" : "w-0 border-r-0"
+          className={`absolute inset-y-0 left-0 z-20 md:relative md:z-10 ${
+            resizing ? "" : "transition-all duration-300 ease-in-out"
+          } border-r border-line bg-surface flex flex-col overflow-hidden shadow-xl md:shadow-none ${
+            panelOpen ? "w-full sm:w-[var(--panel-w)]" : "w-0 border-r-0"
           }`}
         >
-          <div className="flex min-h-0 flex-1 flex-col min-w-[100vw] sm:min-w-[24rem]">
+          <div className="flex min-h-0 flex-1 flex-col min-w-[100vw] sm:min-w-[var(--panel-w)]">
             <div className="flex items-center justify-between border-b border-line px-4 py-2 md:hidden">
               <span className="text-sm font-bold text-ink">{panelLabel}</span>
               <button
@@ -186,6 +252,30 @@ export default function HadithWorkspace({
           </div>
         </aside>
 
+        {panelOpen && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="تغيير عرض اللوحة"
+            aria-valuemin={PANEL_MIN_WIDTH}
+            aria-valuemax={PANEL_MAX_WIDTH}
+            aria-valuenow={panelWidth}
+            tabIndex={0}
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture(e.pointerId);
+              setResizing(true);
+            }}
+            onPointerMove={onResizeMove}
+            onPointerUp={endResize}
+            onPointerCancel={endResize}
+            onKeyDown={onResizeKey}
+            className={`hidden md:block absolute inset-y-0 z-10 w-1.5 -translate-x-1/2 cursor-col-resize touch-none outline-none transition-colors hover:bg-brand-teal/40 focus-visible:bg-brand-teal/60 ${
+              resizing ? "bg-brand-teal/60" : ""
+            }`}
+            style={{ left: "var(--panel-w)" }}
+          />
+        )}
+
         <button
           type="button"
           onClick={() => setPanelOpen(!panelOpen)}
@@ -194,7 +284,7 @@ export default function HadithWorkspace({
           aria-controls="workspace-panel"
           aria-expanded={panelOpen}
           className={`absolute top-1/2 -translate-y-1/2 bg-surface border border-l-0 border-line p-2 rounded-r-lg shadow-md z-20 text-ink-subtle hover:text-brand-blue transition-all duration-300 ease-in-out items-center justify-center gap-1 cursor-pointer ${
-            panelOpen ? "hidden md:flex md:left-96" : "flex left-0"
+            panelOpen ? "hidden md:flex md:left-[var(--panel-w)]" : "flex left-0"
           }`}
         >
           {panelOpen ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
