@@ -86,7 +86,10 @@ def call(endpoint, key, model, prompt, max_tokens, extra):
     body.update(extra)
     req = urllib.request.Request(
         endpoint.rstrip("/") + "/chat/completions", data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"}, method="POST")
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}",
+                 # Python's default urllib User-Agent is rejected by Cloudflare in front of the API (HTTP 403, error code 1010).
+                 "User-Agent": "Mozilla/5.0 (compatible; smart-hadith-tree-latency/1.0)", "Accept": "application/json"},
+        method="POST")
     start = time.perf_counter()
     try:
         with urllib.request.urlopen(req, timeout=180) as res:
