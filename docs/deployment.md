@@ -9,6 +9,7 @@ All environment-specific values are configuration; nothing is hardcoded.
 |---|---|---|
 | Frontend (build time) | `NEXT_PUBLIC_API_BASE` | Public API URL, e.g. `https://api.example.com/api`. Inlined into the client bundle, so changing it needs a rebuild. Defaults to `http://localhost:5147/api`. |
 | API | `ConnectionStrings__DefaultConnection` | SQL Server connection string. |
+| API | `Together__ApiKey` | Together AI key (model `zai-org/GLM-5.3-Flash`, override with `Together__Model`) for AI summaries and Ilal explanations. Takes precedence over Gemini. |
 | API | `Gemini__ApiKey` | Gemini key for AI summaries and Ilal explanations. Without it those features fail gracefully. |
 | API | `Cors__AllowedOrigins__0`, `__1`, ... | Browser origins allowed to call the API (the frontend URL). Defaults to `http://localhost:3000`. |
 | API | `DisableHttpsRedirection=true` | Set when TLS is terminated by a proxy/platform (already set in the Docker image). |
@@ -28,7 +29,7 @@ Single-host stack with SQL Server:
 
 ```bash
 export MSSQL_SA_PASSWORD='<strong password>'
-export GEMINI_API_KEY='<key>'
+export TOGETHER_API_KEY='<key>'   # preferred; or GEMINI_API_KEY as the fallback
 docker compose up --build
 ```
 

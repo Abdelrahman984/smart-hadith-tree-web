@@ -25,8 +25,16 @@ builder.Services.AddDbContext<HadithTreeDbContext>(options =>
         }));
 
 // Register Semantic Kernel
+// Provider order: Together AI (OpenAI-compatible endpoint) if Together:ApiKey is set, else Gemini, else no model.
+var togetherApiKey = builder.Configuration["Together:ApiKey"];
 var geminiApiKey = builder.Configuration["Gemini:ApiKey"];
-if (!string.IsNullOrEmpty(geminiApiKey))
+if (!string.IsNullOrEmpty(togetherApiKey))
+{
+    var togetherModel = builder.Configuration["Together:Model"] ?? "zai-org/GLM-5.3-Flash";
+    var togetherEndpoint = new Uri(builder.Configuration["Together:Endpoint"] ?? "https://api.together.xyz/v1");
+    builder.Services.AddKernel().AddOpenAIChatCompletion(togetherModel, togetherEndpoint, togetherApiKey);
+}
+else if (!string.IsNullOrEmpty(geminiApiKey) && geminiApiKey != "YOUR_API_KEY_HERE")
 {
     builder.Services.AddKernel().AddGoogleAIGeminiChatCompletion("gemini-1.5-pro", geminiApiKey);
 }
