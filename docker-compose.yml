@@ -1,7 +1,7 @@
 # Local / single-host stack: SQL Server + API + web.
 #   export MSSQL_SA_PASSWORD='<strong password>'  TOGETHER_API_KEY='<key>'  (GEMINI_API_KEY is the fallback)
 #   docker compose up --build
-# Then restore the database (see docs/deployment.md) and open http://localhost:3000
+# Then restore the database (see deploy/deployment.md) and open http://localhost:3000
 services:
   db:
     image: mcr.microsoft.com/mssql/server:2022-latest
