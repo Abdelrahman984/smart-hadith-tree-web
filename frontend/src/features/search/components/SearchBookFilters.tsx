@@ -5,6 +5,8 @@ interface SearchBookFiltersProps {
   selectedBook: string | null;
   onSelectBook: (book: string | null) => void;
   totalCount: number;
+  /** True when the results span several pages: the counts then cover only the page shown. */
+  isPaged?: boolean;
 }
 
 export default function SearchBookFilters({
@@ -12,12 +14,15 @@ export default function SearchBookFilters({
   selectedBook,
   onSelectBook,
   totalCount,
+  isPaged = false,
 }: SearchBookFiltersProps) {
   if (books.length <= 1) return null;
 
   return (
-    <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none text-xs">
-      <span className="text-slate-500 shrink-0 font-medium ml-1">تصفية بالمصدر:</span>
+    <div className="flex items-center gap-2 overflow-x-auto py-1 text-xs">
+      <span className="text-slate-500 shrink-0 font-medium ml-1">
+        {isPaged ? "تصفية نتائج هذه الصفحة بالمصدر:" : "تصفية بالمصدر:"}
+      </span>
       
       {/* "All" button */}
       <button

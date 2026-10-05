@@ -9,17 +9,8 @@ import AiNotice from '@/components/AiNotice';
 import GlossaryTerm from '@/features/glossary/GlossaryTerm';
 import ConsensusBanner from './ConsensusBanner';
 import EvidenceBadge from '@/components/EvidenceBadge';
+import { getGradeStyle, getVerdictAr } from '../utils/gradeStyle';
 import { analyzeEvaluations, narratorEvidence, type EvaluationGroup } from '../utils/evaluationConsensus';
-
-const VERDICT_AR: Record<string, string> = {
-  reliable: "ثقة",
-  mostly_reliable: "صدوق",
-  weak: "ضعيف",
-  companion: "صحابي",
-  unknown: "مجهول",
-  abandoned: "متروك",
-  fabricator: "كذاب",
-};
 
 const SCHOLAR_AR: Record<string, string> = {
   jarh: "ابن أبي حاتم (الجرح والتعديل)",
@@ -42,7 +33,6 @@ const SCHOLAR_AR: Record<string, string> = {
   tadhkirat_huffaz: "الذهبي (تذكرة الحفاظ)",
 };
 
-const getVerdictAr = (en: string) => VERDICT_AR[en.toLowerCase()] || en;
 const getScholarAr = (en: string) => SCHOLAR_AR[en.toLowerCase()] || en;
 
 const CAMP_HEADING: Record<EvaluationGroup["camp"], string> = {
@@ -182,7 +172,11 @@ export default function NarratorDrawer() {
                     </span>
                   )}
                   {narrator.gradeEn && (
-                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold">
+                    <span
+                      className={`px-2 py-1 rounded border text-xs font-semibold ${
+                        getGradeStyle(narrator.gradeEn)?.badgeClass ?? "bg-slate-100 text-slate-700 border-slate-300"
+                      }`}
+                    >
                       {getVerdictAr(narrator.gradeEn)}
                     </span>
                   )}

@@ -4,7 +4,8 @@ import { useState, useRef, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useHadithSearch, MIN_QUERY_LENGTH } from "@/features/search/hooks/useHadithSearch";
-import { getRelatedHadiths, judgeSearchResults, RateLimitedError } from "@/lib/api";
+import { judgeSearchResults, RateLimitedError } from "@/lib/api";
+import { useAutoTakhreej } from "@/features/search/hooks/useAutoTakhreej";
 import AiNotice from "@/components/AiNotice";
 import type { SearchJudgeItemDto } from "@/types/api";
 import HadithCard from "@/features/search/components/HadithCard";
@@ -56,7 +57,7 @@ function SearchContent() {
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isAutoTakhreejLoading, setIsAutoTakhreejLoading] = useState<string | null>(null);
+  const autoTakhreej = useAutoTakhreej();
   const [selectedBook, setSelectedBook] = useState<string | null>(null);
   const [isShamelaModalOpen, setIsShamelaModalOpen] = useState(false);
 
@@ -123,6 +124,15 @@ function SearchContent() {
   const [judgeError, setJudgeError] = useState<{ key: string; message: string } | null>(null);
   const [isJudging, setIsJudging] = useState(false);
   const [hideScattered, setHideScattered] = useState(false);
+
+  // The book filter and "hide scattered" belong to one page of results: a new search or page starts unfiltered.
+  const resultsSetKey = JSON.stringify([submittedQuery, advancedRequest, page]);
+  const [prevResultsSetKey, setPrevResultsSetKey] = useState(resultsSetKey);
+  if (resultsSetKey !== prevResultsSetKey) {
+    setPrevResultsSetKey(resultsSetKey);
+    setSelectedBook(null);
+    setHideScattered(false);
+  }
   const activeJudge = judge && judge.key === resultsKey ? judge : null;
   const activeJudgeError = judgeError && judgeError.key === resultsKey ? judgeError.message : null;
 
@@ -189,20 +199,6 @@ function SearchContent() {
 
   const handleOpenSingleTree = (hadithId: string) => {
     router.push(`/tree/${hadithId}`);
-  };
-
-  const handleAutoTakhreej = async (hadithId: string) => {
-    setIsAutoTakhreejLoading(hadithId);
-    try {
-      const related = await getRelatedHadiths(hadithId);
-      const allIds = [hadithId, ...related.map((r) => r.id)];
-      router.push(`/takhreej?ids=${allIds.join(",")}`);
-    } catch (err) {
-      console.error("Auto takhreej failed:", err);
-      alert("تعذر جلب الأحاديث المتعلقة. تأكد من تشغيل الخادم.");
-    } finally {
-      setIsAutoTakhreejLoading(null);
-    }
   };
 
   const handleViewTree = () => {
@@ -464,7 +460,7 @@ function SearchContent() {
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-3">
                 <h2 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                  <span>نتائج البحث</span>
+                  <span>{page > 1 || results.length >= pageSize ? `نتائج الصفحة ${page}` : "نتائج البحث"}</span>
                   <span className="px-2 py-0.5 rounded-full bg-slate-200/70 text-slate-700 text-xs font-bold">
                     {results.length}
                   </span>
@@ -554,6 +550,7 @@ function SearchContent() {
               selectedBook={selectedBook}
               onSelectBook={setSelectedBook}
               totalCount={results.length}
+              isPaged={page > 1 || results.length >= pageSize}
             />
           </div>
         )}
@@ -611,6 +608,19 @@ function SearchContent() {
           {/* Results List */}
           {!isLoading && !isError && isSearchActive && results && results.length > 0 && (
             <>
+              {autoTakhreej.error && (
+                <div role="alert" className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800">
+                  <span>{autoTakhreej.error.message}</span>
+                  <button
+                    type="button"
+                    onClick={autoTakhreej.clearError}
+                    className="rounded-md p-1 hover:bg-rose-100 cursor-pointer"
+                    aria-label="إغلاق التنبيه"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
               {hiddenCount > 0 && (
                 <div className="mb-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
                   <span>
@@ -649,10 +659,10 @@ function SearchContent() {
                       highlightPhrases={advancedRequest?.phrases}
                       judgement={activeJudge?.byId[hadith.id]}
                       isSelected={selectedIds.has(hadith.id)}
-                      isAutoTakhreejLoading={isAutoTakhreejLoading === hadith.id}
+                      isAutoTakhreejLoading={autoTakhreej.loadingId === hadith.id}
                       onToggleSelect={toggleSelection}
                       onOpenSingleTree={handleOpenSingleTree}
-                      onAutoTakhreej={handleAutoTakhreej}
+                      onAutoTakhreej={autoTakhreej.start}
                     />
                   ))}
                 </div>

@@ -2,6 +2,7 @@ import { Handle, Position } from '@xyflow/react';
 import { memo } from 'react';
 import { AlertTriangle, FileDiff, MapPin } from 'lucide-react';
 import { useIlalStore } from '@/features/ilal/store/useIlalStore';
+import { getGradeStyle, getNodeColors } from '@/features/narrator-details/utils/gradeStyle';
 import { getBookMeta } from '@/lib/bookTheme';
 
 type ComparativeNarratorNodeData = {
@@ -42,41 +43,9 @@ const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: Com
   const isIlalHighlighted = useIlalStore((s) => s.highlightedNarratorIds.includes(id));
   const isMadar = useIlalStore((s) => Boolean(s.report?.madars.some((m) => m.narratorId === id)));
   const primaryCity = getPrimaryCity(data.residencePlaces, data.deathPlace);
-  let borderColor = '#cbd5e1'; // default slate-300
-  let bgColor = '#ffffff';
-
-  switch(data.gradeEn) {
-    case 'reliable':
-      borderColor = '#2ecc71';
-      bgColor = '#2ecc7115';
-      break;
-    case 'mostly_reliable':
-      borderColor = '#f39c12';
-      bgColor = '#f39c1215';
-      break;
-    case 'weak':
-      borderColor = '#e74c3c';
-      bgColor = '#e74c3c15';
-      break;
-    case 'companion':
-      borderColor = '#9b59b6';
-      bgColor = '#9b59b615';
-      break;
-    case 'unknown':
-      borderColor = '#95a5a6';
-      bgColor = '#95a5a615';
-      break;
-    case 'abandoned':
-      borderColor = '#c0392b';
-      bgColor = '#c0392b15';
-      break;
-    case 'fabricator':
-      borderColor = '#8b0000';
-      bgColor = '#8b000015';
-      break;
-  }
-
-  const isReliable = data.gradeEn === 'reliable' || data.gradeEn === 'mostly_reliable' || data.gradeEn === 'companion';
+  const { borderColor, bgColor } = getNodeColors(data.gradeEn);
+  const grade = getGradeStyle(data.gradeEn);
+  const isReliable = grade?.isReliable ?? false;
   const opacity = data.showWeakOnly && isReliable ? 0.3 : 1;
 
   let finalBorderClass = '';
@@ -167,6 +136,12 @@ const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: Com
         </div>
       )}
 
+      {grade && (
+        <span className={`inline-block mt-1.5 px-2 py-0.5 text-[11px] font-bold rounded-full border ${grade.badgeClass}`}>
+          {grade.label}
+        </span>
+      )}
+
       {(primaryCity || data.uniqueHadithCount != null || data.isMudallis || data.hasMukhtalit) && (
         <div className="flex gap-1 justify-center mt-2 flex-wrap">
           {primaryCity && (
@@ -196,10 +171,10 @@ const ComparativeNarratorNode = ({ id, data, selected }: { id: string; data: Com
             </span>
           )}
           {data.isMudallis && (
-            <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-orange-500 rounded-full" title="موصوف بالتدليس">مدلس</span>
+            <span className="px-2 py-0.5 text-[10px] font-bold text-orange-900 bg-orange-100 border border-orange-300 rounded-full" title="موصوف بالتدليس">مدلس</span>
           )}
           {data.hasMukhtalit && (
-            <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-yellow-500 rounded-full" title="اختلط في آخر عمره">اختلط</span>
+            <span className="px-2 py-0.5 text-[10px] font-bold text-yellow-900 bg-yellow-100 border border-yellow-300 rounded-full" title="اختلط في آخر عمره">اختلط</span>
           )}
         </div>
       )}

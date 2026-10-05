@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Home, Loader2, SearchX, ShieldCheck } from "lucide-react";
 import AiNotice from "@/components/AiNotice";
 import { verifyHadith } from "@/lib/api";
+import { useAutoTakhreej } from "@/features/search/hooks/useAutoTakhreej";
 import type { HadithVerificationResultDto, HadithVerificationStatus } from "@/types/api";
 
 const MAX_CHARS = 600;
@@ -21,6 +22,7 @@ export default function VerifyPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<HadithVerificationResultDto | null>(null);
+  const autoTakhreej = useAutoTakhreej();
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -117,10 +119,21 @@ export default function VerifyPage() {
                     <Link href={`/tree/${m.id}`} className="text-brand-blue hover:underline">
                       شجرة الإسناد
                     </Link>
-                    <Link href={`/takhreej?ids=${m.id}`} className="text-brand-blue hover:underline">
+                    <button
+                      type="button"
+                      onClick={() => autoTakhreej.start(m.id)}
+                      disabled={autoTakhreej.loadingId !== null}
+                      className="inline-flex items-center gap-1.5 text-brand-blue hover:underline disabled:opacity-60 cursor-pointer"
+                    >
+                      {autoTakhreej.loadingId === m.id && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
                       التخريج والعلل
-                    </Link>
+                    </button>
                   </div>
+                  {autoTakhreej.error?.id === m.id && (
+                    <p role="alert" className="mt-2 text-xs font-semibold text-rose-700">
+                      {autoTakhreej.error.message}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>
