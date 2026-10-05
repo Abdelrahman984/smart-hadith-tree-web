@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { HadithSearchResultDto } from "@/types/api";
+import { HadithSearchResultDto, SearchJudgeItemDto, SearchJudgeLevel } from "@/types/api";
 import { getBookMeta } from "@/lib/bookTheme";
 import {
   Book,
@@ -18,6 +18,8 @@ interface HadithCardProps {
   hadith: HadithSearchResultDto;
   searchQuery: string;
   highlightPhrases?: string[];
+  /** The AI's reading of this result, present only after the user asked for the AI check. */
+  judgement?: SearchJudgeItemDto;
   isSelected: boolean;
   isAutoTakhreejLoading: boolean;
   onToggleSelect: (id: string) => void;
@@ -27,10 +29,24 @@ interface HadithCardProps {
 
 import HighlightedText from "./HighlightedText";
 
+const JUDGE_UI: Record<SearchJudgeLevel, { label: string; className: string }> = {
+  match: { label: "يطابق البحث", className: "bg-emerald-50 text-emerald-800 border-emerald-200" },
+  partial: { label: "يطابق جزئياً", className: "bg-amber-50 text-amber-800 border-amber-200" },
+  scattered: { label: "كلمات متفرقة", className: "bg-rose-50 text-rose-800 border-rose-200" },
+  "not-judged": { label: "لم يُحكم عليه", className: "bg-slate-50 text-slate-600 border-slate-200" },
+};
+
+function relevanceColor(percent: number) {
+  if (percent >= 80) return "bg-emerald-500";
+  if (percent >= 50) return "bg-amber-500";
+  return "bg-slate-400";
+}
+
 export default function HadithCard({
   hadith,
   searchQuery,
   highlightPhrases,
+  judgement,
   isSelected,
   isAutoTakhreejLoading,
   onToggleSelect,
@@ -139,6 +155,36 @@ export default function HadithCard({
           </button>
         </div>
       </div>
+
+      {/* Relevance (computed by the server, no AI) */}
+      {hadith.relevancePercent != null && (
+        <div className="mt-3 flex items-center gap-2 text-xs" title={hadith.relevanceReason}>
+          <div
+            className="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-slate-100"
+            role="meter"
+            aria-label="درجة صلة الحديث بالبحث"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={hadith.relevancePercent}
+          >
+            <div className={`h-full rounded-full ${relevanceColor(hadith.relevancePercent)}`} style={{ width: `${hadith.relevancePercent}%` }} />
+          </div>
+          <span className="font-bold text-slate-700">{hadith.relevancePercent}%</span>
+          {hadith.relevanceReason && <span className="text-slate-500">{hadith.relevanceReason}</span>}
+        </div>
+      )}
+
+      {/* AI check (only after the user asked for it) */}
+      {judgement && (
+        <div className={`mt-2 rounded-lg border px-3 py-2 text-xs leading-relaxed ${JUDGE_UI[judgement.level].className}`}>
+          <p className="font-bold">
+            <span aria-hidden>✦ </span>
+            {JUDGE_UI[judgement.level].label}
+          </p>
+          {judgement.reason && <p className="mt-0.5">{judgement.reason}</p>}
+          {judgement.quote && <p className="mt-0.5 opacity-80">«{judgement.quote}»</p>}
+        </div>
+      )}
 
       {/* Matn Content */}
       <div className="pt-3.5">

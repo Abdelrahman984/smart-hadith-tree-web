@@ -8,6 +8,12 @@ public class HadithSearchResultDto
     public string? Chapter { get; set; }
     public string MatnArabic { get; set; } = string.Empty;
     public string MatnSnippet { get; set; } = string.Empty;
+
+    /// <summary>0-100: how well the matn matches the searched words (coverage, closeness, phrase/order). Null when not computed.</summary>
+    public int? RelevancePercent { get; set; }
+
+    /// <summary>One-line Arabic reason for <see cref="RelevancePercent"/>.</summary>
+    public string? RelevanceReason { get; set; }
 }
 
 public class IsnadNodeDto

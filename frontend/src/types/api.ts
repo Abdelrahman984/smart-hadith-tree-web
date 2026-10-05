@@ -5,6 +5,10 @@ export interface HadithSearchResultDto {
   chapter: string | null;
   matnArabic?: string;
   matnSnippet: string;
+  /** 0-100: how well the matn matches the searched words (coverage, closeness, phrase/order). */
+  relevancePercent?: number;
+  /** One-line Arabic reason for the percentage. */
+  relevanceReason?: string;
 }
 
 export interface IsnadNodeDto {
@@ -160,6 +164,45 @@ export interface IlalReportDto {
 export interface IlalExplanationDto {
   explanationAr: string;
   caveats: string[];
+}
+
+export type HadithVerificationStatus = "exact" | "variant" | "not-found" | "invalid";
+
+export interface VerifiedHadithMatchDto {
+  id: string;
+  bookName: string;
+  hadithNumber: number;
+  chapter?: string | null;
+  matnArabic: string;
+  /** Share (0..1) of the checked text's word pairs found, in order, in this hadith. */
+  similarity: number;
+}
+
+export interface HadithVerificationResultDto {
+  status: HadithVerificationStatus;
+  /** "lexical" or "ai+lexical". */
+  method: string;
+  explanation: string;
+  /** "not-needed" | "reviewed" | "timeout" | "unavailable". */
+  modelStatus?: string;
+  /** Words of the checked text that are not in the closest matn. */
+  unmatchedWords?: string[];
+  matches: VerifiedHadithMatchDto[];
+}
+
+export type SearchJudgeLevel = "match" | "partial" | "scattered" | "not-judged";
+
+export interface SearchJudgeItemDto {
+  id: string;
+  level: SearchJudgeLevel;
+  reason: string;
+  /** A phrase copied from the matn that supports the label (verified on the server). */
+  quote: string;
+}
+
+export interface SearchJudgeResponseDto {
+  status: "reviewed" | "partial" | "timeout" | "unavailable" | "invalid";
+  items: SearchJudgeItemDto[];
 }
 
 export type SearchScope = 0 | 1 | 2; // 0: All, 1: Matn, 2: Isnad

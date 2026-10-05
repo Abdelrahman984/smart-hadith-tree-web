@@ -3,8 +3,10 @@
 import { useState, useRef, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useHadithSearch } from "@/features/search/hooks/useHadithSearch";
-import { getRelatedHadiths } from "@/lib/api";
+import { useHadithSearch, MIN_QUERY_LENGTH } from "@/features/search/hooks/useHadithSearch";
+import { getRelatedHadiths, judgeSearchResults, RateLimitedError } from "@/lib/api";
+import AiNotice from "@/components/AiNotice";
+import type { SearchJudgeItemDto } from "@/types/api";
 import HadithCard from "@/features/search/components/HadithCard";
 import SearchSkeleton from "@/features/search/components/SearchSkeleton";
 import SearchEmptyState from "@/features/search/components/SearchEmptyState";
@@ -23,6 +25,7 @@ import {
   CheckSquare,
   SlidersHorizontal,
   Sliders,
+  Sparkles,
 } from "lucide-react";
 import ShamelaSearchModal from "@/features/search/components/ShamelaSearchModal";
 
@@ -39,7 +42,9 @@ function SearchContent() {
     page,
     setPage,
     pageSize,
-    debouncedQuery,
+    submittedQuery,
+    submitSearch,
+    clearSearch,
     advancedRequest,
     setAdvancedRequest,
     data: results,
@@ -55,17 +60,27 @@ function SearchContent() {
   const [selectedBook, setSelectedBook] = useState<string | null>(null);
   const [isShamelaModalOpen, setIsShamelaModalOpen] = useState(false);
 
-  // Sync URL when debounced query updates
+  // Sync URL when the submitted query updates
   useEffect(() => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    if (debouncedQuery.trim().length > 2) {
-      url.searchParams.set("q", debouncedQuery.trim());
+    if (submittedQuery.trim().length >= MIN_QUERY_LENGTH) {
+      url.searchParams.set("q", submittedQuery.trim());
     } else {
       url.searchParams.delete("q");
     }
     window.history.replaceState(null, "", url.toString());
-  }, [debouncedQuery]);
+  }, [submittedQuery]);
+
+  // Search runs when the user presses the button or Enter, not on every keystroke.
+  const typed = query.trim();
+  const canSubmit = typed.length >= MIN_QUERY_LENGTH;
+  const hasUnsubmittedChange = canSubmit && typed !== submittedQuery.trim();
+  const handleSubmitSearch = () => {
+    if (!canSubmit) return;
+    if (advancedRequest) setAdvancedRequest(null); // a new simple search replaces the advanced conditions
+    submitSearch();
+  };
 
   // Global shortcut "/" or "Ctrl+K" to focus search bar
   useEffect(() => {
@@ -98,6 +113,55 @@ function SearchContent() {
     return results.filter((h) => h.bookName === selectedBook);
   }, [results, selectedBook]);
 
+  // ── Optional AI check of the results on this page ───────────────────
+  // The labels belong to one page of results: they are used only while the results are the same ones.
+  const resultsKey = useMemo(() => (results ?? []).map((h) => h.id).join(","), [results]);
+  const judgeQuery = advancedRequest
+    ? [...(advancedRequest.andPhrases ?? []), ...(advancedRequest.orPhrases ?? []), ...(advancedRequest.phrases ?? [])].join(" ")
+    : submittedQuery;
+  const [judge, setJudge] = useState<{ key: string; byId: Record<string, SearchJudgeItemDto>; status: string } | null>(null);
+  const [judgeError, setJudgeError] = useState<{ key: string; message: string } | null>(null);
+  const [isJudging, setIsJudging] = useState(false);
+  const [hideScattered, setHideScattered] = useState(false);
+  const activeJudge = judge && judge.key === resultsKey ? judge : null;
+  const activeJudgeError = judgeError && judgeError.key === resultsKey ? judgeError.message : null;
+
+  // "Hide non-matching" is the user's choice and is always counted; nothing is removed from the results.
+  const visibleResults = useMemo(() => {
+    if (!hideScattered || !activeJudge) return filteredResults;
+    return filteredResults.filter((h) => activeJudge.byId[h.id]?.level !== "scattered");
+  }, [filteredResults, hideScattered, activeJudge]);
+  const hiddenCount = filteredResults.length - visibleResults.length;
+
+  const runJudge = async () => {
+    const key = resultsKey;
+    const ids = filteredResults.slice(0, 50).map((h) => h.id);
+    if (ids.length === 0 || isJudging) return;
+    setIsJudging(true);
+    setJudgeError(null);
+    try {
+      const response = await judgeSearchResults(judgeQuery, ids);
+      const byId: Record<string, SearchJudgeItemDto> = { ...(judge && judge.key === key ? judge.byId : {}) };
+      for (const item of response.items) byId[item.id] = item;
+      setJudge({ key, byId, status: response.status });
+      if (response.status === "unavailable") {
+        setJudgeError({ key, message: "خدمة الذكاء الاصطناعي غير متاحة الآن، وبقيت درجة الصلة المحسوبة." });
+      } else if (response.status === "timeout") {
+        setJudgeError({ key, message: "انتهت مهلة الذكاء الاصطناعي، وبقيت درجة الصلة المحسوبة." });
+      }
+    } catch (err) {
+      setJudgeError({
+        key,
+        message:
+          err instanceof RateLimitedError
+            ? "تجاوزت الحد المسموح من الطلبات. حاول بعد دقيقة."
+            : "تعذر إتمام التحقق بالذكاء الاصطناعي. حاول مرة أخرى.",
+      });
+    } finally {
+      setIsJudging(false);
+    }
+  };
+
   // Takhreej selection handlers
   const toggleSelection = (id: string) => {
     setSelectedIds((prev) => {
@@ -114,7 +178,7 @@ function SearchContent() {
   const selectAllFiltered = () => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      filteredResults.forEach((h) => next.add(h.id));
+      visibleResults.forEach((h) => next.add(h.id));
       return next;
     });
   };
@@ -150,7 +214,7 @@ function SearchContent() {
     }
   };
 
-  const isSearchActive = !!advancedRequest || debouncedQuery.trim().length > 2;
+  const isSearchActive = !!advancedRequest || submittedQuery.trim().length >= MIN_QUERY_LENGTH;
 
   return (
     <div className="min-h-screen bg-slate-50/60 flex flex-col selection:bg-brand-teal/20 selection:text-brand-dark">
@@ -213,8 +277,16 @@ function SearchContent() {
         </section>
 
         {/* Search Bar Input */}
-        <div className="relative mb-6">
-          <div className="relative flex items-center">
+        <form
+          role="search"
+          className="relative mb-6"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmitSearch();
+          }}
+        >
+          <div className="flex items-stretch gap-2">
+          <div className="relative flex flex-1 items-center">
             {/* Search Icon */}
             <div className="absolute inset-y-0 start-0 flex items-center ps-4 pointer-events-none text-slate-400">
               <Search className="w-5 h-5" />
@@ -229,6 +301,9 @@ function SearchContent() {
               placeholder="ابحث بمتن الحديث، اسم الراوي، أو المصدر..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              enterKeyHint="search"
+              autoComplete="off"
+              aria-label="نص البحث"
             />
 
             {/* Right-side Controls (Clear & Shortcut / Loading) */}
@@ -241,7 +316,7 @@ function SearchContent() {
                 <button
                   type="button"
                   onClick={() => {
-                    setQuery("");
+                    clearSearch();
                     inputRef.current?.focus();
                   }}
                   className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
@@ -274,13 +349,28 @@ function SearchContent() {
             </div>
           </div>
 
-          {/* Under-input helper if short query */}
-          {query.trim().length > 0 && query.trim().length <= 2 && (
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-brand-blue px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+            title={canSubmit ? "ابدأ البحث (Enter)" : `اكتب ${MIN_QUERY_LENGTH} أحرف على الأقل`}
+          >
+            <Search className="h-4 w-4" aria-hidden />
+            <span>بحث</span>
+          </button>
+          </div>
+
+          {/* Under-input helper */}
+          {typed.length > 0 && !canSubmit ? (
             <p className="text-xs text-amber-600 mt-2 pr-1 font-medium animate-in fade-in">
-              * أدخل 3 أحرف على الأقل لبدء البحث...
+              * أدخل {MIN_QUERY_LENGTH} أحرف على الأقل ثم اضغط «بحث» أو Enter.
             </p>
-          )}
-        </div>
+          ) : hasUnsubmittedChange ? (
+            <p className="text-xs text-slate-500 mt-2 pr-1 animate-in fade-in">
+              اضغط «بحث» أو Enter لعرض النتائج.
+            </p>
+          ) : null}
+        </form>
 
         {/* Active Shamela Advanced Query Banner */}
         {advancedRequest && (
@@ -386,7 +476,7 @@ function SearchContent() {
                     onClick={selectAllFiltered}
                     className="text-brand-blue hover:underline font-semibold cursor-pointer"
                   >
-                    تحديد المعروض ({filteredResults.length})
+                    تحديد المعروض ({visibleResults.length})
                   </button>
                   {selectedIds.size > 0 && (
                     <>
@@ -415,6 +505,49 @@ function SearchContent() {
               )}
             </div>
 
+            {/* Optional AI check of this page of results */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 flex-wrap text-xs">
+                <button
+                  type="button"
+                  onClick={runJudge}
+                  disabled={isJudging}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-brand-blue bg-white px-3 py-1.5 font-bold text-brand-blue transition-colors hover:bg-blue-50 disabled:opacity-60 cursor-pointer"
+                  title="يقرأ الذكاء الاصطناعي مقاطع النتائج ويحكم هل تتناول معنى بحثك. خطوة اختيارية."
+                >
+                  {isJudging ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Sparkles className="h-3.5 w-3.5" aria-hidden />}
+                  <span>{isJudging ? "جارٍ التحقق..." : "تحقق بالذكاء الاصطناعي من نتائج هذه الصفحة"}</span>
+                </button>
+
+                {activeJudge && (
+                  <label className="inline-flex items-center gap-1.5 font-semibold text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={hideScattered}
+                      onChange={(e) => setHideScattered(e.target.checked)}
+                      className="h-3.5 w-3.5"
+                    />
+                    <span>إخفاء ما كلماته متفرقة</span>
+                  </label>
+                )}
+
+                {activeJudge && (
+                  <span className="text-slate-500">
+                    حُكم على {Object.values(activeJudge.byId).filter((i) => i.level !== "not-judged").length} من{" "}
+                    {filteredResults.length}
+                    {activeJudge.status === "partial" && " (بعض النتائج لم يُحكم عليها)"}
+                  </span>
+                )}
+              </div>
+
+              {activeJudgeError && (
+                <p role="alert" className="text-xs font-semibold text-amber-800">
+                  {activeJudgeError}
+                </p>
+              )}
+              {activeJudge && <AiNotice />}
+            </div>
+
             {/* Book Filter Pills */}
             <SearchBookFilters
               books={bookStats}
@@ -432,7 +565,8 @@ function SearchContent() {
             <SearchEmptyState
               type="initial"
               onSelectSuggestion={(sug) => {
-                setQuery(sug);
+                if (advancedRequest) setAdvancedRequest(null);
+                submitSearch(sug);
                 inputRef.current?.focus();
               }}
             />
@@ -466,9 +600,9 @@ function SearchContent() {
           {!isLoading && !isError && isSearchActive && results && results.length === 0 && (
             <SearchEmptyState
               type="no_results"
-              query={debouncedQuery}
+              query={submittedQuery}
               onResetSearch={() => {
-                setQuery("");
+                clearSearch();
                 inputRef.current?.focus();
               }}
             />
@@ -477,6 +611,20 @@ function SearchContent() {
           {/* Results List */}
           {!isLoading && !isError && isSearchActive && results && results.length > 0 && (
             <>
+              {hiddenCount > 0 && (
+                <div className="mb-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                  <span>
+                    تم إخفاء {hiddenCount} نتيجة كلماتها متفرقة بحسب حكم الذكاء الاصطناعي، وقد يخطئ.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setHideScattered(false)}
+                    className="font-bold text-brand-blue hover:underline cursor-pointer"
+                  >
+                    عرضها
+                  </button>
+                </div>
+              )}
               {filteredResults.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-slate-200/80 p-8 text-center space-y-3 my-4">
                   <p className="text-slate-600 text-sm">
@@ -493,12 +641,13 @@ function SearchContent() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {filteredResults.map((hadith) => (
+                  {visibleResults.map((hadith) => (
                     <HadithCard
                       key={hadith.id}
                       hadith={hadith}
-                      searchQuery={debouncedQuery}
+                      searchQuery={submittedQuery}
                       highlightPhrases={advancedRequest?.phrases}
+                      judgement={activeJudge?.byId[hadith.id]}
                       isSelected={selectedIds.has(hadith.id)}
                       isAutoTakhreejLoading={isAutoTakhreejLoading === hadith.id}
                       onToggleSelect={toggleSelection}
@@ -557,7 +706,7 @@ function SearchContent() {
           isOpen={isShamelaModalOpen}
           onClose={() => setIsShamelaModalOpen(false)}
           onSearch={(req) => {
-            setQuery("");
+            clearSearch();
             setAdvancedRequest(req);
           }}
           initialRequest={advancedRequest ?? undefined}

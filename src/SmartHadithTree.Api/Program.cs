@@ -7,6 +7,7 @@ using SmartHadithTree.Application.Services;
 using SmartHadithTree.Application.Services.Ilal;
 using SmartHadithTree.Infrastructure.Data.Repositories;
 using Microsoft.SemanticKernel;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,6 +47,8 @@ else
 
 builder.Services.AddScoped<IAiEvaluationService, AiEvaluationService>();
 builder.Services.AddScoped<IIlalExplanationService, IlalExplanationService>();
+builder.Services.AddScoped<IHadithVerificationService, HadithVerificationService>();
+builder.Services.AddScoped<ISearchJudgeService, SearchJudgeService>();
 
 // Register Services
 builder.Services.AddScoped<IHadithTreeDbContext>(provider => provider.GetRequiredService<HadithTreeDbContext>());
@@ -67,6 +70,23 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.DefaultIgnoreCondition =
             System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
     });
+
+// ── Rate limiting ──────────────────────────────────────────────────
+// The AI endpoints call a paid model without a login, so each client address gets a small budget per minute
+// (RateLimit:AiPermitPerMinute, default 10).
+var aiPermitPerMinute = builder.Configuration.GetValue("RateLimit:AiPermitPerMinute", 10);
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("ai", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = aiPermitPerMinute,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+});
 
 // ── CORS ───────────────────────────────────────────────────────────
 // Allowed browser origins come from configuration (Cors:AllowedOrigins, or the environment
@@ -130,6 +150,7 @@ if (!app.Configuration.GetValue<bool>("DisableHttpsRedirection"))
 }
 
 app.UseCors("AllowFrontend");
+app.UseRateLimiter();
 app.MapControllers();
 
 app.Run();

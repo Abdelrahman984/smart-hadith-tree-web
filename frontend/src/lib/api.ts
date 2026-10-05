@@ -7,6 +7,8 @@ import {
   SearchRequestDto,
   IlalReportDto,
   IlalExplanationDto,
+  HadithVerificationResultDto,
+  SearchJudgeResponseDto,
 } from "@/types/api";
 
 /**
@@ -114,5 +116,29 @@ export async function explainIlal(report: IlalReportDto): Promise<IlalExplanatio
     body: JSON.stringify(report),
   });
   if (!res.ok) throw new Error('Failed to explain ilal report');
+  return res.json();
+}
+
+export async function verifyHadith(text: string): Promise<HadithVerificationResultDto> {
+  const res = await fetch(`${API_BASE}/Verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error('Failed to verify hadith');
+  return res.json();
+}
+
+/** Thrown by judgeSearchResults when the server's per-client request limit is reached (HTTP 429). */
+export class RateLimitedError extends Error {}
+
+export async function judgeSearchResults(query: string, ids: string[]): Promise<SearchJudgeResponseDto> {
+  const res = await fetch(`${API_BASE}/Search/ai-judge`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, ids }),
+  });
+  if (res.status === 429) throw new RateLimitedError('Too many requests');
+  if (!res.ok) throw new Error('Failed to judge search results');
   return res.json();
 }
