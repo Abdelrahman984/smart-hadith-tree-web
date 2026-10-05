@@ -55,10 +55,12 @@ Needs the data files built from a local Shamela 4 installation (see [`docs/data_
    ```
 
 ### 2. Running the Backend
-Set your Google Gemini API key in user secrets or environment variables for AI narrator summaries and Ilal explanations:
+Set an AI API key in user secrets or environment variables for AI narrator summaries and Ilal explanations. Together AI (default model `zai-org/GLM-5.3-Flash`) takes precedence; Google Gemini is the fallback:
 ```powershell
-dotnet user-secrets set "Gemini:ApiKey" "YOUR_API_KEY" --project src/SmartHadithTree.Api
+dotnet user-secrets set "Together:ApiKey" "YOUR_TOGETHER_KEY" --project src/SmartHadithTree.Api
+# or: dotnet user-secrets set "Gemini:ApiKey" "YOUR_API_KEY" --project src/SmartHadithTree.Api
 ```
+Optional: `Together:Model` overrides the model.
 
 Start the API:
 ```powershell
