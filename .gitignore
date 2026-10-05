@@ -45,3 +45,6 @@ backups/*
 
 # Sub-agents' draft scripts (adopted ones are copied into rijal_pilot/)
 scripts/shamela4-extractor/rijal_pilot/review_drafts/
+
+# Local compose secrets
+.env
