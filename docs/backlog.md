@@ -45,9 +45,9 @@ Counts below come from the review log at the end; they are small samples, so re-
 | 1 | A short text that is a subset of a longer one counted as «omission» | 11 of 17 findings on the Tahur page | no | one Ilal rule, removes the most false «قادحة» |
 | 2 | Matn commentary, editor notes and symbols stay in the matn | 3 pages | yes (books) | feeds Nakarah, Idtirab and Ziyadah with fake differences |
 | 3 | Unranked narrator treated as weak | 3 pages | no | one rule, false «ضعيف» in Nakarah |
-| 4 | Chains cut before a Companion, dropped or wrong narrators (tahwil forms, parentheses, undecided kunya) | 3 pages | yes (resolver) | wrong chains, not just wrong warnings |
+| 4 | Chains cut before a Companion, dropped or wrong narrators (tahwil forms, parentheses, undecided kunya; the ~860 names in the carried-over table) | 3 pages | yes (resolver) | wrong chains, not just wrong warnings |
 | 5 | Marfu detection, ziyadah on repeated words | 1 page each | no | small rules |
-| 6 | Missing relations for late narrators | 15 findings on 4 pages | no fix in code | tag as «بيانات ناقصة» (see §2), do not present as a finding |
+| 6 | Missing relations and missing grades for late narrators (§2) | 15 findings on 4 pages | no fix in code | tag as «بيانات ناقصة» (see §2), do not present as a finding |
 | 7 | Shahid vs tariq in the comparative page | Tahur page | no | see §3 |
 
 ## 1. Resolver gaps (needs a rebuild; do them as one batch)
@@ -69,6 +69,20 @@ Counts below come from the review log at the end; they are small samples, so re-
 
 Port to C# (Phase 5b) is still open and now also has to cover `tahwil.py`, `kin_form` / `grandfather_of`, `compiler_items.py` and the opener rules in `compare_current.py`.
 
+### Carried over from `docs/shamela_migration.md`
+
+Open items of the migration, kept in that file with their numbers. One line each here; do the work from that file's description and tick it there too. Line numbers are those of the file on 2026-10-05.
+
+| Item | Where (migration doc) | Size | Why it matters |
+|---|---|---|---|
+| Names resolved to another person: full names (190), shaykh-book duplicates chosen over the Tahdhib entry (204, «طاوس»), bare ism / kunya / nisba (467) | Phase 4b, lines 537, 539, 540 | ~860 names | the same kind of error as «زيد» → زيد بن نعيم: a wrong narrator in the chain. Review the largest names first, then rebuild |
+| Bare «سفيان» / «حماد» / «عطاء» ties (deferred by the owner until after Phase 7) | Phase 2, line 461 | hides 15% of ikhtilat findings | the Phase 7 condition is met; decide whether to take it now |
+| «أم X» read as a kunya (34); bare-name ties in the linked books (Shamela's links); the 91 «أبيه» linked to someone else and the 45 «ابن X» cuts | lines 538, 541, 542 | small | batch with the rows above |
+| Real ties left undecided: «عبد الله» bare (146), «أبو معاوية» (103), «أبو إسحاق» (31); later namesakes chosen by chain (17, needs death dates) | closed, lines 433, 439 | ~300 names | closed as known residuals; reopen only if the review log shows them |
+| Lisan al-Mizan (`lisan.json`, parsed, not merged into the resolver) | closed, line 425 | 9,170 entries | kept for narrator grading: use it with the Siyar / Thiqat idea in §2 |
+| Manual review of ~30 famous isnads, the frontend in a browser, the AI summary | Phase 6, line 579 | — | partly done by the review log at the end of this file; add the AI summary check |
+| Port the resolver to C# (5 steps) | Phase 5b, lines 569-573 | large | an architectural decision (a second implementation to keep in sync); decide yes or no, leave the plan in the migration doc |
+
 ## 2. Data gaps (not fixable in the resolver)
 
 Seen on the 11-route Mughira page (`/takhreej`), where «لم يثبت اللقاء» shows 3 findings because the teacher-student list in Tahdhib al-Kamal lacks the link:
@@ -80,6 +94,11 @@ Seen on the 11-route Mughira page (`/takhreej`), where «لم يثبت اللق�
 Seen on the other pages: the teachers of Bayhaqi's and al-Hakim's shaykhs (4th-5th century narrators) have no lists at all: Ibn Hajar's Tahdhib does not cover them. Those «لم يثبت اللقاء» findings are 5 of 13 on the Niyyat page, 5 of 17 on the Tahur page and 2 of 5 on the Jannah page.
 
 Also: Mu'awiya ibn Sallam ← «أخيه» Zayd (Tabarani 3424) gives «لم يثبت اللقاء». Probably a relation Tahdhib writes with the kin word «أخيه» that `link_tahdhib.py` does not read (not verified; the kin forms handled so far are «أبيه» and «جده»). That one is a resolver item if it holds.
+
+**Narrators without a grade.** Ibn Hajar's rank (Taqrib) covers 7,882 of the 23,502 narrators, so late narrators (the shaykhs of Tabarani, Bayhaqi and al-Hakim) show no grade: 9 of the 45 nodes on the Mughira page (Sulayman ibn Ahmad, Ahmad ibn al-Husayn, Muhammad ibn Abd, Muhammad ibn Ishaq, Qays ibn Unayf, Ubayd ibn Ghannam, Muhammad ibn Yaqub, ...). They count as tier 7 («مجهول») in the route grade and as «غير محرر» in Nakarah/Ziyadah (see §3, unranked narrator counted as weak). Ideas, in the order I would try them:
+1. **Read the two books that were left unparsed** (`docs/shamela_migration.md` §7: السير 10906 and الثقات ممن لم يقع في الكتب الستة 96165; their dumps are in `data/shamela_rijal/dump/`). They were closed because extra biography books add namesakes to the **resolver** (Lisan: 182 names gained, 221 lost). Grading is a different use: attach a verdict only to a narrator the registry already resolved, by full-name match, and never add narrators to the resolver. A text search for the eight ungraded narrators above found all but one in the Siyar and three in the Thiqat (mentions only, not yet entries). The Siyar gives free-text verdicts to map to ranks; the Thiqat's title already says «ثقة». Measure first: how many of the ~15,600 ungraded registry narrators have an entry there by full name.
+2. Read a grade from the stored critics' quotes (`ScholarEvaluations`, 116,670) when there is no Taqrib rank.
+3. Show «غير مُقيَّم» in the UI instead of an implied weakness.
 
 Possible sources for these: more shaykh books (`parse_shaykh_books.py` covers 6 compilers) or a manual list of confirmed links.
 
