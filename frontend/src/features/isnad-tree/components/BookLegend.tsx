@@ -64,7 +64,7 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
   return (
     <Panel
       position="top-right"
-      className="m-2 bg-surface/95 backdrop-blur-md w-80 max-w-[calc(100vw-1rem)] max-h-[70vh] overflow-y-auto rounded-2xl shadow-xl border border-line/90 text-xs transition-all"
+      className="m-2 bg-surface/95 backdrop-blur-md w-80 max-w-[calc(100vw-1rem)] max-h-[70vh] flex flex-col overflow-hidden rounded-2xl shadow-xl border border-line/90 text-xs transition-all"
       dir="rtl"
     >
       {/* Header */}
@@ -127,7 +127,7 @@ export default function BookLegend({ activeBooks, focusBook, onFocusBook }: Book
       </div>
 
       {/* Body Content */}
-      <div className="p-3.5 space-y-4 max-h-[72vh] overflow-y-auto">
+      <div className="p-3.5 space-y-4 min-h-0 flex-1 overflow-y-auto">
         {/* Section 1: Books */}
         {(activeTab === "all" || activeTab === "books") && (
           <div>

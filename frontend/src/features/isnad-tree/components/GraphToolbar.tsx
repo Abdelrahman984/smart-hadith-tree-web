@@ -1,6 +1,6 @@
 "use client";
 
-import { Panel, useReactFlow } from "@xyflow/react";
+import { getNodesBounds, getViewportForBounds, Panel, useReactFlow } from "@xyflow/react";
 import { toPng } from "html-to-image";
 import { Download, Eye, EyeOff, Layers, Map as MapIcon, Rows3, Search, X, ZoomIn, ZoomOut, Maximize } from "lucide-react";
 import { useId, useMemo, useState, type ReactNode } from "react";
@@ -29,37 +29,38 @@ export default function GraphToolbar({ narrators, onFit, minimapOn, legendOn }: 
   const setLegendOpen = useGraphViewStore((s) => s.setLegendOpen);
   const [findOpen, setFindOpen] = useState(false);
 
-  const handleDownload = () => {
-    const nodesBounds = getNodes().reduce(
-      (acc, node) => {
-        if (!node.width || !node.height) return acc;
-        acc.xMin = Math.min(acc.xMin, node.position.x);
-        acc.yMin = Math.min(acc.yMin, node.position.y);
-        acc.xMax = Math.max(acc.xMax, node.position.x + node.width);
-        acc.yMax = Math.max(acc.yMax, node.position.y + node.height);
-        return acc;
-      },
-      { xMin: Infinity, yMin: Infinity, xMax: -Infinity, yMax: -Infinity }
-    );
+  const handleDownload = async () => {
+    const viewport = document.querySelector<HTMLElement>(".react-flow__viewport");
+    const nodes = getNodes();
+    if (!viewport || nodes.length === 0) return;
 
-    const transform = document.querySelector(".react-flow__viewport") as HTMLElement;
-    if (!transform) return;
+    // Render the whole graph at 1:1 into an image sized to its bounds (plus a margin), regardless of the current pan/zoom.
+    const margin = 100;
+    const bounds = getNodesBounds(nodes);
+    const width = Math.ceil(bounds.width + margin * 2);
+    const height = Math.ceil(bounds.height + margin * 2);
+    const { x, y, zoom } = getViewportForBounds(bounds, width, height, 1, 1, margin / Math.max(width, height));
 
-    toPng(document.querySelector(".react-flow") as HTMLElement, {
+    const options = {
       backgroundColor: "#f8fafc",
-      width: (nodesBounds.xMax - nodesBounds.xMin) + 200,
-      height: (nodesBounds.yMax - nodesBounds.yMin) + 200,
-      style: {
-        width: "100%",
-        height: "100%",
-        transform: `translate(${-nodesBounds.xMin + 100}px, ${-nodesBounds.yMin + 100}px) scale(1)`,
-      },
-    }).then((dataUrl) => {
-      const a = document.createElement("a");
-      a.setAttribute("download", "isnad-tree.png");
-      a.setAttribute("href", dataUrl);
-      a.click();
-    });
+      width,
+      height,
+      pixelRatio: 2,
+      style: { width: `${width}px`, height: `${height}px`, transform: `translate(${x}px, ${y}px) scale(${zoom})` },
+    };
+
+    let dataUrl: string;
+    try {
+      dataUrl = await toPng(viewport, options);
+    } catch {
+      // Cross-origin web-font stylesheets can make font embedding throw; the image is still better without them than none.
+      dataUrl = await toPng(viewport, { ...options, skipFonts: true });
+    }
+
+    const a = document.createElement("a");
+    a.setAttribute("download", "isnad-tree.png");
+    a.setAttribute("href", dataUrl);
+    a.click();
   };
 
   return (

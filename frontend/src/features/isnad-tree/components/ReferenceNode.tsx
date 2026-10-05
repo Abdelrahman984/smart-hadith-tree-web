@@ -2,11 +2,13 @@ import { Handle, Position } from "@xyflow/react";
 import { memo } from "react";
 import { BookOpen, Bookmark } from "lucide-react";
 import { getBookMeta } from "@/lib/bookTheme";
+import { useGraphViewStore } from "../store/useGraphViewStore";
 import type { ReferenceNodeData } from "../utils/graphTypes";
 
 export type { ReferenceNodeData };
 
 const ReferenceNode = ({ data, selected }: { data: ReferenceNodeData; selected?: boolean }) => {
+  const showWeakOnly = useGraphViewStore((s) => s.showWeakOnly);
   const meta = getBookMeta(data.bookName);
   const booksList = data.sourceBooks && data.sourceBooks.length > 0 ? data.sourceBooks : [data.bookName];
 
@@ -19,6 +21,8 @@ const ReferenceNode = ({ data, selected }: { data: ReferenceNodeData; selected?:
       style={{
         backgroundColor: `${meta.color}12`,
         borderColor: selected ? undefined : meta.color,
+        // A book is not a narrator and is never weak: «إبراز الضعفاء» dims it like the reliable ones.
+        opacity: showWeakOnly ? 0.3 : 1,
       }}
     >
       {/* Top Handle - Input from Sheikh (Invisible anchor so arrowhead touches card border) */}

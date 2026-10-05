@@ -36,7 +36,12 @@ if (!string.IsNullOrEmpty(togetherApiKey))
     var togetherModel = builder.Configuration["Together:Model"] ?? "zai-org/GLM-5.3-Flash";
     var togetherEndpoint = new Uri(builder.Configuration["Together:Endpoint"] ?? "https://api.together.xyz/v1");
     // Together:ExtraBody (JSON object) adds provider-specific request fields, e.g. to switch the model's "thinking" off.
-    var togetherExtra = ExtraBodyHandler.Parse(builder.Configuration["Together:ExtraBody"]);
+    var togetherExtraRaw = builder.Configuration["Together:ExtraBody"];
+    var togetherExtra = ExtraBodyHandler.Parse(togetherExtraRaw);
+    if (!string.IsNullOrWhiteSpace(togetherExtraRaw))
+        Console.WriteLine(togetherExtra is null
+            ? $"WARNING: Together:ExtraBody is not a valid JSON object and is ignored. Value: {togetherExtraRaw}"
+            : $"Together:ExtraBody applied: {togetherExtra.ToJsonString()}");
     var togetherHttp = togetherExtra is null
         ? null
         : new HttpClient(new ExtraBodyHandler(togetherExtra) { InnerHandler = new HttpClientHandler() });

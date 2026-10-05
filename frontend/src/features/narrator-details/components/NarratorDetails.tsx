@@ -325,10 +325,7 @@ export default function NarratorDetails() {
                     <div className="bg-surface p-3 rounded shadow-sm border border-purple-100">
                       <p className="font-bold text-lg mb-1">«{aiSummary.verbatimQuote}»</p>
                       <p className="text-xs text-purple-600 mb-3">— {aiSummary.sourceBook}</p>
-                      <div className="flex gap-2 items-center bg-purple-50 p-2 rounded">
-                        <span className="px-2 py-1 bg-purple-200 text-purple-900 rounded text-xs font-bold shadow-sm">
-                          {aiSummary.tier}
-                        </span>
+                      <div className="bg-purple-50 p-2 rounded">
                         <span className="text-xs text-slate-700">
                           {aiSummary.justification}
                         </span>

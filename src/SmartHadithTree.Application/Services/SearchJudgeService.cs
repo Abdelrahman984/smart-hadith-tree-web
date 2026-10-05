@@ -113,13 +113,18 @@ public class SearchJudgeService(IHadithTreeDbContext context, Kernel kernel) : I
     private async Task<ChunkOutcome> JudgeChunkAsync(string query, List<string> terms, Row[] chunk, CancellationToken ct)
     {
         var rejections = new Dictionary<string, int>();
+        var started = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             var prompt = BuildPrompt(query, terms, chunk);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(CallTimeout);
             var result = await kernel.InvokePromptAsync(prompt, cancellationToken: timeout.Token);
-            var items = ParseAndValidate(result.GetValue<string>(), chunk.Select(r => (r.Id, r.MatnArabic)).ToList(), rejections);
+            rejections[$"model-ms-{started.ElapsedMilliseconds}"] = 1;
+            var reply = result.GetValue<string>();
+            var items = ParseAndValidate(reply, chunk.Select(r => (r.Id, r.MatnArabic)).ToList(), rejections);
+            if (rejections.Keys.Any(k => !k.StartsWith("model-ms-")))
+                Console.WriteLine($"ai-judge: rejected answers. Raw reply (first 800 chars): {(reply ?? "<null>")[..Math.Min(800, reply?.Length ?? 6)]}");
             // An answer that could not be read at all is a failed call, not a page of "not judged" results.
             return rejections.ContainsKey("unreadable-json")
                 ? new ChunkOutcome(null, false, "unreadable-json", rejections)
@@ -127,11 +132,13 @@ public class SearchJudgeService(IHadithTreeDbContext context, Kernel kernel) : I
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
+            rejections[$"timeout-after-ms-{started.ElapsedMilliseconds}"] = 1;
             return new ChunkOutcome(null, true, "timeout", rejections);
         }
         catch (Exception)
         {
             // No model configured or a provider error. Do not leak details.
+            rejections[$"error-after-ms-{started.ElapsedMilliseconds}"] = 1;
             return new ChunkOutcome(null, false, "model-error", rejections);
         }
     }
@@ -149,7 +156,8 @@ public class SearchJudgeService(IHadithTreeDbContext context, Kernel kernel) : I
 قواعد صارمة:
 - لا تحكم على صحة الحديث أو ضعفه.
 - لا تضف معلومة من خارج المقاطع.
-- لكل مقطع اكتب Quote: عبارة من ثلاث إلى سبع كلمات منسوخة حرفياً من المقطع نفسه تدعم حكمك، واكتبها بدون تشكيل.
+- لكل مقطع اكتب Quote: عبارة من أربع إلى سبع كلمات متتالية منسوخة حرفياً من المقطع نفسه تدعم حكمك، واكتبها بدون تشكيل.
+  لا تقل أبداً عن ثلاث كلمات: إن كانت عبارة البحث أقصر فانسخ معها الكلمات التي تليها أو تسبقها في المقطع حتى تبلغ أربع كلمات.
 - اجعل Reason أقل من ست كلمات.
 - أعطِ حكماً واحداً لكل رقم، ولا تكرر رقماً ولا تترك رقماً.
 
