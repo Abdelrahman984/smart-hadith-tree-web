@@ -41,7 +41,7 @@ test.describe('single tree (/tree/[id])', () => {
   test('a click opens the narrator details; Escape closes them', async ({ page }) => {
     await card(page, 'راو متروك للاختبار').click();
 
-    const dialog = page.getByRole('dialog', { name: 'تفاصيل الراوي' });
+    const dialog = page.getByRole('tabpanel', { name: 'الراوي' });
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText('لا تشترك بلدانهما في الإقامة'); // the node's travel note reaches touch users
     await expect(dialog).toContainText('كذاب');
@@ -62,9 +62,12 @@ test.describe('single tree (/tree/[id])', () => {
     await expect(reliable).toHaveCSS('opacity', '1');
   });
 
-  test('«فحص العلل» opens the report and marks the madar on the graph', async ({ page }) => {
+  test('«فحص العلل» opens the report and marks the link on the graph', async ({ page }) => {
+    await expect(page.locator('#workspace-panel')).toHaveCSS('width', '0px'); // graph first: the panel starts closed
     await page.getByRole('button', { name: /فحص العلل/ }).click();
-    const panel = page.getByRole('dialog', { name: 'علل الحديث' });
+
+    const panel = page.locator('#workspace-panel');
+    await expect(panel.getByRole('tab', { name: /العلل/ })).toHaveAttribute('aria-selected', 'true');
     await expect(panel).toContainText('عنعنة مدلس');
     await expect(edge(page, 'e-N2-N1').locator('.react-flow__edge-text')).toContainText('عنعنة مدلس');
   });
@@ -106,11 +109,11 @@ test.describe('comparative tree (/takhreej)', () => {
   });
 
   test('the sidebar shows the automatic grade, the matns and the Ilal tab', async ({ page }) => {
-    const sidebar = page.locator('#takhreej-sidebar');
+    const sidebar = page.locator('#workspace-panel');
     await expect(sidebar).toContainText('التقدير الآلي للطرق');
     await expect(sidebar).toContainText('متون الروايات');
 
-    await sidebar.getByRole('button', { name: /العلل/ }).click();
+    await sidebar.getByRole('tab', { name: /العلل/ }).click();
     await expect(sidebar).toContainText('عنعنة مدلس');
   });
 });
@@ -125,7 +128,7 @@ test.describe('selecting a narrator', () => {
     // N5 (Abu Dawud's branch) lights N5, N2, N4 and the compiler; the Bukhari branch is dimmed.
     await card(page, 'قتيبة بن سعيد').click();
     await page.keyboard.press('Escape'); // closes the details
-    await expect(page.getByRole('dialog', { name: 'تفاصيل الراوي' })).toBeHidden();
+    await expect(page.getByRole('tabpanel', { name: 'الراوي' })).toBeHidden();
 
     await expect(card(page, 'عبد الله بن الزبير الحميدي')).toHaveCSS('opacity', '0.25');
     await expect(card(page, 'قتيبة بن سعيد')).toHaveCSS('opacity', '1');
@@ -148,7 +151,7 @@ test.describe('selecting a narrator', () => {
   test('Enter on a focused card opens its details', async ({ page }) => {
     await card(page, 'عمر بن الخطاب').focus();
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('dialog', { name: 'تفاصيل الراوي' })).toBeVisible();
+    await expect(page.getByRole('tabpanel', { name: 'الراوي' })).toBeVisible();
   });
 });
 
@@ -242,7 +245,7 @@ test.describe('the takhreej summary', () => {
 
   test('a severity pill opens the findings', async ({ page }) => {
     await page.getByRole('region', { name: 'ملخص التخريج' }).getByRole('button', { name: '1 علة قادحة' }).click();
-    await expect(page.locator('#takhreej-sidebar')).toContainText('عنعنة مدلس');
+    await expect(page.locator('#workspace-panel')).toContainText('عنعنة مدلس');
   });
 });
 
@@ -278,8 +281,8 @@ test.describe('Ilal findings and the graph', () => {
     const viewport = page.locator('.react-flow__viewport');
     const before = await viewport.getAttribute('style');
 
-    await page.locator('#takhreej-sidebar').getByRole('button', { name: /العلل/ }).click();
-    await page.locator('#takhreej-sidebar').getByRole('button', { name: /عنعنة مدلس/ }).first().click();
+    await page.locator('#workspace-panel').getByRole('tab', { name: /العلل/ }).click();
+    await page.locator('#workspace-panel').getByRole('button', { name: /عنعنة مدلس/ }).first().click();
 
     await expect(card(page, 'سفيان بن عيينة').locator('> div')).toHaveClass(/ring-rose-400/);
     await expect(async () => expect(await viewport.getAttribute('style')).not.toBe(before)).toPass();
@@ -289,10 +292,95 @@ test.describe('Ilal findings and the graph', () => {
     const path = edge(page, 'e-N4-N2').locator('path.react-flow__edge-path');
     await expect(path).toHaveCSS('stroke', 'rgb(51, 65, 85)'); // shared by three books, no finding on it
 
-    await page.locator('#takhreej-sidebar').getByRole('button', { name: /العلل/ }).click();
+    await page.locator('#workspace-panel').getByRole('tab', { name: /العلل/ }).click();
     await page.getByRole('button', { name: /ملاحظات منخفضة الثقة/ }).click();
     await expect(path).toHaveCSS('stroke', 'rgb(217, 119, 6)');
     await expect(edge(page, 'e-N4-N2').locator('.react-flow__edge-text')).toContainText('لم يثبت اللقاء');
+  });
+});
+
+test.describe('the side panel', () => {
+  test('on a wide screen the narrator opens as a tab, and the graph stays in view and selected', async ({ page }) => {
+    await page.goto('/takhreej?ids=h1,h2,h3');
+    await graphReady(page);
+
+    await card(page, 'عمر بن الخطاب').click();
+    const details = page.getByRole('tabpanel', { name: 'الراوي' });
+    await expect(details).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0); // not a modal: nothing covers the graph
+    await expect(page.locator('#workspace-panel').getByRole('tab', { name: 'الراوي' })).toHaveAttribute('aria-selected', 'true');
+    await expect(card(page, 'عمر بن الخطاب').locator('> div')).toHaveClass(/ring-brand-blue/);
+
+    // Closing it returns to the tab that was showing.
+    await details.getByRole('button', { name: 'إغلاق تفاصيل الراوي' }).click();
+    await expect(details).toBeHidden();
+    await expect(page.locator('#workspace-panel').getByRole('tab', { name: 'المتون' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test.describe('on a tablet', () => {
+    test.use({ viewport: { width: 800, height: 900 } });
+
+    test('the narrator opens as a drawer over the graph', async ({ page }) => {
+      await page.goto('/tree/x');
+      await graphReady(page);
+      await card(page, 'راو متروك للاختبار').click();
+      await expect(page.getByRole('dialog', { name: 'تفاصيل الراوي' })).toBeVisible();
+    });
+  });
+});
+
+test.describe('the address keeps the view', () => {
+  test('the open tab and the selected narrator survive a reload', async ({ page }) => {
+    await page.goto('/takhreej?ids=h1,h2,h3');
+    await graphReady(page);
+
+    await page.locator('#workspace-panel').getByRole('tab', { name: /العلل/ }).click();
+    await expect(page).toHaveURL(/tab=ilal/);
+    await card(page, 'عمر بن الخطاب').click();
+    await expect(page).toHaveURL(/narrator=N4/);
+    await expect(page).toHaveURL(/ids=h1,h2,h3/); // the comparison's own parameter is kept
+
+    await page.reload();
+    await graphReady(page);
+    await expect(page.getByRole('tabpanel', { name: 'الراوي' })).toBeVisible();
+    await expect(card(page, 'عمر بن الخطاب').locator('> div')).toHaveClass(/ring-brand-blue/);
+
+    await page.getByRole('button', { name: 'إغلاق تفاصيل الراوي' }).click();
+    await expect(page).not.toHaveURL(/narrator=/);
+    await expect(page.locator('#workspace-panel').getByRole('tab', { name: /العلل/ })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('a focused book is restored from the link', async ({ page }) => {
+    await page.goto('/takhreej?ids=h1,h2,h3&book=' + encodeURIComponent('صحيح مسلم'));
+    await graphReady(page);
+    await expect(page.getByRole('button', { name: /إبراز: صحيح مسلم/ })).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(page).not.toHaveURL(/book=/);
+  });
+});
+
+test.describe('the single tree workspace', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/tree/x');
+    await graphReady(page);
+  });
+
+  test('the matn tab has the full text and the book', async ({ page }) => {
+    await page.getByRole('button', { name: 'إظهار المتن والعلل' }).click();
+    const panel = page.locator('#workspace-panel');
+    await expect(panel.getByRole('tab', { name: 'المتن' })).toHaveAttribute('aria-selected', 'true');
+    await expect(panel).toContainText('حديث رقم 1');
+    await expect(panel.getByRole('link', { name: /أبواب صحيح البخاري/ })).toBeVisible();
+  });
+
+  test('«التخريج المقارن» gathers the related routes and opens the comparison', async ({ page }) => {
+    await page.getByRole('button', { name: 'التخريج المقارن' }).click();
+    await expect(page).toHaveURL(/\/takhreej\?ids=x,h2,h3/);
+  });
+
+  test('the hadith ruling note stays in the header', async ({ page }) => {
+    await expect(page.getByText('حكم الحديث:')).toBeVisible();
   });
 });
 
@@ -304,12 +392,12 @@ test.describe('on a phone', () => {
     await graphReady(page);
 
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
-    await expect(page.locator('#takhreej-sidebar')).toHaveCSS('width', '0px');
+    await expect(page.locator('#workspace-panel')).toHaveCSS('width', '0px');
 
     await page.getByRole('button', { name: 'إظهار المتون' }).click();
-    await expect(page.locator('#takhreej-sidebar')).toContainText('متون الروايات');
+    await expect(page.locator('#workspace-panel')).toContainText('متون الروايات');
     await page.getByRole('button', { name: /إغلاق والعودة للشجرة/ }).click();
-    await expect(page.locator('#takhreej-sidebar')).toHaveCSS('width', '0px');
+    await expect(page.locator('#workspace-panel')).toHaveCSS('width', '0px');
   });
 
   test('the tree page fits the screen and the legend starts collapsed', async ({ page }) => {
@@ -327,10 +415,23 @@ test.describe('on a phone', () => {
     await graphReady(page);
 
     await page.getByRole('button', { name: 'إظهار المتون' }).click();
-    await page.locator('#takhreej-sidebar').getByRole('button', { name: /العلل/ }).click();
-    await page.locator('#takhreej-sidebar').getByRole('button', { name: /عنعنة مدلس/ }).first().click();
+    await page.locator('#workspace-panel').getByRole('tab', { name: /العلل/ }).click();
+    await page.locator('#workspace-panel').getByRole('button', { name: /عنعنة مدلس/ }).first().click();
 
-    await expect(page.locator('#takhreej-sidebar')).toHaveCSS('width', '0px');
+    await expect(page.locator('#workspace-panel')).toHaveCSS('width', '0px');
     await expect(card(page, 'سفيان بن عيينة').locator('> div')).toHaveClass(/ring-rose-400/);
+  });
+
+  test('the tree page header keeps its three buttons on one row', async ({ page }) => {
+    await page.goto('/tree/x');
+    await graphReady(page);
+
+    const tops = await Promise.all(
+      ['التخريج المقارن', /فحص العلل/, 'عودة للبحث'].map(async (name) => {
+        const box = await page.getByRole('button', { name }).first().boundingBox();
+        return Math.round(box!.y);
+      })
+    );
+    expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(4);
   });
 });

@@ -135,18 +135,31 @@ export default function IsnadGraphCanvas({ graph, bookFocus = false }: IsnadGrap
   }, [edges, ilalReport, showLowConfidence]);
 
   // A selected narrator (click, tap, or Enter on the focused card) keeps its chain highlighted; hovering only previews
-  // while nothing is selected. Escape clears the selection first, then the book focus.
+  // while nothing is selected. Escape peels one layer per press: the narrator details, then the selection, then the book
+  // focus. It listens in the capture phase because React Flow deselects a focused card on Escape itself, and that update
+  // would otherwise remove this handler before the event reaches it.
   const selectedId = nodes.find((n) => n.selected)?.id ?? null;
   const activeBook = bookFocus ? focusBook : null;
   useEffect(() => {
-    if (!selectedId && !activeBook) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if (selectedId) setNodes((nds) => nds.map((n) => (n.selected ? { ...n, selected: false } : n)));
-      else setFocusBook(null);
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable=true]")) return;
+
+      const narrator = useNarratorDrawerStore.getState();
+      if (narrator.isOpen) {
+        narrator.closeDrawer();
+      } else if (selectedId) {
+        setNodes((nds) => nds.map((n) => (n.selected ? { ...n, selected: false } : n)));
+      } else if (activeBook) {
+        setFocusBook(null);
+      } else {
+        return; // nothing of ours to close: let the key through
+      }
+      e.stopPropagation(); // one layer per press
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [selectedId, activeBook, setNodes, setFocusBook]);
 
   // Enter on a focused card opens the narrator details, like a click does (React Flow itself only selects it).

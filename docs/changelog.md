@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-05: Tree and takhreej pages, step 3: one workspace
+
+- **`HadithWorkspace`** is the page both screens share: site header, a header block, an optional summary strip, the graph, and a side panel of real ARIA tabs (`role=tablist/tab/tabpanel`). `TreeWorkspace` and the takhreej page only say what goes in each slot. The takhreej sidebar became the «المتون» and «العلل» tabs; panel and tab state live in `useWorkspaceStore`, so the summary strip, chips and findings open tabs without prop plumbing.
+- **The narrator panel no longer covers the graph.** From 1024px up, a selected narrator opens as an «الراوي» tab of the side panel (no backdrop; the card stays selected); below that it is still the drawer over the graph. `NarratorDrawer` was split into `NarratorDetails` (the body) and a thin modal wrapper.
+- **The address keeps the view**: `?tab=ilal`, `?narrator=<id>` and `?book=<name>` are written with `history.replaceState` (other parameters such as `ids=a,b` are left exactly as they were) and restored on load, so a link reopens the same view.
+- **Tree page**: tabs «المتن» (full text, copy, link to the book) and «العلل» (fetched the first time the tab is shown, as before); a primary «التخريج المقارن» button gathers the related routes and opens the comparison; «فحص العلل» opens its tab. The ruling note stays in the header. `IlalLauncher` (the old fixed drawer) was deleted. On a phone «عودة للبحث» is icon-only so the buttons fit one row.
+- **Escape peels one layer per press**: narrator details, then the selection, then the book focus. It listens in the capture phase, because React Flow deselects a focused card on Escape and that update removed the old handler before it ran.
+- **Tests**: 92 in all (panel, tablet drawer, address round-trip, the tree workspace, the phone header row).
+
+---
+
 ## 2026-10-05: Tree and takhreej pages, step 2: selection, clearer data, a summary
 
 - **Tap, click or Enter selects a narrator and keeps its chain highlighted** (sheikhs above, students below) until Escape or a click on empty canvas; hovering only previews while nothing is selected. Enter on a focused card opens the details like a click. Touch screens no longer depend on hover.
