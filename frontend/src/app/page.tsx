@@ -133,6 +133,12 @@ export default function Home() {
               <span>البحث والتخريج</span>
             </Link>
             <Link
+              href="/verify"
+              className="px-2 sm:px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+            >
+              تحقق من حديث
+            </Link>
+            <Link
               href="/glossary"
               className="px-2 sm:px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
             >

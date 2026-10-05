@@ -1,0 +1,260 @@
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using Microsoft.SemanticKernel;
+using SmartHadithTree.Application.DTOs;
+using SmartHadithTree.Application.Interfaces;
+using SmartHadithTree.Domain.Utilities;
+
+namespace SmartHadithTree.Application.Services;
+
+public interface IHadithVerificationService
+{
+    Task<HadithVerificationResultDto> VerifyAsync(string text, CancellationToken ct = default);
+}
+
+/// <summary>
+/// Checks whether a pasted text is a hadith in the corpus (retrieval, then a model review of the candidates).
+/// The model never supplies a hadith, a source or a ruling: it can only (a) veto a close-wording match,
+/// or (b) upgrade a weak match when it quotes a phrase that really appears in both the input and the candidate.
+/// With no model configured, or when the model fails, the answer comes from text matching alone.
+/// </summary>
+public class HadithVerificationService(IHadithSearchService searchService, Kernel kernel) : IHadithVerificationService
+{
+    public const int MinWords = 3;
+    public const int MaxChars = 600;
+    public const double ExactThreshold = 0.95;
+    public const double VariantThreshold = 0.6;
+    public const double ReviewThreshold = 0.3;
+    private const int MaxMatches = 5;
+    private const int CandidatePageSize = 40;
+
+    public async Task<HadithVerificationResultDto> VerifyAsync(string text, CancellationToken ct = default)
+    {
+        text = (text ?? string.Empty).Trim();
+        var words = Tokenize(text, fold: false);
+
+        if (words.Count < MinWords || text.Length > MaxChars)
+        {
+            return new HadithVerificationResultDto
+            {
+                Status = HadithVerificationStatus.Invalid,
+                Explanation = $"أدخل نصاً من {MinWords} كلمات على الأقل وبحد أقصى {MaxChars} حرفاً."
+            };
+        }
+
+        var candidates = await RetrieveAsync(words, ct);
+        var inputBigrams = Bigrams(Tokenize(text, fold: true));
+
+        var scored = candidates
+            .Select(c => new VerifiedHadithMatchDto
+            {
+                Id = c.Id,
+                BookName = c.BookName,
+                HadithNumber = c.HadithNumber,
+                Chapter = c.Chapter,
+                MatnArabic = c.MatnArabic,
+                Similarity = Math.Round(Containment(inputBigrams, Bigrams(Tokenize(c.MatnArabic, fold: true))), 3)
+            })
+            .OrderByDescending(m => m.Similarity)
+            .ThenBy(m => m.MatnArabic.Length)
+            .Take(MaxMatches)
+            .ToList();
+
+        var best = scored.FirstOrDefault();
+        if (best == null || best.Similarity < ReviewThreshold)
+            return NotFound();
+
+        var status = Classify(best.Similarity);
+        var method = "lexical";
+        var explanation = string.Empty;
+
+        // Exact quotations need no model. The model only reviews the uncertain band.
+        if (status != HadithVerificationStatus.Exact)
+        {
+            var review = await ReviewAsync(text, scored, ct);
+            if (review != null)
+            {
+                method = "ai+lexical";
+                explanation = review.Explanation;
+                var index = review.CandidateIndex - 1;
+
+                if (status == HadithVerificationStatus.Variant && review.Same == false && index == 0)
+                {
+                    // Safe direction: the model saw a meaning difference (negation, different subject) in the top match.
+                    status = HadithVerificationStatus.NotFound;
+                }
+                else if (status == HadithVerificationStatus.NotFound && review.Same == true
+                         && index >= 0 && index < scored.Count
+                         && PhraseIsGrounded(review.SharedPhrase, text, scored[index].MatnArabic))
+                {
+                    status = HadithVerificationStatus.Variant;
+                    scored = [scored[index], .. scored.Where((_, i) => i != index)];
+                }
+            }
+        }
+
+        if (status == HadithVerificationStatus.NotFound)
+            return NotFound(method, explanation);
+
+        return new HadithVerificationResultDto
+        {
+            Status = status,
+            Method = method,
+            Matches = scored.Where(m => m.Similarity >= ReviewThreshold).ToList(),
+            Explanation = string.IsNullOrWhiteSpace(explanation) ? DefaultExplanation(status) : explanation
+        };
+    }
+
+    private async Task<List<HadithSearchResultDto>> RetrieveAsync(List<string> words, CancellationToken ct)
+    {
+        var distinctive = words
+            .Where(w => w.Length >= 3 && !StopWords.Contains(w))
+            .Distinct()
+            .OrderByDescending(w => w.Length)
+            .ToList();
+
+        // Strictest first (5 longest words must all occur), then relax.
+        foreach (var take in new[] { 5, 3, 2 })
+        {
+            if (distinctive.Count < take) continue;
+            var results = await searchService.SearchHadithsAsync(new SearchRequestDto
+            {
+                Query = string.Join(' ', distinctive.Take(take)),
+                Scope = SearchScope.Matn,
+                Match = SearchMatchType.AllWords,
+                PageSize = CandidatePageSize
+            }, ct);
+            if (results.Count > 0) return results;
+        }
+
+        return [];
+    }
+
+    private async Task<ModelReview?> ReviewAsync(string text, List<VerifiedHadithMatchDto> candidates, CancellationToken ct)
+    {
+        var list = string.Join("\n", candidates.Select((c, i) =>
+            $"[{i + 1}] ({c.BookName} رقم {c.HadithNumber}): {Truncate(c.MatnArabic, 500)}"));
+
+        var prompt = $@"
+أنت مساعد تحقق من نصوص الحديث. لديك نص أدخله المستخدم، وقائمة نصوص (متون) مسترجعة من قاعدة بيانات الكتب.
+مهمتك فقط الحكم: هل نص المستخدم هو الحديث نفسه الوارد في أحد المتون المرقمة (ولو اختلف اللفظ يسيراً)؟
+
+قواعد صارمة:
+- لا تذكر أي حديث أو كتاب أو راوٍ أو حكم غير موجود في القائمة أدناه.
+- لا تحكم بصحة الحديث أو ضعفه.
+- إن اختلف المعنى (نفي مقابل إثبات، موضوع مختلف، راوٍ مختلف في المتن) فالجواب Same=false.
+- إن كان الجواب Same=true فاقتبس في SharedPhrase عبارة من ثلاث كلمات فأكثر نقلاً حرفياً من نص المستخدم، وهي نفسها موجودة في المتن المختار.
+
+نص المستخدم:
+{text}
+
+المتون المسترجعة:
+{list}
+
+أرجع كائن JSON صالحاً فقط بدون أي نص إضافي أو علامات Markdown:
+{{
+  ""Same"": true أو false,
+  ""CandidateIndex"": رقم المتن الأقرب (من 1),
+  ""SharedPhrase"": ""عبارة حرفية مشتركة"",
+  ""Explanation"": ""جملة أو جملتان بالعربية عن الفرق أو التطابق""
+}}";
+
+        try
+        {
+            var result = await kernel.InvokePromptAsync(prompt, cancellationToken: ct);
+            var json = StripFences(result.GetValue<string>());
+            if (json.Length == 0) return null;
+            return JsonSerializer.Deserialize<ModelReview>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch (Exception)
+        {
+            // No model configured, provider error, or bad JSON: fall back to text matching. Do not leak details.
+            return null;
+        }
+    }
+
+    private sealed class ModelReview
+    {
+        public bool? Same { get; set; }
+        public int CandidateIndex { get; set; }
+        public string SharedPhrase { get; set; } = string.Empty;
+        public string Explanation { get; set; } = string.Empty;
+    }
+
+    public static string Classify(double similarity) =>
+        similarity >= ExactThreshold ? HadithVerificationStatus.Exact
+        : similarity >= VariantThreshold ? HadithVerificationStatus.Variant
+        : HadithVerificationStatus.NotFound;
+
+    /// <summary>True when the phrase has at least three words and occurs in both the input and the candidate.</summary>
+    public static bool PhraseIsGrounded(string? phrase, string input, string candidate)
+    {
+        var p = Tokenize(phrase ?? string.Empty, fold: true);
+        if (p.Count < 3) return false;
+        var needle = " " + string.Join(' ', p) + " ";
+        return Contains(input, needle) && Contains(candidate, needle);
+
+        static bool Contains(string haystack, string needle) =>
+            (" " + string.Join(' ', Tokenize(haystack, fold: true)) + " ").Contains(needle, StringComparison.Ordinal);
+    }
+
+    /// <summary>Share of the input's word pairs (in order) that also occur in the candidate.</summary>
+    public static double Containment(HashSet<string> inputBigrams, HashSet<string> candidateBigrams)
+    {
+        if (inputBigrams.Count == 0) return 0;
+        var found = inputBigrams.Count(candidateBigrams.Contains);
+        return (double)found / inputBigrams.Count;
+    }
+
+    public static HashSet<string> Bigrams(List<string> tokens)
+    {
+        var set = new HashSet<string>();
+        for (var i = 0; i + 1 < tokens.Count; i++) set.Add(tokens[i] + " " + tokens[i + 1]);
+        return set;
+    }
+
+    private static readonly Regex Diacritics = new(@"[ؐ-ًؚ-ٰٟۖ-ۭـ]", RegexOptions.Compiled);
+    private static readonly Regex NonLetters = new(@"[^ء-غف-ي\s]", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Words of the text after the corpus normalization. <paramref name="fold"/> also merges ى/ي and ؤ/ئ/ء forms
+    /// so that scoring tolerates typing variants; retrieval uses the unfolded form to match the stored text.
+    /// </summary>
+    public static List<string> Tokenize(string text, bool fold)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return [];
+        var t = ArabicNormalizer.Normalize(Diacritics.Replace(text, string.Empty));
+        t = NonLetters.Replace(t, " ");
+        if (fold) t = t.Replace('ى', 'ي').Replace('ؤ', 'ء').Replace('ئ', 'ء');
+        return t.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+    }
+
+    private static readonly HashSet<string> StopWords = new(
+        new[] { "قال", "عن", "رسول", "الله", "صلي", "صلى", "عليه", "وسلم", "ان", "من", "في", "ما", "لا", "الي", "الى", "على",
+         "هذا", "هذه", "ذلك", "كان", "يا", "ثم", "او", "ولا", "قالوا", "انه", "انها", "الذي", "التي" }
+        .Select(w => ArabicNormalizer.Normalize(w)));
+
+    private static string StripFences(string? raw)
+    {
+        var json = (raw ?? string.Empty).Trim();
+        if (json.StartsWith("```json")) json = json[7..];
+        if (json.StartsWith("```")) json = json[3..];
+        if (json.EndsWith("```")) json = json[..^3];
+        return json.Trim();
+    }
+
+    private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max] + "…";
+
+    private static string DefaultExplanation(string status) => status == HadithVerificationStatus.Exact
+        ? "النص مطابق لمتن الحديث المذكور في المصدر أدناه."
+        : "اللفظ قريب من المتن المذكور وليس مطابقاً له؛ قارن بين النصين قبل النسبة.";
+
+    private static HadithVerificationResultDto NotFound(string method = "lexical", string explanation = "") => new()
+    {
+        Status = HadithVerificationStatus.NotFound,
+        Method = method,
+        Explanation = string.IsNullOrWhiteSpace(explanation)
+            ? "لم نجد نصاً مطابقاً في الكتب المتاحة لدينا. هذا لا يعني أن الحديث مختلق، فقد يكون في كتب أخرى أو بلفظ آخر؛ ولا ننسبه إلى أي مصدر."
+            : explanation
+    };
+}

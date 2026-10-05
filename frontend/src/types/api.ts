@@ -162,6 +162,26 @@ export interface IlalExplanationDto {
   caveats: string[];
 }
 
+export type HadithVerificationStatus = "exact" | "variant" | "not-found" | "invalid";
+
+export interface VerifiedHadithMatchDto {
+  id: string;
+  bookName: string;
+  hadithNumber: number;
+  chapter?: string | null;
+  matnArabic: string;
+  /** Share (0..1) of the checked text's word pairs found, in order, in this hadith. */
+  similarity: number;
+}
+
+export interface HadithVerificationResultDto {
+  status: HadithVerificationStatus;
+  /** "lexical" or "ai+lexical". */
+  method: string;
+  explanation: string;
+  matches: VerifiedHadithMatchDto[];
+}
+
 export type SearchScope = 0 | 1 | 2; // 0: All, 1: Matn, 2: Isnad
 export type SearchMatchType = 0 | 1 | 2; // 0: AllWords, 1: AnyWord, 2: Exact
 export type SearchLogicalOperator = 0 | 1; // 0: And, 1: Or

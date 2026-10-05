@@ -7,6 +7,7 @@ import {
   SearchRequestDto,
   IlalReportDto,
   IlalExplanationDto,
+  HadithVerificationResultDto,
 } from "@/types/api";
 
 /**
@@ -114,5 +115,15 @@ export async function explainIlal(report: IlalReportDto): Promise<IlalExplanatio
     body: JSON.stringify(report),
   });
   if (!res.ok) throw new Error('Failed to explain ilal report');
+  return res.json();
+}
+
+export async function verifyHadith(text: string): Promise<HadithVerificationResultDto> {
+  const res = await fetch(`${API_BASE}/Verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error('Failed to verify hadith');
   return res.json();
 }

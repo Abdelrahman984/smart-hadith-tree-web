@@ -46,6 +46,7 @@ else
 
 builder.Services.AddScoped<IAiEvaluationService, AiEvaluationService>();
 builder.Services.AddScoped<IIlalExplanationService, IlalExplanationService>();
+builder.Services.AddScoped<IHadithVerificationService, HadithVerificationService>();
 
 // Register Services
 builder.Services.AddScoped<IHadithTreeDbContext>(provider => provider.GetRequiredService<HadithTreeDbContext>());
