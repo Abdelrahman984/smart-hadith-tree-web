@@ -72,11 +72,25 @@ export function getIlalEdgeDecorations(report: IlalReportDto | null): Map<string
 }
 
 /** Groups findings by type in display order, keeping each finding's index in the report. */
-export function groupFindings(findings: IlalFindingDto[]) {
+export function groupFindings(findings: IlalFindingDto[], keep: (f: IlalFindingDto) => boolean = () => true) {
   return ILLAH_TYPE_ORDER
     .map((type) => ({
       type,
-      items: findings.map((f, index) => ({ finding: f, index })).filter((x) => x.finding.type === type),
+      items: findings
+        .map((f, index) => ({ finding: f, index }))
+        .filter((x) => x.finding.type === type && keep(x.finding)),
     }))
     .filter((g) => g.items.length > 0);
+}
+
+/** Tanbih findings below this confidence are folded away in the panel (they are mostly data gaps). */
+export const LOW_CONFIDENCE_THRESHOLD = 0.3;
+
+export function isLowConfidenceFinding(f: IlalFindingDto): boolean {
+  return f.severity === 'Tanbih' && f.confidence < LOW_CONFIDENCE_THRESHOLD;
+}
+
+/** Number of findings shown without expanding the low-confidence group (used by the tab badges). */
+export function countVisibleFindings(findings: IlalFindingDto[]): number {
+  return findings.filter((f) => !isLowConfidenceFinding(f)).length;
 }

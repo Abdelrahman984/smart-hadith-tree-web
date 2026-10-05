@@ -10,6 +10,7 @@ import ReturnToSearchButton from "@/features/isnad-tree/components/ReturnToSearc
 import { ChevronLeft, ChevronRight, Copy, Check, BookOpen, ShieldAlert, ExternalLink } from "lucide-react";
 import IlalPanel from "@/features/ilal/components/IlalPanel";
 import { useIlalStore } from "@/features/ilal/store/useIlalStore";
+import { countVisibleFindings } from "@/features/ilal/utils/ilalLabels";
 import { getBookMeta } from "@/lib/bookTheme";
 
 const MAX_HEADER_SOURCES = 4;
@@ -147,9 +148,9 @@ function TakhreejContent() {
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 transition-colors cursor-pointer ${sidebarTab === "ilal" ? "bg-white text-brand-blue shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
               >
                 <ShieldAlert className="w-4 h-4" /> العلل
-                {data.ilalReport && data.ilalReport.findings.length > 0 && (
+                {data.ilalReport && countVisibleFindings(data.ilalReport.findings) > 0 && (
                   <span className={`rounded-full px-1.5 text-[11px] text-white ${data.ilalReport.hasQadihah ? "bg-red-500" : "bg-amber-500"}`}>
-                    {data.ilalReport.findings.length}
+                    {countVisibleFindings(data.ilalReport.findings)}
                   </span>
                 )}
               </button>

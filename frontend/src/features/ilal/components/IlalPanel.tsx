@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ShieldAlert, ShieldCheck, GitFork, FileDiff } from "lucide-react";
+import { ShieldAlert, ShieldCheck, GitFork, FileDiff, ChevronDown } from "lucide-react";
 import { IlalReportDto } from "@/types/api";
 import { useIlalStore } from "../store/useIlalStore";
-import { groupFindings, ILLAH_TYPE_LABELS, SEVERITY_STYLES } from "../utils/ilalLabels";
+import { groupFindings, isLowConfidenceFinding, ILLAH_TYPE_LABELS, SEVERITY_STYLES } from "../utils/ilalLabels";
 import MatnDiffView from "./MatnDiffView";
 import IlalAiExplanation from "./IlalAiExplanation";
 
@@ -19,12 +19,76 @@ interface IlalPanelProps {
 export default function IlalPanel({ report }: IlalPanelProps) {
   const { activeFindingIndex, selectFinding } = useIlalStore();
   const [openDiffIndex, setOpenDiffIndex] = useState<number | null>(null);
-  const groups = groupFindings(report.findings);
+  const [showLow, setShowLow] = useState(false);
+  const groups = groupFindings(report.findings, (f) => !isLowConfidenceFinding(f));
+  const lowGroups = groupFindings(report.findings, isLowConfidenceFinding);
+  const lowCount = lowGroups.reduce((n, g) => n + g.items.length, 0);
 
   const tariqLabel = (hadithId: string) => {
     const t = report.turuq.find((x) => x.hadithId === hadithId);
     return t ? `${t.bookName} ${t.hadithNumber}` : null;
   };
+
+  const renderGroups = (list: typeof groups) =>
+    list.map((group) => (
+      <section key={group.type} className="space-y-2">
+        <h4 className="border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
+          {ILLAH_TYPE_LABELS[group.type]}
+          <span className="ms-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+            {group.items.length}
+          </span>
+        </h4>
+
+        {group.items.map(({ finding, index }) => {
+          const style = SEVERITY_STYLES[finding.severity];
+          const isActive = activeFindingIndex === index;
+          const labels = finding.hadithIds.map(tariqLabel).filter(Boolean);
+
+          return (
+            <div
+              key={index}
+              role="button"
+              tabIndex={0}
+              onClick={() => selectFinding(isActive ? null : index)}
+              onKeyDown={(e) => e.key === "Enter" && selectFinding(isActive ? null : index)}
+              className={`cursor-pointer rounded-xl border p-3 transition-shadow ${style.card} ${isActive ? "ring-2 ring-brand-blue shadow-md" : "hover:shadow-sm"}`}
+            >
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <span className="text-sm font-bold text-slate-800">{finding.titleAr}</span>
+                <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${style.badge}`}>
+                  {style.label}
+                </span>
+              </div>
+              <p className="text-xs leading-relaxed text-slate-700">{finding.evidenceAr}</p>
+
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500">
+                {labels.map((l) => (
+                  <span key={l} className="rounded bg-white/80 px-1.5 py-0.5 border border-slate-200">{l}</span>
+                ))}
+                <span className="ms-auto" title="درجة الثقة في الاستنتاج الآلي">
+                  الثقة: {Math.round(finding.confidence * 100)}%
+                </span>
+              </div>
+
+              {finding.matnComparison && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => setOpenDiffIndex(openDiffIndex === index ? null : index)}
+                    className="mt-2 flex items-center gap-1 text-[11px] font-semibold text-brand-blue hover:underline cursor-pointer"
+                  >
+                    <FileDiff className="h-3.5 w-3.5" />
+                    {openDiffIndex === index ? "إخفاء مقارنة المتن" : "عرض مقارنة المتن"}
+                  </button>
+                  {openDiffIndex === index && (
+                    <MatnDiffView comparison={finding.matnComparison} turuq={report.turuq} />
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </section>
+    ));
 
   return (
     <div className="space-y-4" dir="rtl">
@@ -58,65 +122,23 @@ export default function IlalPanel({ report }: IlalPanelProps) {
       )}
 
       {/* Findings */}
-      {groups.map((group) => (
-        <section key={group.type} className="space-y-2">
-          <h4 className="border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
-            {ILLAH_TYPE_LABELS[group.type]}
-            <span className="ms-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-              {group.items.length}
+      {renderGroups(groups)}
+
+      {lowCount > 0 && (
+        <div className="space-y-2">
+          <button
+            onClick={() => setShowLow(!showLow)}
+            className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            <span>
+              ملاحظات منخفضة الثقة
+              <span className="ms-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px]">{lowCount}</span>
             </span>
-          </h4>
-
-          {group.items.map(({ finding, index }) => {
-            const style = SEVERITY_STYLES[finding.severity];
-            const isActive = activeFindingIndex === index;
-            const labels = finding.hadithIds.map(tariqLabel).filter(Boolean);
-
-            return (
-              <div
-                key={index}
-                role="button"
-                tabIndex={0}
-                onClick={() => selectFinding(isActive ? null : index)}
-                onKeyDown={(e) => e.key === "Enter" && selectFinding(isActive ? null : index)}
-                className={`cursor-pointer rounded-xl border p-3 transition-shadow ${style.card} ${isActive ? "ring-2 ring-brand-blue shadow-md" : "hover:shadow-sm"}`}
-              >
-                <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <span className="text-sm font-bold text-slate-800">{finding.titleAr}</span>
-                  <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${style.badge}`}>
-                    {style.label}
-                  </span>
-                </div>
-                <p className="text-xs leading-relaxed text-slate-700">{finding.evidenceAr}</p>
-
-                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500">
-                  {labels.map((l) => (
-                    <span key={l} className="rounded bg-white/80 px-1.5 py-0.5 border border-slate-200">{l}</span>
-                  ))}
-                  <span className="ms-auto" title="درجة الثقة في الاستنتاج الآلي">
-                    الثقة: {Math.round(finding.confidence * 100)}%
-                  </span>
-                </div>
-
-                {finding.matnComparison && (
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => setOpenDiffIndex(openDiffIndex === index ? null : index)}
-                      className="mt-2 flex items-center gap-1 text-[11px] font-semibold text-brand-blue hover:underline cursor-pointer"
-                    >
-                      <FileDiff className="h-3.5 w-3.5" />
-                      {openDiffIndex === index ? "إخفاء مقارنة المتن" : "عرض مقارنة المتن"}
-                    </button>
-                    {openDiffIndex === index && (
-                      <MatnDiffView comparison={finding.matnComparison} turuq={report.turuq} />
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </section>
-      ))}
+            <ChevronDown className={`h-4 w-4 transition-transform ${showLow ? "rotate-180" : ""}`} />
+          </button>
+          {showLow && renderGroups(lowGroups)}
+        </div>
+      )}
 
       {report.findings.length > 0 && <IlalAiExplanation report={report} />}
 

@@ -5,6 +5,7 @@ import { ShieldQuestion, X, Loader2 } from "lucide-react";
 import { useIlalForHadith } from "../hooks/useIlal";
 import { useIlalStore } from "../store/useIlalStore";
 import IlalPanel from "./IlalPanel";
+import { countVisibleFindings } from "../utils/ilalLabels";
 
 /**
  * "فحص العلل" button for the single-hadith tree page. Gathers the hadith's turuq automatically,
@@ -35,9 +36,9 @@ export default function IlalLauncher({ hadithId }: { hadithId: string }) {
       >
         <ShieldQuestion className="h-4 w-4" />
         فحص العلل
-        {data && data.findings.length > 0 && (
+        {data && countVisibleFindings(data.findings) > 0 && (
           <span className={`rounded-full px-1.5 text-[11px] text-white ${data.hasQadihah ? "bg-red-500" : "bg-amber-500"}`}>
-            {data.findings.length}
+            {countVisibleFindings(data.findings)}
           </span>
         )}
       </button>

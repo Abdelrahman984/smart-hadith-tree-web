@@ -55,3 +55,4 @@ Follow these guidelines strictly when contributing to this repository.
   - **AI / RAG**: Microsoft Semantic Kernel is fully wired up in the Application layer (`AiEvaluationService.cs`) to summarize narrator profiles via Gemini.
   - **Search**: Advanced Full-Text and normalized search is active on `/search` and handled by `HadithSearchService.cs`.
 - **Action**: When instructed to work on the project, **assume these core functionalities exist and are functional**. Do not attempt to rebuild them from scratch. Read `docs/changelog.md` and `docs/data_ingestion.md` for full details.
+- **Open work**: known errors, their causes and the suggested order of fixes are in `docs/backlog.md` (it also explains how to review a `/takhreej` page). Read it before starting new work on the data, the resolver or the Ilal rules, and update it when you find or fix a cause.
