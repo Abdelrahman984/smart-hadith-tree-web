@@ -168,15 +168,19 @@ public class HadithSearchService(
 
                 return true;
             })
+            .Select(h => new { Hadith = h, Relevance = RelevanceScorer.Score(h.NormalizedMatn, orderingPhrases) })
+            .OrderByDescending(x => x.Relevance?.Percent ?? -1)
             .Take(pageSize)
-            .Select(h => new HadithSearchResultDto
+            .Select(x => new HadithSearchResultDto
             {
-                Id = h.Id,
-                BookName = h.BookName,
-                HadithNumber = h.HadithNumber,
-                Chapter = h.Chapter,
-                MatnArabic = ExtractRelevantMatn(h.MatnArabic, h.NormalizedMatn, orderingPhrases),
-                MatnSnippet = BuildMatchSnippet(h.MatnArabic, h.NormalizedMatn, orderingPhrases)
+                Id = x.Hadith.Id,
+                BookName = x.Hadith.BookName,
+                HadithNumber = x.Hadith.HadithNumber,
+                Chapter = x.Hadith.Chapter,
+                MatnArabic = ExtractRelevantMatn(x.Hadith.MatnArabic, x.Hadith.NormalizedMatn, orderingPhrases),
+                MatnSnippet = BuildMatchSnippet(x.Hadith.MatnArabic, x.Hadith.NormalizedMatn, orderingPhrases),
+                RelevancePercent = x.Relevance?.Percent,
+                RelevanceReason = x.Relevance?.ReasonAr
             })
             .ToList();
 
@@ -191,20 +195,44 @@ public class HadithSearchService(
             ? normalizedAndPhrases[0]
             : string.Join(" ", normalizedAndPhrases);
 
+        // The fetch below keeps the shortest matches. A long hadith that contains the exact phrase could be cut
+        // before ranking, so when the cap is reached the exact-phrase hits are fetched as well.
+        var candidateCap = skip + Math.Max(150, pageSize * 3);
         var rawCandidates = await queryable
             .OrderBy(h => h.MatnArabic.Length)
-            .Take(skip + Math.Max(150, pageSize * 3))
-            .Select(h => new
+            .Take(candidateCap)
+            .Select(h => new Candidate
             {
-                h.Id,
-                h.BookName,
-                h.HadithNumber,
-                h.Chapter,
-                h.MatnArabic,
-                h.NormalizedMatn,
-                h.FullIsnadText
+                Id = h.Id,
+                BookName = h.BookName,
+                HadithNumber = h.HadithNumber,
+                Chapter = h.Chapter,
+                MatnArabic = h.MatnArabic,
+                NormalizedMatn = h.NormalizedMatn,
+                FullIsnadText = h.FullIsnadText
             })
             .ToListAsync(ct);
+
+        if (rawCandidates.Count >= candidateCap && exactNormalizedPhrase.Contains(' '))
+        {
+            var known = rawCandidates.Select(c => c.Id).ToHashSet();
+            var exactHits = await queryable
+                .Where(h => h.NormalizedMatn.Contains(exactNormalizedPhrase))
+                .OrderBy(h => h.MatnArabic.Length)
+                .Take(ExactPhraseCandidateCap)
+                .Select(h => new Candidate
+                {
+                    Id = h.Id,
+                    BookName = h.BookName,
+                    HadithNumber = h.HadithNumber,
+                    Chapter = h.Chapter,
+                    MatnArabic = h.MatnArabic,
+                    NormalizedMatn = h.NormalizedMatn,
+                    FullIsnadText = h.FullIsnadText
+                })
+                .ToListAsync(ct);
+            rawCandidates.AddRange(exactHits.Where(c => known.Add(c.Id)));
+        }
 
         var ranked = rawCandidates
             .Select(h =>
@@ -228,7 +256,17 @@ public class HadithSearchService(
                 };
             })
             .Where(x => x.IsValidCluster)
-            .OrderByDescending(x => x.HasExactPhrase)
+            .Select(x => new
+            {
+                x.Hadith,
+                x.HasExactPhrase,
+                x.ClusterSpan,
+                Relevance = request.Scope == SearchScope.Isnad
+                    ? null
+                    : RelevanceScorer.Score(x.Hadith.NormalizedMatn, activeTerms, exactNormalizedPhrase)
+            })
+            .OrderByDescending(x => x.Relevance?.Percent ?? -1)
+            .ThenByDescending(x => x.HasExactPhrase)
             .ThenBy(x => x.ClusterSpan)
             .ThenBy(x => x.Hadith.MatnArabic.Length)
             .ThenBy(x => x.Hadith.HadithNumber)
@@ -241,11 +279,27 @@ public class HadithSearchService(
                 HadithNumber = x.Hadith.HadithNumber,
                 Chapter = x.Hadith.Chapter,
                 MatnArabic = ExtractRelevantMatn(x.Hadith.MatnArabic, x.Hadith.NormalizedMatn, activeTerms),
-                MatnSnippet = BuildMatchSnippet(x.Hadith.MatnArabic, x.Hadith.NormalizedMatn, activeTerms)
+                MatnSnippet = BuildMatchSnippet(x.Hadith.MatnArabic, x.Hadith.NormalizedMatn, activeTerms),
+                RelevancePercent = x.Relevance?.Percent,
+                RelevanceReason = x.Relevance?.ReasonAr
             })
             .ToList();
 
         return ranked;
+    }
+
+    private const int ExactPhraseCandidateCap = 300;
+
+    /// <summary>A search hit with the columns needed for ranking.</summary>
+    private sealed class Candidate
+    {
+        public Guid Id { get; set; }
+        public string BookName { get; set; } = string.Empty;
+        public int HadithNumber { get; set; }
+        public string? Chapter { get; set; }
+        public string MatnArabic { get; set; } = string.Empty;
+        public string NormalizedMatn { get; set; } = string.Empty;
+        public string? FullIsnadText { get; set; }
     }
 
     private const int MaxClusterWindowChars = 800;

@@ -376,5 +376,75 @@ public class HadithSearchServiceTests
         result[0].HadithNumber.Should().Be(1);
         result[1].HadithNumber.Should().Be(18171);
     }
+
+    [Fact]
+    public async Task SearchHadithsAsync_KeepsLongHadithWithExactPhrase_WhenManyShorterMatchesExist()
+    {
+        // Arrange: 200 short hadiths contain every word (in another order); one longer hadith has the exact phrase.
+        var context = GetInMemoryDbContext();
+        for (var i = 0; i < 200; i++)
+        {
+            context.Hadiths.Add(new HadithText
+            {
+                Id = Guid.NewGuid(),
+                BookName = "كتاب",
+                HadithNumber = 1000 + i,
+                MatnArabic = $"المذهب ابعد اذا ذهب {i}",
+                NormalizedMatn = $"المذهب ابعد اذا ذهب {i}",
+                NormalizedBookName = "كتاب"
+            });
+        }
+
+        var filler = string.Join(' ', System.Linq.Enumerable.Repeat("وكان", 120));
+        var longHadith = new HadithText
+        {
+            Id = Guid.NewGuid(),
+            BookName = "كتاب",
+            HadithNumber = 1,
+            MatnArabic = $"{filler} اذا ذهب المذهب ابعد {filler}",
+            NormalizedMatn = $"{filler} اذا ذهب المذهب ابعد {filler}",
+            NormalizedBookName = "كتاب"
+        };
+        context.Hadiths.Add(longHadith);
+        await context.SaveChangesAsync();
+
+        var service = new HadithSearchService(context, new Mock<IHadithChainRepository>().Object, new Mock<ITaqwiyahService>().Object);
+
+        // Act
+        var result = await service.SearchHadithsAsync(new SearchRequestDto
+        {
+            Query = "اذا ذهب المذهب ابعد",
+            Scope = SearchScope.Matn,
+            Match = SearchMatchType.AllWords
+        });
+
+        // Assert
+        result.Should().NotBeEmpty();
+        result[0].Id.Should().Be(longHadith.Id, "an exact-phrase hit must not be cut by the shortest-first candidate cap");
+        result[0].RelevancePercent.Should().Be(100);
+    }
+
+    [Fact]
+    public async Task SearchHadithsAsync_ReturnsRelevanceWithReason()
+    {
+        var context = GetInMemoryDbContext();
+        context.Hadiths.Add(new HadithText
+        {
+            Id = Guid.NewGuid(),
+            BookName = "كتاب",
+            HadithNumber = 1,
+            MatnArabic = "الطهور شطر الايمان",
+            NormalizedMatn = "الطهور شطر الايمان",
+            NormalizedBookName = "كتاب"
+        });
+        await context.SaveChangesAsync();
+        var service = new HadithSearchService(context, new Mock<IHadithChainRepository>().Object, new Mock<ITaqwiyahService>().Object);
+
+        var result = await service.SearchHadithsAsync(new SearchRequestDto { Query = "الطهور شطر", Scope = SearchScope.Matn });
+
+        result.Should().ContainSingle();
+        result[0].RelevancePercent.Should().BeGreaterThan(0);
+        result[0].RelevanceReason.Should().NotBeNullOrEmpty();
+    }
 }
 
