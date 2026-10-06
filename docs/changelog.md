@@ -3,8 +3,8 @@
 ## 2026-10-07: Source card split from the first narrator (frontend)
 
 - **Bug**: the card of a chain's first narrator was drawn as «المصدر والمُخَرِّج» and named after a lookup on his full name, so Yahya ibn Sa'id al-Ansari showed as «مالك بن أنس» («... بن مالك بن النجار» matched «مالك») and Ahmad ibn Ishaq as «أحمد بن حنبل». Sufyan ibn Uyaynah showed as «البخاري».
-- **Fix** (`buildIsnadGraph.ts`, `formatFamousReferenceName.ts`): the first narrator is an ordinary narrator card. The book gets its own source card (book, number, compiler named from the title alone, «للطبراني» expanded to «ل الطبراني» so it matches) below him; in the comparative tree one card per book and first narrator, listing the numbers. Source cards open no narrator details and are left out of the narrator find box.
-- Tests: `graphBuilders.spec.ts` updated; the counts in `graphPages.spec.ts` (mock API) were updated by calculation and not run, because port 5147 was held by the real API.
+- **Fix** (`buildIsnadGraph.ts`, `formatFamousReferenceName.ts`): the first narrator is an ordinary narrator card. The book gets its own source card (book, number, compiler named from the title alone, «للطبراني» expanded to «ل الطبراني» so it matches) below him; in the comparative tree one card per hadith, linked to every first narrator of its chains (a hadith with several chains, as in al-Bayhaqi, no longer gets several cards). Source cards open no narrator details and are left out of the narrator find box.
+- Tests: `graphBuilders.spec.ts` updated; `graphPages.spec.ts` counts updated; the whole suite passes against the mock API.
 
 ---
 

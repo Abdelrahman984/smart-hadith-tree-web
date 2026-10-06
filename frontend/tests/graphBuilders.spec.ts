@@ -129,9 +129,18 @@ test.describe('buildComparativeGraph', () => {
     expect(g.nodes.find((n) => n.id === 'C')!.type).toBe('narrator');
     expect(g.edges.map((e) => [e.source, e.target])).toEqual([
       ['C', 'D'],
-      ['C', 'ref-C-صحيح البخاري'],
-      ['D', 'ref-D-صحيح مسلم'],
+      ['C', 'ref-h1'],
+      ['D', 'ref-h2'],
     ]);
+  });
+
+  test('a hadith with several chains has one source card, linked to each first narrator', () => {
+    const g = build([
+      cnode({ id: 'a0', narratorId: 'C', stepOrder: 0, parentNodeId: null, sourceHadithIds: ['h1'], sourceBooks: ['صحيح البخاري'] }),
+      cnode({ id: 'b0', narratorId: 'D', stepOrder: 0, parentNodeId: null, sourceHadithIds: ['h1'], sourceBooks: ['صحيح البخاري'] }),
+    ]);
+    expect(g.nodes.filter((n) => n.type === 'reference').map((n) => n.id)).toEqual(['ref-h1']);
+    expect(g.edges.map((e) => [e.source, e.target])).toEqual([['C', 'ref-h1'], ['D', 'ref-h1']]);
   });
 
   test('variation and travel hints seen on a later transmission are kept on the card', () => {

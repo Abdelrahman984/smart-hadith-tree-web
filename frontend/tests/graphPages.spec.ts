@@ -186,7 +186,7 @@ test.describe('edge labels on a big graph', () => {
 
   test('are markers at rest and printed on the focused chain', async ({ page }) => {
     const marker = page.locator('[data-edge-marker="e-N2-N1"]');
-    await expect(page.locator('.react-flow__edge')).toHaveCount(21); // 14 links plus a source edge for each of the 7 compilers
+    await expect(page.locator('.react-flow__edge')).toHaveCount(21); // 14 links plus a source edge for each of the 7 first narrators
     await expect(marker).toHaveAttribute('aria-label', /عنعنة مدلس/);
     await expect(page.locator('.react-flow__edge-text')).toHaveCount(0);
 
@@ -322,7 +322,7 @@ test.describe('a very large graph', () => {
     await graphReady(page);
 
     const toolbar = page.getByRole('toolbar', { name: 'أدوات الشجرة' });
-    await expect(page.locator('.react-flow__node')).toHaveCount(52); // 35 narrators plus a source card for each of the 17 compilers
+    await expect(page.locator('.react-flow__node')).toHaveCount(38); // 35 narrators plus one source card for each of the 3 hadiths
     await expect(card(page, 'سفيان بن عيينة')).not.toContainText('الثامنة'); // compact by default
     await expect(page.locator('.react-flow__minimap')).toBeVisible();
 
