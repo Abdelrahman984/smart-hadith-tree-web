@@ -19,6 +19,19 @@ for _extra in sorted(glob.glob(os.path.join(os.path.dirname(os.path.abspath(sys.
 xrefs = [e for e in data if e['kind'] == 'crossref']
 
 
+def _key3(header: str) -> tuple:
+    h = re.sub(r'[ً-ْٰـ]', '', re.split(r'[،.\n]', header)[0])
+    h = re.sub('[أإآ]', 'ا', h).replace('ى', 'ي').replace('ة', 'ه')
+    return tuple(w for w in re.sub(r'[^ء-ي ]', ' ', h).split() if w not in ('بن', 'ابن'))[:3]
+
+
+# The Thiqat of Ibn Qutlubugha repeats many narrators that Lisan and Siyar already list (and lists some twice), which
+# turned names those two had decided into ties. It is the last fallback: an entry is kept only when neither of them has
+# a narrator with the same first three names.
+_early = {_key3(e['header']) for e in entries if e.get('source') in ('lisan', 'siyar')}
+entries = [e for e in entries if not (e.get('source') == 'thiqat' and _key3(e['header']) in _early)]
+
+
 def cached(tag: str, compute):
     """Load `compute()`'s result from data/<...>/cache/ when nothing it depends on has changed.
 

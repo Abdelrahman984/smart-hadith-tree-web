@@ -333,3 +333,7 @@ Expanded the repository from 4 collections to the complete 18 Sunni Hadith colle
 - **Ilal**: mudallisin from Ibn Hajar's tiers (158) and mukhtalitun with the books' severity and hearings (131); `IkhtilatRule` weighs severity; grades come from Ibn Hajar's ranks.
 - **Phase 6**: on 4,650 paired hadiths the Ilal engine finds tadlis in 793 (275 before) and ikhtilat in 341 (0 before); 74% position agreement on 220,603 paired chains, with the Shamela side right in 9 of 20 sampled disagreements.
 - **Phase 7**: removed `ItqanDatasetParser`, `ContextualDisambiguator`, `ShamelaSqliteParser`, `IlalSeedService`, `ChainReprocessingService`, the old seeds, their tests and `data/itqan/rijal`. The Api and Etl connection strings point at `SmartHadithTree_Shamela`. Backups: v3 (the old database, before the switch) and v4 (the Shamela database).
+
+## Resolver: «الثقات» لابن قطلوبغا as a third fallback (not yet loaded)
+- `parse_thiqat.py` (Shamela 96165) writes `extra_thiqat.json` (10,117 entries, fallback). `link_tahdhib.py` keeps a Thiqat entry only when Lisan and Siyar have no narrator with the same first three names (the first try turned 929 names they had decided into ties).
+- Measured branch by branch on 306,874 branches against the Lisan+Siyar export: 4,145 names gained, 1,013 lost, 388 swapped (mostly fallback to fallback), gaps closed 1,584 / opened 981. A thin net gain (gaps 99,344 -> 98,892); the swaps and the opened gaps are not hand-read yet.
