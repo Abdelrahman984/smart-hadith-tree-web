@@ -17,9 +17,9 @@ public static partial class NarratorMentionedName
     /// The form of the narrator's name most often found in <paramref name="isnadTexts"/>, spelled as in his registry
     /// name; null when no form of it is found (the caller keeps its own display name).
     /// </summary>
-    public static string? Choose(string? fullName, string? knownAs, IEnumerable<string?> isnadTexts)
+    public static string? Choose(string? fullName, string? knownAs, IEnumerable<string?> isnadTexts, string? kunyah = null)
     {
-        var candidates = Candidates(fullName, knownAs);
+        var candidates = Candidates(fullName, knownAs, kunyah);
         if (candidates.Count == 0) return null;
 
         var texts = isnadTexts
@@ -47,7 +47,7 @@ public static partial class NarratorMentionedName
     }
 
     /// <summary>Forms of the name worth looking for, each with its display spelling and normalized tokens.</summary>
-    private static List<(string Display, string[] Tokens)> Candidates(string? fullName, string? knownAs)
+    private static List<(string Display, string[] Tokens)> Candidates(string? fullName, string? knownAs, string? kunyah)
     {
         var forms = new List<string>();
 
@@ -81,7 +81,7 @@ public static partial class NarratorMentionedName
             }
         }
 
-        foreach (var known in (knownAs ?? "").Split(['،', ','], StringSplitOptions.RemoveEmptyEntries))
+        foreach (var known in $"{knownAs}،{kunyah}".Split(['،', ','], StringSplitOptions.RemoveEmptyEntries))
         {
             var form = Clean(known);
             if (form.Length > 1) forms.Add(form);
@@ -133,7 +133,7 @@ public static partial class NarratorMentionedName
         return count;
     }
 
-    /// <summary>Words of the text without diacritics, with alef/yaa/ta marbuta unified and "أبي/أبا" read as "أبو".</summary>
+    /// <summary>Words of the text without diacritics, with alef/yaa/ta marbuta unified, "أبي/أبا" read as "أبو" and "عبد X" joined.</summary>
     private static string[] Tokenize(string text)
     {
         var plain = ArabicNormalizer.Normalize(text)
@@ -141,10 +141,16 @@ public static partial class NarratorMentionedName
             .Replace("ـ", "")
             .Replace('ى', 'ي');
         plain = NotLetters().Replace(plain, " ");
-        return plain
+        var words = plain
             .Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Select(w => w is "ابي" or "ابا" ? "ابو" : w)
-            .ToArray();
+            .ToList();
+
+        // "عبد الله" and "عبدالله" are the same name: join "عبد" to the word after it.
+        var tokens = new List<string>();
+        for (var i = 0; i < words.Count; i++)
+            tokens.Add(words[i] == "عبد" && i + 1 < words.Count ? words[i] + words[++i] : words[i]);
+        return tokens.ToArray();
     }
 
     [GeneratedRegex(@"(\s+(?:بن|ابن|بنت)\s+)")]

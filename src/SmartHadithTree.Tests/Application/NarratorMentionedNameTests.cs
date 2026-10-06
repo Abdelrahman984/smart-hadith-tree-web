@@ -43,4 +43,18 @@ public class NarratorMentionedNameTests
         NarratorMentionedName.Choose(Sufyan, null, ["حدثنا مالك عن نافع"]).Should().BeNull();
         NarratorMentionedName.Choose(Sufyan, null, [null, " "]).Should().BeNull();
     }
+
+    [Fact]
+    public void Choose_UsesKunyah_WhenFullNameDoesNotCarryIt()
+    {
+        NarratorMentionedName.Choose("عبد الرحمن بن صخر الدوسي", null, ["عن أبي هريرة قال"], "أبو هريرة")
+            .Should().Be("أبو هريرة");
+    }
+
+    [Fact]
+    public void Choose_TreatsSpacedAndJoinedAbdAsTheSameName()
+    {
+        NarratorMentionedName.Choose("عبد الله بن عمر بن الخطاب", null, ["عن عبدالله بن عمر عن النبي"])
+            .Should().Be("عبد الله بن عمر");
+    }
 }

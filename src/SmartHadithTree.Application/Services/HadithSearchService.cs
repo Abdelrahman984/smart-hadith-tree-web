@@ -553,7 +553,7 @@ public class HadithSearchService(
             return null;
 
         var nodes = await chainRepository.GetIsnadTreeAsync(hadithId, ct);
-        SetMentionedNames(nodes, [hadith], _ => [hadithId]);
+        await SetMentionedNamesAsync(nodes, [hadith], _ => [hadithId], ct);
 
         return new IsnadTreeResponseDto
         {
@@ -569,9 +569,15 @@ public class HadithSearchService(
     /// Names each narrator the way the chosen hadiths' isnads mention him most. A narrator seen in several nodes is
     /// named once, from the isnads of every hadith he appears in.
     /// </summary>
-    private static void SetMentionedNames<T>(List<T> nodes, List<HadithText> hadiths, Func<T, IEnumerable<Guid>> hadithIdsOf)
+    private async Task SetMentionedNamesAsync<T>(
+        List<T> nodes, List<HadithText> hadiths, Func<T, IEnumerable<Guid>> hadithIdsOf, CancellationToken ct)
         where T : IsnadNodeDto
     {
+        var narratorIds = nodes.Select(n => n.NarratorId).Distinct().ToList();
+        var kunyahs = await context.Narrators
+            .Where(n => narratorIds.Contains(n.Id))
+            .Select(n => new { n.Id, n.Kunyah })
+            .ToDictionaryAsync(n => n.Id, n => n.Kunyah, ct);
         var isnadById = hadiths.ToDictionary(h => h.Id, h => h.FullIsnadText ?? h.MatnArabic);
         foreach (var narrator in nodes.GroupBy(n => n.NarratorId))
         {
@@ -579,7 +585,8 @@ public class HadithSearchService(
                 .SelectMany(hadithIdsOf)
                 .Distinct()
                 .Select(id => isnadById.GetValueOrDefault(id));
-            var name = NarratorMentionedName.Choose(narrator.First().NarratorName, narrator.First().KnownAs, texts);
+            var name = NarratorMentionedName.Choose(
+                narrator.First().NarratorName, narrator.First().KnownAs, texts, kunyahs.GetValueOrDefault(narrator.Key));
             foreach (var node in narrator) node.MentionedName = name;
         }
     }
@@ -615,7 +622,7 @@ public class HadithSearchService(
 
         // Get merged chain nodes
         var nodes = await chainRepository.GetComparativeIsnadTreeAsync(hadithIds, ct);
-        SetMentionedNames(nodes, hadiths, n => n.SourceHadithIds);
+        await SetMentionedNamesAsync(nodes, hadiths, n => n.SourceHadithIds, ct);
 
         var response = new ComparativeTreeResponseDto
         {
