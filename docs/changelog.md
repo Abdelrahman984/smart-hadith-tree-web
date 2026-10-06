@@ -348,3 +348,16 @@ Expanded the repository from 4 collections to the complete 18 Sunni Hadith colle
 - Fresh database from all the resolver work above: 44,282 narrators (was 23,502), 1,262,178 transmissions (was 1,217,978), 165 mudallisin. Backup v6 (`backups/`, verified). The Api and Etl settings still point at V5 until the user checks V6.
 - Isnad gaps over 295,952 comparable branches: 108,066 -> 94,032 (-13%); 27,578 names gained, 694 lost, 3,996 narrators changed. Nine Ilal pages: findings 127 -> 121, matn Qadihah 11 -> 10, grades unchanged.
 - The Api and Etl `appsettings.json` now point at `SmartHadithTree_ShamelaV6`; AGENTS.md, CLAUDE.md, README.md and docs/backlog.md say so. The deploy docs still describe the v5 backup that was deployed.
+
+## How the V6 rebuild was run (for the next one)
+From `data/shamela_rijal`, after the dump step (the three fallback files are generated and git-ignored; `pipeline.py` does not make them and picks up every `extra_*.json`):
+```bash
+python ../../scripts/shamela4-extractor/rijal_pilot/make_extra_lisan.py          # lisan.json -> extra_lisan.json
+python ../../scripts/shamela4-extractor/rijal_pilot/parse_siyar.py               # dump/10906 -> extra_siyar.json
+PYTHONPATH=../../scripts/shamela4-extractor/rijal_pilot python ../../scripts/shamela4-extractor/rijal_pilot/parse_thiqat.py   # dump/96165 -> extra_thiqat.json
+rm -f cache/*.pkl
+python ../../scripts/shamela4-extractor/rijal_pilot/pipeline.py dump .           # registry.json, ilal.json
+python ../../scripts/shamela4-extractor/rijal_pilot/export_chains_shamela.py --books all --workers 4
+```
+Then a fresh database: `ConnectionStrings__DefaultConnection=...Database=SmartHadithTree_ShamelaVn...`, `dotnet ef database update`, the Etl, `seed-ilal-shamela`, a numbered backup, `eval_ilal_pages.py --compare`. The books 10906 (Siyar) and 96165 (Thiqat) must be dumped first with `ShamelaLuceneDumper`.
+Open ideas, none done: a reviewed alias table for lagabs (e.g. «علي بن عمر الحافظ» = al-Daraqutni, «محمد بن عبد الله الحافظ» = al-Hakim); bare names («سفيان», «يحيى», «محمد») need context evidence, not a table; Tarikh al-Islam and Tarikh Dimashq are not downloaded.
