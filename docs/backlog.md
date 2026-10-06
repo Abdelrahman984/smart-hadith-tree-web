@@ -53,6 +53,13 @@ Counts below come from the review log at the end; they are small samples, so re-
 
 ## 1. Resolver gaps (needs a rebuild; do them as one batch)
 
+**Baseline of the resolved chains (2026-10-06, V5, `rijal_pilot/chain_report.py` from `data/shamela_rijal`).** Of 274,597 chains: **53% end at a Companion**, 40% at someone else (a Successor or later; often a real mawquf report, so not an error in itself: Sa'id ibn Mansur 73%, Ibn Abi Shayba and Abd al-Razzaq 30-60%), and **26% have a gap inside** (an undecided name; the loader makes no link across it, so the chain stops there in the app, which is what the review pages called «chain cut before the Companion»). Gaps reach 57% of Shu'ab al-Iman and 52% of Bayhaqi's Kubra, 42% of al-Daraqutni. 31% of chains also end with undecided junk (the first words of the matn read as a name: «نهى», «رأيت», «يا», «أتيت»); the loader skips it, so it is harmless, but it hides the real end of the chain from the metrics. The 95,652 gap names are 26,727 distinct names, the top 50 cover 26% and the top 200 40%, in three kinds:
+- bare ties that were deferred on purpose: «أبيه» 3,604, «سفيان» 3,059, «يحيى», «محمد», «أحمد», «حماد», «الزهري» (§Carried over);
+- late narrators missing from the registry, undecided by their full name: «محمد بن عبد الله الحافظ» (al-Hakim) 739, «الحسن بن محمد بن إسحاق», «أبو الحسين بن بشران», «أحمد بن يونس», «إسماعيل بن أبي أويس» (data: more shaykh books, not resolver logic);
+- segmentation noise kept as a name: «وبه» 486, «[حدثنا أبو بكر», «ز-», «أسمع», «أنه», «قرأت على مالك», «رجل».
+
+Run `chain_report.py` again after any resolver change or rebuild; the first goal is to lower «gap inside», not to raise «→ companion» (a Successor's mawquf report is not an error).
+
 | Item | Where it shows | Note |
 |---|---|---|
 | A narrator dropped in «أخبرني X أنه سمع Y» (after a «ح» part) | Bayhaqi 15101 (Yahya ← Alqama, Muhammad ibn Ibrahim lost) | segmentation, not an undecided name; causes a false «لم يثبت اللقاء». Count how many chains skip a narrator this way |
