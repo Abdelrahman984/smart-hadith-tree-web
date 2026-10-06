@@ -223,7 +223,38 @@ def merge_same_person(entries: list[dict]) -> tuple[list[dict], list[list[str]]]
                 parent[m] = root
         groups.append([root] + [m for m in members if m != root])
 
-    review = [[f"{entries[m]['header'][:75]} [{'+'.join(sorted(_sources(entries[m])))}]" for m in g] for g in groups]
+    # A late narrator listed twice, once with his nasab cut short («أحمد بن سلمة» / «أحمد بن سلمة أبو الفضل البزاز»):
+    # when the shorter name's units begin exactly two entries of the whole registry and neither is Tahdhib's, they
+    # are one narrator unless a nisba, kunya or death date differs. (Two books may share a source here: the late
+    # books list one man under several headings.) A header that only points elsewhere or describes the man
+    # («هو فلان», «في ترجمة», «شيخ», «والد») is left alone.
+    pointer = re.compile(r'\sهو\s|في ترجمة|يأتي في|ينظر|\sشيخ\s|\sوالد\s|\(عن\)')
+    by_prefix: dict[tuple, list[int]] = defaultdict(list)
+    for i, u in enumerate(units):
+        if not entries[i].get('fallback'):
+            for k in range(2, len(u) + 1):
+                by_prefix[tuple(u[:k])].append(i)
+    for i, u in enumerate(units):
+        if not 2 <= len(u) <= 2 or entries[i].get('fallback') or parent[i] != i:
+            continue
+        grp = by_prefix[tuple(u)]
+        if len(grp) != 2:
+            continue
+        j = grp[0] if grp[1] == i else grp[1]
+        if parent[j] != j or len(units[j]) < len(u) or (len(units[j]) == len(u) and j < i):
+            continue
+        if 'tahdhib' in _sources(entries[i]) or 'tahdhib' in _sources(entries[j]) or clash(i, j):
+            continue
+        if pointer.search(entries[i]['header'][:150]) or pointer.search(entries[j]['header'][:150]):
+            continue
+        members = [i, j]
+        root = min(members, key=lambda m: (-(len(entries[m]['shuyukh']) + len(entries[m]['talamidh'])), m))
+        parent[i if root == j else j] = root
+        groups.append([root] + [m for m in members if m != root])
+        if os.environ.get('SHOW_PAIRS'):
+            print('PAIR', ' || '.join(f"{entries[m]['header'][:70]} [{entries[m].get('source') or 'tahdhib'}]" for m in members))
+
+    review =[[f"{entries[m]['header'][:75]} [{'+'.join(sorted(_sources(entries[m])))}]" for m in g] for g in groups]
     for g in groups:
         t = entries[g[0]]
         for j in g[1:]:
