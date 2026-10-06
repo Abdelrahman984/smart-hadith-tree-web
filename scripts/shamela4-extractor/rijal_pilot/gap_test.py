@@ -32,8 +32,12 @@ def _shuyukh_of() -> list[set[int]]:
 shuyukh_of = cached('shuyukh_of', _shuyukh_of)      # the slow part of a run: ~35k list names
 
 # Later books abbreviate the transmission verbs: ثنا، نا، أنا، أنبأ.
+# «قرئ على X وأنا أسمع», «قرأت على مالك» (the Muwatta): reading to the shaykh is a transmission formula.
+# «سمعت قتادة يحدث عن عطاء»: the verb after a name must not stay in it. («أنه» is not a verb here: what follows it
+# is usually the matn, and as a segment of its own it was read as a name; see `clean_segment`.)
 VERBS = (r'(?:^|\s|،)و?(?:حدثناه|أخبرناه|أنبأناه|حدثنا|حدثني|حدثه|أخبرنا|أخبرني|أخبره|أنبأنا|أنبأني|أنبأ'
-         r'|ثنا|نا|أنا|أبنا|سمعت|سمع|عن|قال|قالت|أن|يقول)(?=\s|،|:)')
+         r'|ثنا|نا|أنا|أبنا|قرئ على|قرأت على|قرأنا على|كنت أسمع|أسمع|سمعت|سمع|يحدثنا|يحدثه|يحدث|حدث'
+         r'|عن|قال|قالت|أن|يقول)(?=\s|،|:)')
 HARAKAT_RE = re.compile(r'[ً-ْٰـ]')
 
 
@@ -66,7 +70,15 @@ NAME_GOES_ON = re.compile(r'\s*(?:(?:بن|ابن|بنت|أبو|أبي|أبا)\s'
                           rf'|(?:وهو|{_YANI}|هو)\s+(?!(?:من|في|أخو|أحد|مولى|صاحب|ثقة|الذي|كان)\s))')
 
 
+# «ز-» (Abu Awanah's marker of the editor's additions) is a mark, not a narrator.
+ADDITION_MARK = re.compile(r'(?:^|\s)ز\s*-(?=\s|$)')
+# Where the isnad ends: the Prophet ﷺ is named («النبى» with a final alef maqsura too), or, in the Muwatta, «مالك أنه بلغه
+# أن…» (it reached him: no more narrators). «بلغه عن سعيد بن المسيب» still names one, so only «بلغه أن» ends it.
+ISNAD_END = re.compile(r'رسول الله|نبي الله|نبى الله|النبي|النبى|ﷺ|صلى الله عليه وسلم|(?<=\s)بلغ(?:ه|ني)(?=\s+أن\s)')
+
+
 def clean_segment(s: str) -> str:
+    s = ADDITION_MARK.sub(' ', s)
     # Footnote marks "(٣)", "(¬٣)" and, in Musnad Ahmad, "(1)" ("ابن أبي أنيس (1) ، عن أبيه").
     s = re.sub(r'\s+', ' ', re.sub(r'\(¬?[٠-٩0-9]+\)', ' ', s)).strip()
     s = s.replace(' , ', '، ').replace(',', '،').replace('؛', '،')   # «مالك ؛ أنه» (al-A'zami's Muwatta)
@@ -77,6 +89,8 @@ def clean_segment(s: str) -> str:
         if head.strip() and not NAME_GOES_ON.match(tail + ' '):
             s = head
     s = re.sub(r'\s+ح\s*$', '', s.strip(' ،:.'))       # "أبي ح": tahwil mark
+    s = re.sub(r'\s+(?:أنه\s+)?بلغ(?:ه|ني)$', '', s)           # "مالك أنه بلغه" (a narrator follows: "بلغه عن X")
+    s = re.sub(r'\s+(?:أنه|أنها)$', '', s)               # "عطاء أنه" (a verb follows: "أنه قال")
     # "إسماعيل، وهو ابن علية", "سعيد هو ابن أبي سعيد": the "ابن" part completes the name.
     if m := re.match(rf'(\S+(?:\s\S+)?)،?\s+(?:وهو|{_YANI}|هو)\s+(ابن\s.+)', s):
         s = f"{m.group(1).rstrip('،')} {m.group(2)}"
@@ -105,7 +119,11 @@ def chain_segments_verbs(arabic: str) -> list[tuple[str, list[str]]]:
     marks = list(NUMBERED_ISNAD.finditer(t))
     if marks:
         t = t[marks[-1].end():]
-    t = re.split(r'رسول الله|النبي|ﷺ|صلى الله عليه وسلم', t)[0]
+    t = re.split(ISNAD_END, t)[0]
+    # An editor's [..] or (..) inside the isnad restores a narrator the manuscript dropped («عن زيد (عن أبي سلام) عن
+    # أبي مالك», «[حدثنا أبو داود، حدثنا]»): keep what is in it, drop the brackets that glued it to the names.
+    t = re.sub(r'\s+', ' ', re.sub(r'\(¬?[٠-٩0-9]+\)', ' ', t))     # footnote marks first: (١) is not an insertion
+    t = re.sub(r'[\[\]()]', ' ', t)
     parts = re.split(f'({VERBS})', t)                   # segment, verb, segment, verb, ...
     pairs: list[tuple[str, list[str]]] = []
     prev = None                                          # the previous segment shaped like one

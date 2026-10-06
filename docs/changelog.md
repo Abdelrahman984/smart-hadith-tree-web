@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-06: Isnad segmenter (resolver, applies at the next rebuild)
+
+- **`gap_test.py`**: brackets and parentheses in the isnad are dropped with their content kept (an editor's restored narrator); «يحدث» and «قرئ على / قرأت على / كنت أسمع» are verbs; «ز-» is dropped; «النبى» / «نبي الله» end the isnad; «أنه / أنها» at the end of a segment and «بلغه / بلغني» are not part of a name, and «بلغه أن…» ends the isnad.
+- **Measured** on all 274,597 chains (scratch export): 18,002 changed, 4,701 gaps closed against 943 opened, 11,327 gained narrators, 413 lost some; undecided names inside chains 95,652 to 90,730. Ibn Abi Shayba 37 now resolves «زيد» to Zayd ibn Sallam (was Zayd ibn Nu'aym). Details and what is not fixed: `docs/backlog.md` §1.
+- **Tools**: `rijal_pilot/segment_checks.py` (14 fast checks of the segmenter, no registry) and `rijal_pilot/chain_report.py` (where the resolved chains break). Nothing is loaded into a database yet.
+
+---
+
 ## 2026-10-06: Ilal matn comparison, fewer false findings (backlog §3 and §4)
 
 - **Abridged texts are not omissions** (`MatnAtMadarRule`): a text with no content word of its own and at most 3 in all (`MaxFragmentWords`) that sits wholly inside a longer one is an abridgement, not an addition or omission. `Classify` returns `None` for it, and the rule leaves it out of the clusters so it counts as support for no version. «يقول» is now a framing word. `MatnVariation` (variant highlighting on the comparative page) calls `Classify`, so a fragment is no longer shown as a variant there.
