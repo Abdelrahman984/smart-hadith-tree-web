@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-06: Lisan al-Mizan as a fallback registry; the same-person merge made deterministic (resolver, applies at the next rebuild)
+
+- **Fallback entries** (`link_tahdhib.py`): entries marked `fallback` get their own name indexes, used only when a name matches nobody among the other entries, so their namesakes no longer turn «أنس بن مالك» or «بندار» into ties. `make_extra_lisan.py` writes `extra_lisan.json` from `lisan.json` (9,072 entries, headers cut at the first narrating word).
+- **Measured** on all 274,597 chains (scratch export, V5 chains untouched): 2,477 gaps closed against 787 opened, 6,108 chains gained narrators, 831 lost some; undecided names inside chains 89,497 to 86,486. Bench: 274 names gained against 85 lost, agreement with the current system unchanged. Details and the history of the earlier attempts: `docs/backlog.md` §2.
+- **Fix**: `merge_same_person` gave 611 or 612 merged entries depending on the hash seed, so the cached indexes could disagree with the live ones (`IndexError` in `father_of`). Fixed order; the same count in six seeds.
+
+---
+
 ## 2026-10-06: Registry, same narrator in two books (resolver, applies at the next rebuild)
 
 - **`link_tahdhib.py`**: entries of different books that are one narrator are merged (`merge_same_person`): three generations of the nasab agree (or two, with the same nasab tail or a rare shared nisba), a shared nisba, kunya or the same nasab confirms it, and no nisba, kunya, death date or great-grandfather contradicts. Never two entries of one book or of Tahdhib. 212 entries merged (23,502 to 23,290); the merged narrator keeps the other header's words in the matching indexes; `registry.json` gets `merged_ids`; `link_ilal.py` follows an override id that was merged away. Review with `SHOW_MERGED=<seed>`; `NO_MERGE=1` switches it off.
