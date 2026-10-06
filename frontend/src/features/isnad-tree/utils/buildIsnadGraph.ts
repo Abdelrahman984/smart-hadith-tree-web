@@ -1,6 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
 import type {
-  ComparativeIsnadNodeDto,
   ComparativeTreeResponseDto,
   IsnadNodeDto,
   IsnadTreeResponseDto,
@@ -72,58 +71,71 @@ function buildEdges<T extends IsnadNodeDto>(nodes: T[], factsOf: (n: T) => EdgeF
   return Array.from(merged, ([id, { source, target, facts }]) => buildEdge(id, source, target, facts));
 }
 
+/**
+ * The source card of a book's hadith: the book and its number, named after its compiler. It is not a narrator, so it
+ * hangs below the first narrator of the chain instead of replacing him.
+ */
+function referenceNode(id: string, bookName: string, hadithNumber: ReferenceNodeData["hadithNumber"], sourceBooks?: string[]): Node {
+  const data: ReferenceNodeData = {
+    famousName: getFamousReferenceOwnerName(bookName),
+    bookName,
+    hadithNumber,
+    sourceBooks,
+  };
+  return { id, type: "reference", position: { x: 0, y: 0 }, data };
+}
+
 /** Tree of one hadith. */
 export function buildSingleGraph(tree: IsnadTreeResponseDto, tooltips?: Tooltips): BuiltGraph {
   const nodes = new Map<string, Node>();
+  const edges = buildEdges(tree.nodes, (n) => ({ isAnomaly: n.isAnomaly }));
 
   for (const n of tree.nodes) {
     if (nodes.has(n.narratorId)) continue;
+    const data: NarratorNodeData = {
+      narratorName: formatTwoPartNarratorName(n.narratorName || n.knownAs),
+      ...narratorData(n, tooltips),
+    };
+    nodes.set(n.narratorId, { id: n.narratorId, type: "narrator", position: { x: 0, y: 0 }, data });
 
     if (n.stepOrder === 0) {
-      const data: ReferenceNodeData = {
-        famousName: getFamousReferenceOwnerName(n.narratorName, n.knownAs, tree.bookName),
-        fullName: n.narratorName,
-        twoPartName: formatTwoPartNarratorName(n.narratorName || n.knownAs),
-        bookName: tree.bookName,
-        hadithNumber: tree.hadithNumber,
-        generationTier: n.generationTier,
-        gradeSummary: tooltips?.[n.narratorId]?.gradeSummary,
-        gradeEn: n.gradeEn,
-      };
-      nodes.set(n.narratorId, { id: n.narratorId, type: "reference", position: { x: 0, y: 0 }, data });
-    } else {
-      const data: NarratorNodeData = {
-        narratorName: formatTwoPartNarratorName(n.narratorName || n.knownAs),
-        ...narratorData(n, tooltips),
-      };
-      nodes.set(n.narratorId, { id: n.narratorId, type: "narrator", position: { x: 0, y: 0 }, data });
+      const ref = referenceNode(`ref-${tree.hadithId}`, tree.bookName, tree.hadithNumber);
+      nodes.set(ref.id, ref);
+      edges.push(buildEdge(`e-${n.narratorId}-${ref.id}`, n.narratorId, ref.id, {}));
     }
   }
 
-  return {
-    nodes: Array.from(nodes.values()),
-    edges: buildEdges(tree.nodes, (n) => ({ isAnomaly: n.isAnomaly })),
-    bookNames: [tree.bookName],
-  };
+  return { nodes: Array.from(nodes.values()), edges, bookNames: [tree.bookName] };
 }
 
 /** Comparative tree: the chains of several hadiths merged into one graph. */
 export function buildComparativeGraph(tree: ComparativeTreeResponseDto, tooltips?: Tooltips): BuiltGraph {
   const sources = tree.sources ?? [];
-
-  // A narrator that is a compiler in any of the merged chains is drawn as a compiler card.
-  const compilerEntry = new Map<string, ComparativeIsnadNodeDto>();
-  for (const n of tree.nodes) {
-    if (n.stepOrder === 0 && !compilerEntry.has(n.narratorId)) compilerEntry.set(n.narratorId, n);
-  }
+  const edges = buildEdges(tree.nodes, (n) => ({
+    isAnomaly: n.isAnomaly,
+    hasMatnVariation: n.hasMatnVariation,
+    sourceBooks: n.sourceBooks,
+  }));
 
   const nodes = new Map<string, Node>();
-  for (const n of tree.nodes) {
-    const existing = nodes.get(n.narratorId);
+  // One source card per book and first narrator; the numbers of its hadiths are listed on it.
+  const references = new Map<string, { narratorId: string; bookName: string; numbers: Set<string | number> }>();
 
+  for (const n of tree.nodes) {
+    if (n.stepOrder === 0) {
+      const own = sources.filter((s) => n.sourceHadithIds?.includes(s.hadithId));
+      const found = own.length > 0 ? own : (n.sourceBooks ?? []).map((bookName) => ({ bookName, hadithNumber: undefined }));
+      for (const s of found) {
+        const key = `ref-${n.narratorId}-${s.bookName}`;
+        const ref = references.get(key) ?? { narratorId: n.narratorId, bookName: s.bookName, numbers: new Set() };
+        if (s.hadithNumber) ref.numbers.add(s.hadithNumber);
+        references.set(key, ref);
+      }
+    }
+
+    const existing = nodes.get(n.narratorId);
     if (existing) {
       // Seen again in another chain: merge what the cards show about it.
-      if (existing.type === "reference") continue;
       const data = existing.data as NarratorNodeData;
       data.sourceBooks = Array.from(new Set([...(data.sourceBooks ?? []), ...(n.sourceBooks ?? [])]));
       data.travelNote ??= n.travelNote;
@@ -134,42 +146,25 @@ export function buildComparativeGraph(tree: ComparativeTreeResponseDto, tooltips
       continue;
     }
 
-    const compiler = compilerEntry.get(n.narratorId);
-    if (compiler) {
-      const matched = sources.filter((s) => compiler.sourceHadithIds?.includes(s.hadithId));
-      const bookName = matched.map((s) => s.bookName).join(" / ") || compiler.sourceBooks?.join(" / ") || "المصدر";
-      const numbers = matched.map((s) => s.hadithNumber).filter(Boolean);
-      const data: ReferenceNodeData = {
-        famousName: getFamousReferenceOwnerName(compiler.narratorName, compiler.knownAs, bookName),
-        fullName: compiler.narratorName,
-        twoPartName: formatTwoPartNarratorName(compiler.narratorName || compiler.knownAs),
-        bookName,
-        hadithNumber: numbers.length > 0 ? numbers.join(", ") : undefined,
-        generationTier: compiler.generationTier,
-        gradeSummary: tooltips?.[n.narratorId]?.gradeSummary,
-        gradeEn: compiler.gradeEn,
-        sourceBooks: Array.from(new Set(compiler.sourceBooks ?? [])),
-      };
-      nodes.set(n.narratorId, { id: n.narratorId, type: "reference", position: { x: 0, y: 0 }, data });
-    } else {
-      const data: NarratorNodeData = {
-        narratorName: formatScholarlyNarratorName(n.narratorName, n.knownAs),
-        ...narratorData(n, tooltips),
-        hasMatnVariation: n.hasMatnVariation,
-        matnVariationSnippet: n.matnVariationSnippet,
-        sourceBooks: n.sourceBooks ?? [],
-      };
-      nodes.set(n.narratorId, { id: n.narratorId, type: "narrator", position: { x: 0, y: 0 }, data });
-    }
+    const data: NarratorNodeData = {
+      narratorName: formatScholarlyNarratorName(n.narratorName, n.knownAs),
+      ...narratorData(n, tooltips),
+      hasMatnVariation: n.hasMatnVariation,
+      matnVariationSnippet: n.matnVariationSnippet,
+      sourceBooks: n.sourceBooks ?? [],
+    };
+    nodes.set(n.narratorId, { id: n.narratorId, type: "narrator", position: { x: 0, y: 0 }, data });
+  }
+
+  for (const [id, { narratorId, bookName, numbers }] of references) {
+    const hadithNumber = numbers.size > 0 ? Array.from(numbers).join(", ") : undefined;
+    nodes.set(id, referenceNode(id, bookName, hadithNumber, [bookName]));
+    edges.push(buildEdge(`e-${narratorId}-${id}`, narratorId, id, { sourceBooks: [bookName] }));
   }
 
   return {
     nodes: Array.from(nodes.values()),
-    edges: buildEdges(tree.nodes, (n) => ({
-      isAnomaly: n.isAnomaly,
-      hasMatnVariation: n.hasMatnVariation,
-      sourceBooks: n.sourceBooks,
-    })),
+    edges,
     bookNames: Array.from(new Set(sources.map((s) => s.bookName))),
   };
 }
