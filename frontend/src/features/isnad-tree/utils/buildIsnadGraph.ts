@@ -1,10 +1,12 @@
 import type { Edge, Node } from "@xyflow/react";
 import type {
+  ComparativeIsnadNodeDto,
   ComparativeTreeResponseDto,
   IsnadNodeDto,
   IsnadTreeResponseDto,
   NarratorSummaryDto,
 } from "@/types/api";
+import { isCompilerOf } from "./bookCompilers";
 import { buildEdge, type EdgeFacts } from "./edgeStyle";
 import { getFamousReferenceOwnerName } from "./formatFamousReferenceName";
 import { disambiguateNarratorNames, formatScholarlyNarratorName, formatTwoPartNarratorName } from "./formatNarratorName";
@@ -15,10 +17,14 @@ import type { BuiltGraph, NarratorNodeData, ReferenceNodeData } from "./graphTyp
  *   n.id            the transmission's id
  *   n.narratorId    the sheikh's narrator id (the compiler's, for the anchor at step 0)
  *   n.parentNodeId  the parent transmission, whose narrator is the student
+ * A book also gets a source card (book, hadith numbers, compiler's name). A chain's first narrator who is the compiler
+ * himself is not drawn as a narrator: that card stands in his place, so one person is never drawn twice in a row. A first
+ * narrator who is only the compiler's sheikh keeps his card, and the source card hangs below it.
  * The functions are pure so the graph can be tested without rendering.
  */
 
 type Tooltips = Record<string, NarratorSummaryDto> | undefined;
+type Row = IsnadNodeDto & { sourceBooks?: string[] };
 
 /** Narrator card data shared by both trees. */
 function narratorData(n: IsnadNodeDto, tooltips: Tooltips): Omit<NarratorNodeData, "narratorName"> {
@@ -41,12 +47,47 @@ function narratorData(n: IsnadNodeDto, tooltips: Tooltips): Omit<NarratorNodeDat
   };
 }
 
+const refId = (bookName: string) => `ref-${bookName}`;
+
+const booksOf = (row: Row, fallbackBooks: string[]) =>
+  row.sourceBooks && row.sourceBooks.length > 0 ? row.sourceBooks : fallbackBooks;
+
+/** The books of a chain's first narrator in which he is the compiler himself. */
+function compilerBooks(row: Row, fallbackBooks: string[]): string[] {
+  return row.stepOrder === 0 ? booksOf(row, fallbackBooks).filter((book) => isCompilerOf(row.narratorName, book)) : [];
+}
+
+/** A first narrator who is the compiler in every one of his books needs no narrator card. */
+function isOnlyCompiler(row: Row, fallbackBooks: string[]): boolean {
+  const books = booksOf(row, fallbackBooks);
+  return row.stepOrder === 0 && books.length > 0 && compilerBooks(row, fallbackBooks).length === books.length;
+}
+
+/** Where the link from a narrator to the narrator he narrated to (the parent row) ends: one or more cards. */
+type Route = { target: string; book?: string };
+
+function routeToParent(fallbackBooks: string[]) {
+  return (parent: Row, child: Row): Route[] => {
+    const parentBooks = compilerBooks(parent, fallbackBooks);
+    if (parentBooks.length === 0) return [{ target: parent.narratorId }];
+
+    const childBooks = booksOf(child, fallbackBooks);
+    const shared = childBooks.length > 0 ? parentBooks.filter((b) => childBooks.includes(b)) : parentBooks;
+    const routes: Route[] = (shared.length > 0 ? shared : parentBooks).map((book) => ({ target: refId(book), book }));
+    // A book of this link in which he is not the compiler still goes through his own card.
+    if (!isOnlyCompiler(parent, fallbackBooks) && childBooks.some((b) => !parentBooks.includes(b))) {
+      routes.push({ target: parent.narratorId });
+    }
+    return routes;
+  };
+}
+
 /**
  * One edge per sheikh → student pair. The same pair in another hadith merges into the same edge: its books are added
  * (so book focus finds it and a link used by several books is drawn as shared) and a break or wording difference seen
- * on either transmission counts.
+ * on either transmission counts. A link into a source card belongs to that book alone.
  */
-function buildEdges<T extends IsnadNodeDto>(nodes: T[], factsOf: (n: T) => EdgeFacts): Edge[] {
+function buildEdges<T extends Row>(nodes: T[], factsOf: (n: T) => EdgeFacts, routeOf: (parent: T, child: T) => Route[]): Edge[] {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const merged = new Map<string, { source: string; target: string; facts: EdgeFacts }>();
 
@@ -54,27 +95,26 @@ function buildEdges<T extends IsnadNodeDto>(nodes: T[], factsOf: (n: T) => EdgeF
     const parent = n.parentNodeId ? byId.get(n.parentNodeId) : undefined;
     if (!parent) continue;
 
-    const id = `e-${n.narratorId}-${parent.narratorId}`;
-    const facts = factsOf(n);
-    const existing = merged.get(id);
-    if (!existing) {
-      merged.set(id, { source: n.narratorId, target: parent.narratorId, facts });
-      continue;
+    for (const { target, book } of routeOf(parent, n)) {
+      const id = `e-${n.narratorId}-${target}`;
+      const facts = book ? { ...factsOf(n), sourceBooks: [book] } : factsOf(n);
+      const existing = merged.get(id);
+      if (!existing) {
+        merged.set(id, { source: n.narratorId, target, facts });
+        continue;
+      }
+      existing.facts = {
+        isAnomaly: existing.facts.isAnomaly || facts.isAnomaly,
+        hasMatnVariation: existing.facts.hasMatnVariation || facts.hasMatnVariation,
+        sourceBooks: Array.from(new Set([...(existing.facts.sourceBooks ?? []), ...(facts.sourceBooks ?? [])])),
+      };
     }
-    existing.facts = {
-      isAnomaly: existing.facts.isAnomaly || facts.isAnomaly,
-      hasMatnVariation: existing.facts.hasMatnVariation || facts.hasMatnVariation,
-      sourceBooks: Array.from(new Set([...(existing.facts.sourceBooks ?? []), ...(facts.sourceBooks ?? [])])),
-    };
   }
 
   return Array.from(merged, ([id, { source, target, facts }]) => buildEdge(id, source, target, facts));
 }
 
-/**
- * The source card of a book's hadith: the book and its number, named after its compiler. It is not a narrator, so it
- * hangs below the first narrator of the chain instead of replacing him.
- */
+/** The source card of a book: the book and its hadith numbers, named after its compiler. */
 function referenceNode(id: string, bookName: string, hadithNumber: ReferenceNodeData["hadithNumber"], sourceBooks?: string[]): Node {
   const data: ReferenceNodeData = {
     famousName: getFamousReferenceOwnerName(bookName),
@@ -94,21 +134,24 @@ function narratorCards(nodes: Map<string, Node>): NarratorNodeData[] {
 
 /** Tree of one hadith. */
 export function buildSingleGraph(tree: IsnadTreeResponseDto, tooltips?: Tooltips): BuiltGraph {
+  const books = [tree.bookName];
   const nodes = new Map<string, Node>();
-  const edges = buildEdges(tree.nodes, (n) => ({ isAnomaly: n.isAnomaly }));
+  const edges = buildEdges<IsnadNodeDto>(tree.nodes, (n) => ({ isAnomaly: n.isAnomaly }), routeToParent(books));
 
   for (const n of tree.nodes) {
-    if (nodes.has(n.narratorId)) continue;
-    const data: NarratorNodeData = {
-      narratorName: formatTwoPartNarratorName(n.narratorName || n.knownAs),
-      ...narratorData(n, tooltips),
-    };
-    nodes.set(n.narratorId, { id: n.narratorId, type: "narrator", position: { x: 0, y: 0 }, data });
+    const compilerOnly = isOnlyCompiler(n, books);
+    if (!compilerOnly && !nodes.has(n.narratorId)) {
+      const data: NarratorNodeData = {
+        narratorName: formatTwoPartNarratorName(n.narratorName || n.knownAs),
+        ...narratorData(n, tooltips),
+      };
+      nodes.set(n.narratorId, { id: n.narratorId, type: "narrator", position: { x: 0, y: 0 }, data });
+    }
 
     if (n.stepOrder === 0) {
-      const ref = referenceNode(`ref-${tree.hadithId}`, tree.bookName, tree.hadithNumber);
-      nodes.set(ref.id, ref);
-      edges.push(buildEdge(`e-${n.narratorId}-${ref.id}`, n.narratorId, ref.id, {}));
+      const id = refId(tree.bookName);
+      if (!nodes.has(id)) nodes.set(id, referenceNode(id, tree.bookName, tree.hadithNumber));
+      if (!compilerOnly) edges.push(buildEdge(`e-${n.narratorId}-${id}`, n.narratorId, id, {}));
     }
   }
 
@@ -119,14 +162,15 @@ export function buildSingleGraph(tree: IsnadTreeResponseDto, tooltips?: Tooltips
 /** Comparative tree: the chains of several hadiths merged into one graph. */
 export function buildComparativeGraph(tree: ComparativeTreeResponseDto, tooltips?: Tooltips): BuiltGraph {
   const sources = tree.sources ?? [];
-  const edges = buildEdges(tree.nodes, (n) => ({
-    isAnomaly: n.isAnomaly,
-    hasMatnVariation: n.hasMatnVariation,
-    sourceBooks: n.sourceBooks,
-  }));
+  const edges = buildEdges<ComparativeIsnadNodeDto>(
+    tree.nodes,
+    (n) => ({ isAnomaly: n.isAnomaly, hasMatnVariation: n.hasMatnVariation, sourceBooks: n.sourceBooks }),
+    routeToParent([])
+  );
 
   const nodes = new Map<string, Node>();
-  // One source card per book, listing its hadiths and linked to every first narrator of their chains.
+  // One source card per book, listing its hadiths. It hangs below every first narrator who is not the compiler himself;
+  // the compiler's own students link to it directly.
   const references = new Map<string, { bookName: string; numbers: Set<string | number>; narratorIds: Set<string> }>();
 
   for (const n of tree.nodes) {
@@ -136,13 +180,14 @@ export function buildComparativeGraph(tree: ComparativeTreeResponseDto, tooltips
         ? own.map((s) => ({ bookName: s.bookName, hadithNumber: s.hadithNumber }))
         : (n.sourceBooks ?? []).map((bookName) => ({ bookName, hadithNumber: undefined }));
       for (const f of found) {
-        const key = `ref-${f.bookName}`;
+        const key = refId(f.bookName);
         const ref = references.get(key) ?? { bookName: f.bookName, numbers: new Set(), narratorIds: new Set<string>() };
         if (f.hadithNumber) ref.numbers.add(f.hadithNumber);
-        ref.narratorIds.add(n.narratorId);
+        if (!isCompilerOf(n.narratorName, f.bookName)) ref.narratorIds.add(n.narratorId);
         references.set(key, ref);
       }
     }
+    if (isOnlyCompiler(n, [])) continue;
 
     const existing = nodes.get(n.narratorId);
     if (existing) {

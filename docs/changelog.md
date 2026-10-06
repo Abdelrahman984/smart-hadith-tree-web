@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-07: A compiler is not drawn twice (frontend)
+
+- **Bug**: when the first narrator of a chain was the compiler himself (أحمد بن الحسين for al-Bayhaqi, محمد بن يزيد for Ibn Majah), his narrator card sat right above the source card of his own book, the same person twice. Most source cards had it.
+- **Fix** (`buildIsnadGraph.ts`, `bookCompilers.ts`): the compiler of each book is known from the resolver's `compiler` of the book's chains (`bookCompilers.ts`, the start of the registry name). A first narrator who is the compiler of every book he starts a chain in gets no narrator card: the source card stands in his place and his students link to it. A first narrator who is only the compiler's sheikh keeps his card, and the compiler as an intermediate sheikh in another book keeps his card there.
+
+---
+
 ## 2026-10-07: Verbs with a final alef maqsura (resolver) and the V7 database
 
 - **Bug**: al-Bayhaqi's edition writes «أخبرنى / حدثنى / أنبأنى» with ى; `VERBS` and the tahwil patterns knew only the ya forms, so «حدثنا يحيى بن سعيد، أخبرنى محمد بن إبراهيم التيمي» stayed one segment and Muhammad ibn Ibrahim was lost: the tree drew Yahya ibn Sa'id hearing straight from Alqama (Sunan al-Kubra 15101). `normalize_verbs` (`gap_test.py`, used by `chain_segments_verbs` and `tahwil._clean`) turns these verbs into the ya forms before matching. The same text also polluted names («أخبرنى عمى عمارة», «حدثنى أبى», «وحدثنى على»).

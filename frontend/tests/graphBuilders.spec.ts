@@ -34,11 +34,11 @@ test.describe('buildSingleGraph', () => {
   test('every chain narrator is a narrator card; the book gets its own source card', () => {
     expect(graph.nodes.map((n) => [n.id, n.type])).toEqual([
       ['C', 'narrator'],
-      ['ref-h', 'reference'],
+      ['ref-صحيح البخاري', 'reference'],
       ['N1', 'narrator'],
       ['N2', 'narrator'],
     ]);
-    expect((graph.nodes.find((n) => n.id === 'ref-h')!.data as { famousName: string }).famousName).toBe('البخاري');
+    expect((graph.nodes.find((n) => n.id === 'ref-صحيح البخاري')!.data as { famousName: string }).famousName).toBe('البخاري');
     expect(graph.bookNames).toEqual(['صحيح البخاري']);
   });
 
@@ -46,7 +46,7 @@ test.describe('buildSingleGraph', () => {
     expect(graph.edges.map((e) => [e.source, e.target])).toEqual([
       ['N1', 'C'],
       ['N2', 'N1'],
-      ['C', 'ref-h'],
+      ['C', 'ref-صحيح البخاري'],
     ]);
   });
 
@@ -67,6 +67,60 @@ test.describe('buildSingleGraph', () => {
     expect(g.edges).toHaveLength(0);
     expect(g.nodes).toHaveLength(1);
     expect(g.nodes[0].type).toBe('narrator');
+  });
+});
+
+test.describe('a first narrator who is the compiler himself', () => {
+  const BUKHARI = 'محمد بن إسماعيل بن إبراهيم بن المغيرة ابن بذدزبة';
+  const compilerChain: IsnadNodeDto[] = [
+    node({ id: 't0', narratorId: 'B', stepOrder: 0, parentNodeId: null, narratorName: BUKHARI }),
+    node({ id: 't1', narratorId: 'N1', stepOrder: 1, parentNodeId: 't0' }),
+  ];
+
+  test('is not drawn as a narrator: the source card stands in his place, the students link to it', () => {
+    const g = buildSingleGraph({ hadithId: 'h', bookName: 'صحيح البخاري', hadithNumber: 1, matnArabic: '', nodes: compilerChain });
+    expect(g.nodes.map((n) => [n.id, n.type])).toEqual([['ref-صحيح البخاري', 'reference'], ['N1', 'narrator']]);
+    expect(g.edges.map((e) => [e.source, e.target])).toEqual([['N1', 'ref-صحيح البخاري']]);
+  });
+
+  test('the same name in another book is only a narrator', () => {
+    const g = buildSingleGraph({ hadithId: 'h', bookName: 'صحيح مسلم', hadithNumber: 1, matnArabic: '', nodes: compilerChain });
+    expect(g.nodes.map((n) => [n.id, n.type])).toEqual([['B', 'narrator'], ['ref-صحيح مسلم', 'reference'], ['N1', 'narrator']]);
+  });
+
+  test('comparative: one source card for the compiler and for a first narrator who is only his sheikh', () => {
+    const sources = [
+      { hadithId: 'h1', bookName: 'صحيح البخاري', hadithNumber: 1, matnSnippet: '' },
+      { hadithId: 'h2', bookName: 'صحيح البخاري', hadithNumber: 2, matnSnippet: '' },
+    ];
+    const g = buildComparativeGraph({
+      sources,
+      nodes: [
+        cnode({ id: 'a0', narratorId: 'B', stepOrder: 0, parentNodeId: null, narratorName: BUKHARI, sourceHadithIds: ['h1'], sourceBooks: ['صحيح البخاري'] }),
+        cnode({ id: 'a1', narratorId: 'N1', stepOrder: 1, parentNodeId: 'a0', sourceBooks: ['صحيح البخاري'] }),
+        cnode({ id: 'b0', narratorId: 'S', stepOrder: 0, parentNodeId: null, sourceHadithIds: ['h2'], sourceBooks: ['صحيح البخاري'] }),
+      ],
+    } as ComparativeTreeResponseDto);
+    expect(g.nodes.map((n) => [n.id, n.type]).sort()).toEqual([['N1', 'narrator'], ['S', 'narrator'], ['ref-صحيح البخاري', 'reference']]);
+    expect(g.edges.map((e) => [e.source, e.target]).sort()).toEqual([['N1', 'ref-صحيح البخاري'], ['S', 'ref-صحيح البخاري']]);
+    expect((g.nodes.find((n) => n.type === 'reference')!.data as { hadithNumber: string }).hadithNumber).toBe('1, 2');
+  });
+
+  test('a compiler who is also an intermediate sheikh in another book keeps his narrator card there', () => {
+    const sources = [
+      { hadithId: 'h1', bookName: 'صحيح البخاري', hadithNumber: 1, matnSnippet: '' },
+      { hadithId: 'h2', bookName: 'صحيح مسلم', hadithNumber: 2, matnSnippet: '' },
+    ];
+    const g = buildComparativeGraph({
+      sources,
+      nodes: [
+        cnode({ id: 'a0', narratorId: 'B', stepOrder: 0, parentNodeId: null, narratorName: BUKHARI, sourceHadithIds: ['h1'], sourceBooks: ['صحيح البخاري'] }),
+        cnode({ id: 'b0', narratorId: 'M', stepOrder: 0, parentNodeId: null, sourceHadithIds: ['h2'], sourceBooks: ['صحيح مسلم'] }),
+        cnode({ id: 'b1', narratorId: 'B', stepOrder: 1, parentNodeId: 'b0', narratorName: BUKHARI, sourceBooks: ['صحيح مسلم'] }),
+      ],
+    } as ComparativeTreeResponseDto);
+    expect(g.nodes.find((n) => n.id === 'B')!.type).toBe('narrator');
+    expect(g.edges.map((e) => [e.source, e.target]).sort()).toEqual([['B', 'M'], ['M', 'ref-صحيح مسلم']]);
   });
 });
 
