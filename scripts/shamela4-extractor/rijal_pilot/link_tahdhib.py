@@ -153,6 +153,12 @@ def _tail(e: dict, n_units: int) -> frozenset[str]:
     return frozenset(tokens(first)[n_units:])
 
 
+def _generations(h: str) -> list[str]:
+    """The fathers named in the first line of a header: «محمد بن هشام بن (أبي حرة) السدوسي» -> هشام، حرة."""
+    first = re.split(r'[.\n،]', h)[0][:200].replace('(', ' ').replace(')', ' ')
+    return re.findall(r'(?<![ء-ي])ا?بن\s+(?:ابي\s+)?([ء-ي]+)', _plain(first))
+
+
 def _kunya_words(h: str) -> set[str]:
     return set(re.findall(r'(?<![ء-ي])ابو\s+([ء-ي]+)', _plain(h)[:200]))
 
@@ -246,6 +252,11 @@ def merge_same_person(entries: list[dict]) -> tuple[list[dict], list[list[str]]]
         if 'tahdhib' in _sources(entries[i]) or 'tahdhib' in _sources(entries[j]) or clash(i, j):
             continue
         if pointer.search(entries[i]['header'][:150]) or pointer.search(entries[j]['header'][:150]):
+            continue
+        # The generations both headers give must be the same words: «محمد بن هشام بن أبي حرة» is not «محمد بن هشام بن
+        # أبي الدميك», even when one header is cut short by a bracket.
+        gi, gj = (_generations(entries[m]['header']) for m in (i, j))
+        if any(x != y for x, y in zip(gi, gj)):
             continue
         members = [i, j]
         root = min(members, key=lambda m: (-(len(entries[m]['shuyukh']) + len(entries[m]['talamidh'])), m))
