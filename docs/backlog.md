@@ -4,7 +4,7 @@ One place for work that is known but not done. The history of the Shamela migrat
 
 ## Start here (for a new session)
 
-**State.** Branch `feature/shamela-rijal` (not merged into `master`). The app (Api and Etl `appsettings.json`) runs on the database `SmartHadithTree_ShamelaV5`; `SmartHadithTree_Shamela` is v4, kept for rollback. Newest backup: `backups/SmartHadithTree_Shamela_v5_2026-10-05.bak`. Phases 0-8 are done (`docs/shamela_migration.md`). 160 tests pass.
+**State.** Branch `feature/shamela-rijal` (not merged into `master`). The app (Api and Etl `appsettings.json`) runs on the database `SmartHadithTree_ShamelaV6` (since 2026-10-07); `SmartHadithTree_ShamelaV5` and `SmartHadithTree_Shamela` (v4) are kept for rollback. Newest backup: `backups/SmartHadithTree_Shamela_v6_2026-10-07.bak`. Phases 0-8 are done (`docs/shamela_migration.md`). 160 tests pass.
 
 **What the owner wants.** The branch exists because the Itqan-built data gave errors on every hadith page; Shamela was meant to fix that. It still gives errors on every page, so the work now is to find the **general** causes and fix those. Do **not** fix one hadith at a time: classify each error by cause first, count it in the review log, then fix the cause that removes the most errors.
 

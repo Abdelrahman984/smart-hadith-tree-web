@@ -347,3 +347,4 @@ Expanded the repository from 4 collections to the complete 18 Sunni Hadith colle
 ## Database `SmartHadithTree_ShamelaV6` built (2026-10-07)
 - Fresh database from all the resolver work above: 44,282 narrators (was 23,502), 1,262,178 transmissions (was 1,217,978), 165 mudallisin. Backup v6 (`backups/`, verified). The Api and Etl settings still point at V5 until the user checks V6.
 - Isnad gaps over 295,952 comparable branches: 108,066 -> 94,032 (-13%); 27,578 names gained, 694 lost, 3,996 narrators changed. Nine Ilal pages: findings 127 -> 121, matn Qadihah 11 -> 10, grades unchanged.
+- The Api and Etl `appsettings.json` now point at `SmartHadithTree_ShamelaV6`; AGENTS.md, CLAUDE.md, README.md and docs/backlog.md say so. The deploy docs still describe the v5 backup that was deployed.
