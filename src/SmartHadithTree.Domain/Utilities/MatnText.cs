@@ -48,7 +48,7 @@ public static partial class MatnText
     //  - a note on other routes or the hadith's grade: «رواه البخاري في الصحيح», «أخرجه مسلم», «لم يرو هذا الحديث عن», «حكم حسين»
     //  - a pointer to another text instead of the text itself: «فذكر مثله إلا أنه قال», «وذكر الحديث وقال فيه», «بمثل حديث»
     //  - the symbols of the printed edition: «ب د ع ف م تحفه اتحاف»
-    [GeneratedRegex(@"(?:^|\s)(?:(?:و?كذلك\s+)?و?رواه|و?رواهما|و?اخرجه|و?اخرجاه|و?اخرجهما|لم\s+يرو|تفرد\s+به|حكم\s+حسين|و?ذكر\s+الحديث|و?فذكر\s+(?:مثله|بمثله|بمثل|بنحو|نحو|الحديث)|بمثل\s+حديث|و?هذا\s+الحديث|ب\s+د\s+ع\s+ف\s+م|تحفه|اتحاف)(?:\s|$)")]
+    [GeneratedRegex(@"(?:^|\s)(?:(?:و?كذلك\s+)?و?رواه|و?رواهما|و?اخرجه|و?اخرجاه|و?اخرجهما|لم\s+يرو|تفرد\s+به|لفظ\s+حديثهما|حكم\s+حسين|و?ذكر\s+الحديث|و?فذكر\s+(?:مثله|بمثله|بمثل|بنحو|نحو|الحديث)|بمثل\s+حديث|و?هذا\s+الحديث|ب\s+د\s+ع\s+ف\s+م|تحفه|اتحاف)(?:\s|$)")]
     private static partial Regex EditorialNoteRegex();
 
     // Another isnad pasted into the record: «حدثنا علي بن عبد الله» (a Companion saying «حدثنا رسول الله» is not one).
@@ -123,10 +123,15 @@ public static partial class MatnText
         return body.Trim();
     }
 
+    // «سمعت رسول ﷺ»: a printed edition drops «الله», but the honorific after «رسول» still says whom it means.
+    [GeneratedRegex(@"رسول\s*(?:ﷺ|صل[يى]\s+الله)")]
+    private static partial Regex MessengerWithHonorificRegex();
+
     /// <summary>
     /// True when the text attributes a saying or act to the Prophet ﷺ (مرفوع);
     /// false suggests the text stops at a Companion or later narrator (موقوف / مقطوع).
     /// </summary>
     public static bool IsMarfu(string? fullText) =>
-        ProphetMarkerRegex().IsMatch(NormalizeForComparison(fullText));
+        ProphetMarkerRegex().IsMatch(NormalizeForComparison(fullText))
+        || MessengerWithHonorificRegex().IsMatch(DiacriticsRegex().Replace(fullText ?? string.Empty, ""));
 }

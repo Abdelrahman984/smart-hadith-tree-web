@@ -277,3 +277,79 @@ public class AbridgedMatnTests
             .Which.Type.Should().Be(IllahType.Ziyadah);
     }
 }
+
+/// <summary>A narrator the data has no grade for is «غير محرر»: no verdict, which is not the same as weak.</summary>
+public class UnrankedNarratorTests
+{
+    private const string Base = "عن أبي هريرة أن رسول الله صلى الله عليه وسلم قال من صام رمضان إيمانا واحتسابا غفر له ما تقدم من ذنبه";
+    private const string WithAddition = Base + " وما تأخر من ذنبه كله";
+    private const string Contradicting = "عن أبي هريرة أن رسول الله صلى الله عليه وسلم قال من قام ليلة القدر إيمانا واحتسابا غفر له ما تقدم من ذنبه";
+
+    private static IlalTestBuilder Narrators(string studentGrade) => new IlalTestBuilder()
+        .Narrator("مالك").Narrator("معمر").Narrator("الطالب", studentGrade)
+        .Narrator("الزهري").Narrator("أبو سلمة").Narrator("أبو هريرة", "companion")
+        .Narrator("البخاري").Narrator("مسلم").Narrator("ابن ماجه");
+
+    [Theory]
+    [InlineData("", false)]
+    [InlineData("weak", true)]
+    [InlineData("unknown", true)]
+    [InlineData("reliable", true)]
+    public void IsRanked_TellsNoVerdictFromAVerdict(string grade, bool expected)
+    {
+        var b = new IlalTestBuilder().Narrator("راو", grade);
+
+        b.Build().Narrator(b.Id("راو"))!.IsRanked.Should().Be(expected);
+    }
+
+    [Fact]
+    public void ARank_IsAVerdictEvenWithoutALegacyGrade()
+    {
+        var b = new IlalTestBuilder().Narrator("راو", "", rank: 8);
+
+        b.Build().IsRanked(b.Id("راو")).Should().BeTrue();
+    }
+
+    [Fact]
+    public void UnrankedNarratorContradictingReliablePeers_IsATanbihNotNakarah()
+    {
+        var b = Narrators("");
+        b.Chain(Base, "صحيح البخاري", "البخاري", "حدثنا", "مالك", "عن", "الزهري", "عن", "أبو سلمة", "عن", "أبو هريرة");
+        b.Chain(Base, "صحيح مسلم", "مسلم", "حدثنا", "معمر", "عن", "الزهري", "عن", "أبو سلمة", "عن", "أبو هريرة");
+        b.Chain(Contradicting, "سنن ابن ماجه", "ابن ماجه", "حدثنا", "الطالب", "عن", "الزهري", "عن", "أبو سلمة", "عن", "أبو هريرة");
+
+        var finding = new MatnAtMadarRule().Evaluate(b.Build()).Single();
+
+        finding.Type.Should().NotBe(IllahType.Nakarah);
+        finding.Severity.Should().Be(IllahSeverity.Tanbih);
+        finding.EvidenceAr.Should().Contain("غير محرر");
+    }
+
+    [Fact]
+    public void RankedWeakNarratorContradictingReliablePeers_IsStillNakarah()
+    {
+        var b = Narrators("weak");
+        b.Chain(Base, "صحيح البخاري", "البخاري", "حدثنا", "مالك", "عن", "الزهري", "عن", "أبو سلمة", "عن", "أبو هريرة");
+        b.Chain(Base, "صحيح مسلم", "مسلم", "حدثنا", "معمر", "عن", "الزهري", "عن", "أبو سلمة", "عن", "أبو هريرة");
+        b.Chain(Contradicting, "سنن ابن ماجه", "ابن ماجه", "حدثنا", "الطالب", "عن", "الزهري", "عن", "أبو سلمة", "عن", "أبو هريرة");
+
+        var finding = new MatnAtMadarRule().Evaluate(b.Build()).Single();
+
+        finding.Type.Should().Be(IllahType.Nakarah);
+        finding.Severity.Should().Be(IllahSeverity.Qadihah);
+    }
+
+    [Fact]
+    public void UnrankedNarratorAddingText_IsNotAWeakNarratorsAddition()
+    {
+        var b = Narrators("");
+        b.Chain(Base, "صحيح البخاري", "البخاري", "حدثنا", "مالك", "عن", "الزهري", "عن", "أبو سلمة", "عن", "أبو هريرة");
+        b.Chain(WithAddition, "سنن ابن ماجه", "ابن ماجه", "حدثنا", "الطالب", "عن", "الزهري", "عن", "أبو سلمة", "عن", "أبو هريرة");
+
+        var finding = new MatnAtMadarRule().Evaluate(b.Build()).Single();
+
+        finding.Type.Should().NotBe(IllahType.Nakarah);
+        finding.Severity.Should().Be(IllahSeverity.Tanbih);
+        finding.EvidenceAr.Should().Contain("غير محرر").And.NotContain("ضعيف");
+    }
+}

@@ -9,6 +9,7 @@ One place for work that is known but not done. The history of the Shamela migrat
 **What the owner wants.** The branch exists because the Itqan-built data gave errors on every hadith page; Shamela was meant to fix that. It still gives errors on every page, so the work now is to find the **general** causes and fix those. Do **not** fix one hadith at a time: classify each error by cause first, count it in the review log, then fix the cause that removes the most errors.
 
 **Rules of work.**
+- Measure Ilal changes with `python scripts/eval_ilal_pages.py --save x.json --compare before.json` (nine well-known hadiths, needs the API running); run it before and after a rebuild.
 - Read this file, then `docs/shamela_migration.md` (§9 pitfalls) before touching the resolver, the loader or the Ilal rules.
 - Confirm before anything that is hard to undo (dropping a database, a rebuild, a merge). Commit only when asked.
 - A resolver change needs a rebuild into a **fresh empty database** and a new numbered backup. Group such items and rebuild once.
@@ -44,11 +45,11 @@ Counts below come from the review log at the end; they are small samples, so re-
 |---|---|---|---|---|
 | 1 | A short text that is a subset of a longer one counted as «omission» | 11 of 17 findings on the Tahur page | no | **done 2026-10-06** (see Done; dev, not merged) |
 | 2 | Matn commentary, editor notes and symbols stay in the matn | 3 pages; 28 of 45 «قادحة» matn findings on 9 pages | yes (books) | **cut at compare time since 2026-10-06** (no rebuild); the stored matn still carries it, so the display and the search do too |
-| 3 | Unranked narrator treated as weak | 3 pages | no | one rule, false «ضعيف» in Nakarah |
+| 3 | Unranked narrator treated as weak | 3 pages; 13 of 13 Nakarah on 9 pages | no | **done 2026-10-06** in `MatnAtMadarRule` (an ungraded narrator gives a Tanbih); RafWaqf / WaslIrsal / `Compare` still use the placeholder tier 7; the missing grades are §2 |
 | 4 | Chains cut before a Companion, dropped or wrong narrators (tahwil forms, parentheses, undecided kunya; the ~860 names in the carried-over table) | 3 pages | yes (resolver) | wrong chains, not just wrong warnings |
-| 5 | Marfu detection, ziyadah on repeated words | 1 page each | no | small rules |
-| 6 | Missing relations and missing grades for late narrators (§2) | 15 findings on 4 pages | no fix in code | tag as «بيانات ناقصة» (see §2), do not present as a finding |
-| 7 | Shahid vs tariq in the comparative page | Tahur page | no | see §3 |
+| 5 | Marfu detection, ziyadah on repeated words | 1 page each | no | **done 2026-10-06** (`IsMarfu`; additions need a stretch of 3+ words) |
+| 6 | Missing relations and missing grades for late narrators (§2) | 15 findings on 4 pages; 40 of 69 on 9 pages | no fix in code | **tagged 2026-10-06**: «بيانات ناقصة», folded in the panel; an ungraded narrator is no longer a weak link in the grade. The missing data itself (grades, relations) is still §2 |
+| 7 | Shahid vs tariq in the comparative page | Tahur page | no | **done 2026-10-06** on the server (`Shawahid`); only a chain that reaches another graded Companion is a shahid. Chains that stop before a Companion (cause 4) stay routes until the resolver is fixed |
 
 ## 1. Resolver gaps (needs a rebuild; do them as one batch)
 
@@ -108,19 +109,19 @@ Possible sources for these: more shaykh books (`parse_shaykh_books.py` covers 6 
 
 - **A short text that is a subset of a longer one is an abridgement, not an omission.** On the Tahur hadith (Ibn Abi Shayba 37, Bayhaqi 188 «فذكره بإسناده», Shu'ab 12 give only «الطهور شطر الإيمان»), the longer texts were flagged as «زيادة» over the short one: 3 Nakarah (قادحة), 5 Ziyadah and 3 Shudhudh, 11 of the 17 findings on that page. Rule idea: if the shorter text is contained in the longer one (after framing words), do not call the rest an addition by a narrator; a compiler's abridgement says nothing about the narrator. Real wording changes (Darimi «الوضوء ضياء», Awanah «الصوم برهان») stay as variants. The same applies to Ahmad 18171, flagged as «شذوذ» for a shared preface it cuts short («فذكر الحديث», «بنحوه»).
 - **Unranked narrator counted as weak.** A narrator with no rank («غير محرر», tier 7) can make a version «منكرة لضعف راويها» (Nakarah, قادحة): al-Awza'i's route on the Niyyat hadith (Tabarani 40), Muhammad ibn Ghalib on the Tahur and Jannah pages. Unknown should mean «no verdict», not «weak». Also check why al-Awza'i's registry entry has no rank (he is in Taqrib).
-- **Ziyadah on near-identical texts.** Bukhari 1, Humaydi 28 and Layth/Yazid read the same, yet «زيادة ثقة» is reported over Ibn Uyayna because of the repeated «إلى الله ورسوله». Repetition inside the matn should not count as an addition.
-- **Marfu detection is too narrow.** Bayhaqi 184 reads «سمعت رسول ﷺ» (a typo in the printed text, no «الله»), so `isMarfu=false` and a false RafWaqf «وقفه الثوري» appears, probably with a WaslIrsal tanbih from the same cause.
-- **Madar attribution when the chain is cut with «وبه»** (Tabarani 7050): a Shudhudh finding names Muhammad ibn Ibrahim against Yahya; not verified, look at how the texts are assigned to narrators.
+- **Ziyadah on near-identical texts.** Bukhari 1, Humaydi 28 and Layth/Yazid read the same, yet «زيادة ثقة» is reported over Ibn Uyayna because of the repeated «إلى الله ورسوله». Repetition inside the matn should not count as an addition. **Done 2026-10-06:** an addition now needs a stretch of 3+ content words; a repeated phrase and scattered wording no longer count.
+- **Marfu detection is too narrow.** Bayhaqi 184 reads «سمعت رسول ﷺ» (a typo in the printed text, no «الله»), so `isMarfu=false` and a false RafWaqf «وقفه الثوري» appears, probably with a WaslIrsal tanbih from the same cause. **Done 2026-10-06** (`MatnText.IsMarfu` reads «رسول ﷺ»).
+- **Madar attribution when the chain is cut with «وبه»** (Tabarani 7050): a Shudhudh finding names Muhammad ibn Ibrahim against Yahya; not verified, look at how the texts are assigned to narrators. **Checked 2026-10-06, not a rule bug:** the 7050 chain is stored correctly; the finding comes from Bayhaqi 15101 whose chain drops Muhammad ibn Ibrahim (§1, first row).
 
 **Comparative page:**
 
-- **Tell a shahid from a tariq.** A comparison page collects every route of the wording, and that is right (a takhreej gathers short and long forms). But a source with another Companion is a **shahid**, not a route of the same hadith: Ibn Abi Shayba 38 and 32451 («حدثنا علي… الطهور شطر الإيمان», via Hujr ibn Adi) sit beside Abu Malik al-Ash'ari's routes. Mark each source by its Companion, show shawahid apart, and keep them out of the madar and narrator comparison.
+- **Tell a shahid from a tariq.** A comparison page collects every route of the wording, and that is right (a takhreej gathers short and long forms). But a source with another Companion is a **shahid**, not a route of the same hadith: Ibn Abi Shayba 38 and 32451 («حدثنا علي… الطهور شطر الإيمان», via Hujr ibn Adi) sit beside Abu Malik al-Ash'ari's routes. Mark each source by its Companion, show shawahid apart, and keep them out of the madar and narrator comparison. **Done 2026-10-06:** the server splits them (`Shawahid`, `IlalTariqDto.IsShahid`), keeps witnesses out of the findings and madars, and the page uses its split.
 
 **Panel:**
 
-- The edge styling on the canvas (`getIlalEdgeDecorations`) still draws low-confidence findings. Decide whether it should follow the panel and skip them.
-- The threshold of what the panel folds away (`LOW_CONFIDENCE_THRESHOLD = 0.3`, `frontend/src/features/ilal/utils/ilalLabels.ts`) is a guess; review it on more pages.
-- Missing teacher-student relations of late narrators (15 «لم يثبت اللقاء» findings on four pages, §2) cannot be fixed in code. Show them as «بيانات ناقصة» (or skip them) when either narrator is a late one with no relation list, instead of presenting them as a finding.
+- The edge styling on the canvas (`getIlalEdgeDecorations`) still draws low-confidence findings. Decide whether it should follow the panel and skip them. **Checked 2026-10-06:** it already follows the panel's toggle (`getIlalEdgeDecorations(report, showLowConfidence)`).
+- The threshold of what the panel folds away (`LOW_CONFIDENCE_THRESHOLD = 0.3`, `frontend/src/features/ilal/utils/ilalLabels.ts`) is a guess; review it on more pages. **Reviewed 2026-10-06 on 9 pages:** the Tanbih confidences form two clusters (0.2 and 0.25, then 0.35 and above), so 0.3 stays.
+- Missing teacher-student relations of late narrators (15 «لم يثبت اللقاء» findings on four pages, §2) cannot be fixed in code. Show them as «بيانات ناقصة» (or skip them) when either narrator is a late one with no relation list, instead of presenting them as a finding. **Done 2026-10-06:** `HiddenInqitaRule` titles them «(بيانات ناقصة)» at confidence 0.2 when either narrator has no grade.
 
 ## 4. Matn extraction (needs a rebuild of the books, not the resolver)
 
@@ -151,7 +152,9 @@ Each page is classified by cause. Add a row per page; if a cause shows up again,
 
 | Date | Item | Commit |
 |---|---|---|
-| 2026-10-06 | Cause 1 (abridged text) and the compare-time cleanup of cause 2, scattered one-word swaps no longer a contradiction. Measured on 9 pages: matn findings 83 to 68, «قادحة» 42 to 33; details in `docs/changelog.md` | not committed yet |
+| 2026-10-06 | Code-only items: marfu, additions as a stretch, shawahid split on the server, data-gap tagging, ungraded narrators in the grade and in RafWaqf / WaslIrsal. Findings 176 to 127, matn «قادحة» 33 to 11 on the 9 pages (`scripts/eval_ilal_pages.py`); details in `docs/changelog.md` | not committed yet |
+| 2026-10-06 | Cause 3 in `MatnAtMadarRule`: Nakarah 13 to 0, matn «قادحة» 33 to 20 on the 9 pages (baseline 42) | not committed yet |
+| 2026-10-06 | Cause 1 (abridged text) and the compare-time cleanup of cause 2, scattered one-word swaps no longer a contradiction. Measured on 9 pages: matn findings 83 to 68, «قادحة» 42 to 33; details in `docs/changelog.md` | `5dfc861` (dev) |
 | 2026-10-05 | Phase 8: grade from route tiers, compiler links, kin words, tahwil chains, travel notes, page fixes; app on V5 | `95fdedc` … `e897569`, docs `4b6f3cd` |
 | 2026-10-05 | B5: low-confidence findings (Tanbih below 0.3) fold into a collapsed group; tab badges count only the visible ones | `HEAD` of the commit that added this file |
 | 2026-10-05 | Scratch database `SmartHadithTree_ScratchC1` and `data/shamela_rijal_c1/` dropped (V5 and its v5 backup hold the same data) | not in git |

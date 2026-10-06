@@ -42,6 +42,14 @@ public sealed class MatnAtMadarRule : IIlalRule
         public required string[] Tokens { get; init; }
         public List<IsnadBranch> Branches { get; } = [];
         public int BestTier => Branches.Min(b => b.StudentTier);
+
+        /// <summary>
+        /// Every student is graded and the best of them is weak (rank 6 or below). A student without a grade
+        /// is «غير محرر», no verdict, so a side that has one is not called weak.
+        /// </summary>
+        public bool KnownWeak => Branches.All(b => b.StudentRanked) && BestTier >= 6;
+
+        public bool HasUnranked => Branches.Any(b => !b.StudentRanked);
     }
 
     public IEnumerable<IlalFindingDto> Evaluate(IlalContext context)
@@ -104,7 +112,25 @@ public sealed class MatnAtMadarRule : IIlalRule
                     continue;
                 }
 
-                var weak = other.BestTier >= 6;
+                var weak = other.KnownWeak;
+                if (!weak && other.HasUnranked)
+                {
+                    yield return new IlalFindingDto
+                    {
+                        Type = IllahType.Shudhudh,
+                        Severity = IllahSeverity.Tanbih,
+                        TitleAr = "مخالفة في المتن، وراويها غير محرر",
+                        EvidenceAr =
+                            $"اختلف الرواة عن {madarName} في لفظ المتن: رواه {Describe(context, other)} بلفظ يخالف رواية {Describe(context, main)}، "
+                            + "ولم يُحرَّر حال راويها في الكتب المعتمدة، فلا يُحكم على روايته بالنكارة ولا بالشذوذ حتى يُنظر في حاله.",
+                        NarratorIds = [split.MadarId, .. other.Branches.Select(b => b.StudentId)],
+                        HadithIds = other.Branches.SelectMany(b => b.Chains).Select(c => c.HadithId).Distinct().ToList(),
+                        Confidence = 0.35,
+                        MatnComparison = comparison
+                    };
+                    continue;
+                }
+
                 yield return new IlalFindingDto
                 {
                     Type = weak ? IllahType.Nakarah : IllahType.Shudhudh,
@@ -130,7 +156,7 @@ public sealed class MatnAtMadarRule : IIlalRule
             var baseEvidence =
                 $"زاد {Describe(context, adder)} عن {madarName} في المتن: «{addedText}»، ولم يذكرها {Describe(context, omitter)}.";
 
-            if (adder.BestTier >= 6)
+            if (adder.KnownWeak)
             {
                 yield return Addition(IllahType.Nakarah, IllahSeverity.Qadihah, "زيادة منكرة",
                     $"{baseEvidence} وراوي الزيادة ضعيف فلا تقبل زيادته.", 0.6);
@@ -142,12 +168,14 @@ public sealed class MatnAtMadarRule : IIlalRule
             }
             else
             {
-                var trusted = adder.BestTier <= 4;
+                var trusted = adder.BestTier <= 4 && !adder.HasUnranked;
                 yield return Addition(IllahType.Ziyadah, trusted ? IllahSeverity.GhayrQadihah : IllahSeverity.Tanbih,
                     trusted ? "زيادة ثقة" : "زيادة تحتاج إلى نظر",
                     trusted
                         ? $"{baseEvidence} وراويها ثقة لم يخالف من هو أرجح منه، فهي زيادة ثقة مقبولة."
-                        : $"{baseEvidence} وراويها دون الثقة، فيُنظر في قبولها.",
+                        : adder.HasUnranked
+                            ? $"{baseEvidence} وراويها غير محرر الحال في الكتب المعتمدة، فيُنظر في قبولها."
+                            : $"{baseEvidence} وراويها دون الثقة، فيُنظر في قبولها.",
                     trusted ? 0.6 : 0.45);
             }
 
@@ -222,19 +250,28 @@ public sealed class MatnAtMadarRule : IIlalRule
         var addedOnly = Math.Max(0, addedTokens.Count - substituted - transposedCount);
         var removedOnly = Math.Max(0, removedTokens.Count - substituted - transposedCount);
 
-        // Multi-word contiguous substitution at a single site is a direct contradiction
-        if (maxSingleSubstitution >= MinSubstitutedWords && diff.Similarity < 0.9) return DiffKind.Contradiction;
-        if (addedOnly >= MinSignificantWords && removedOnly >= MinSignificantWords) return DiffKind.Contradiction;
+        if (addedOnly >= MinSignificantWords && removedOnly >= MinSignificantWords
+            && LongestExcessRun(diff, AlignmentKind.Added) >= MinSignificantWords
+            && LongestExcessRun(diff, AlignmentKind.Removed) >= MinSignificantWords)
+        {
+            return DiffKind.Contradiction;
+        }
+        // An addition or an omission is one stretch of text, not scattered words: a repeated phrase that the
+        // alignment pairs with the wrong occurrence, or many small wording changes, add up to words but not to a stretch.
         if ((addedOnly >= MinSignificantWords || (addedTokens.Count - transposedCount >= MinSignificantWords && maxSingleSubstitution < MinSubstitutedWords))
-            && diff.LongestAddedRun >= 2 && removedOnly < MinSignificantWords)
+            && LongestExcessRun(diff, AlignmentKind.Added) >= MinSignificantWords && removedOnly < MinSignificantWords)
         {
             return DiffKind.Addition;
         }
         if ((removedOnly >= MinSignificantWords || (removedTokens.Count - transposedCount >= MinSignificantWords && maxSingleSubstitution < MinSubstitutedWords))
-            && LongestRemovedRun(diff) >= 2 && addedOnly < MinSignificantWords)
+            && LongestExcessRun(diff, AlignmentKind.Removed) >= MinSignificantWords && addedOnly < MinSignificantWords)
         {
             return DiffKind.Omission;
         }
+        // Multi-word contiguous substitution at a single site is a direct contradiction. It comes after the
+        // addition and omission checks: a text that lacks a whole stretch is an omission even when two adjacent
+        // words elsewhere differ (a synonym next to a misprint).
+        if (maxSingleSubstitution >= MinSubstitutedWords && diff.Similarity < 0.9) return DiffKind.Contradiction;
         // Single words swapped here and there (خشبه / خشبته, ضرار / إضرار) are narration by meaning or spelling,
         // the same as one swapped word, which is not flagged either; only a multi-word site (above) is.
         return DiffKind.None;
@@ -297,8 +334,31 @@ public sealed class MatnAtMadarRule : IIlalRule
 
     private static bool IsContentWord(string token) => !FramingTokens.Contains(token);
 
-    private static int LongestRemovedRun(AlignmentResult diff) =>
-        diff.Segments.Where(s => s.Kind == AlignmentKind.Removed).Select(s => s.Tokens.Count).DefaultIfEmpty(0).Max();
+    /// <summary>
+    /// The longest run of content words only one side has, beyond what the run next to it (the other side's words
+    /// at the same place) replaces. A run that has two words or more opposite it is a substitution and counts as none.
+    /// </summary>
+    private static int LongestExcessRun(AlignmentResult diff, AlignmentKind kind)
+    {
+        var best = 0;
+        for (var i = 0; i < diff.Segments.Count; i++)
+        {
+            var segment = diff.Segments[i];
+            if (segment.Kind != kind) continue;
+
+            var paired = 0;
+            if (i > 0 && diff.Segments[i - 1].Kind is not (AlignmentKind.Equal) && diff.Segments[i - 1].Kind != kind)
+                paired = Math.Max(paired, diff.Segments[i - 1].Tokens.Count(IsContentWord));
+            if (i + 1 < diff.Segments.Count && diff.Segments[i + 1].Kind is not (AlignmentKind.Equal) && diff.Segments[i + 1].Kind != kind)
+                paired = Math.Max(paired, diff.Segments[i + 1].Tokens.Count(IsContentWord));
+
+            // Several words swapped for several others is a substitution (a contradiction, decided by its site);
+            // only a run with little or nothing opposite it is text one side has and the other lacks.
+            if (paired >= MinSubstitutedWords) continue;
+            best = Math.Max(best, segment.Tokens.Count(IsContentWord) - paired);
+        }
+        return best;
+    }
 
     private static string Describe(IlalContext context, TextCluster cluster) =>
         string.Join(" و", cluster.Branches.Select(b =>

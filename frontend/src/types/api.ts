@@ -150,6 +150,15 @@ export interface IlalTariqDto {
   bookName: string;
   hadithNumber: number;
   isMarfu: boolean;
+  /** Weakest graded narrator above the compiler; narrators with no grade are left out (see unratedNarratorCount). */
+  weakestTier?: number | null;
+  weakestNarratorId?: string | null;
+  unratedNarratorCount?: number;
+  /** The Companion the narration ends at; null when it stops short of one. */
+  companionId?: string | null;
+  companionName?: string | null;
+  /** A witness (شاهد): it reaches another Companion than most narrations, so it is not another route. */
+  isShahid?: boolean;
 }
 
 export interface IlalReportDto {

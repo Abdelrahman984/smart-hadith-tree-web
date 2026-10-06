@@ -79,3 +79,46 @@ public class MatnCleanupTests
         MatnText.ExtractBody(text).Should().Contain("تملا الميزان");
     }
 }
+
+/// <summary>Backlog §3: marfu detection, and additions that are really repeated phrases or scattered wording.</summary>
+public class MarfuAndRepetitionTests
+{
+    [Theory]
+    [InlineData("حدثنا فلان قال سمعت رسول ﷺ يقول: الأعمال بالنيات", true)]
+    [InlineData("حدثنا فلان قال: سمعت رَسُولَ صلى الله عليه وسلم يقول كذا", true)]
+    [InlineData("حدثنا فلان قال سمعت رسول الله يقول كذا", true)]
+    [InlineData("حدثنا فلان قال: كان رسول كسرى يقول كذا", false)]
+    [InlineData("حدثنا فلان عن ابن عمر قال: كانوا يكرهون ذلك", false)]
+    public void IsMarfu_AcceptsTheHonorificWhenAllahIsMissing(string text, bool expected)
+    {
+        MatnText.IsMarfu(text).Should().Be(expected);
+    }
+
+    [Fact]
+    public void ScatteredWordingDifferences_AreNotAnOmissionOrAddition()
+    {
+        // The same sentence with a repeated phrase worded differently in three places (the Niyyat hadith).
+        const string a = "سمعت رسول الله يقول إنما الأعمال بالنيات ولكل امرئ ما نوى فمن كانت هجرته إلى الله وإلى رسوله فهجرته إلى الله وإلى رسوله ومن كانت هجرته لدنيا يصيبها أو امرأة يتزوجها فهجرته إلى ما هاجر إليه";
+        const string b = "إنما الأعمال بالنيات وإنما لكل امرئ ما نوى فمن كانت هجرته إلى الله ورسوله فهجرته إلى الله ورسوله ومن كانت هجرته لدنيا يصيبها أو امرأة ينكحها فهجرته إلى ما هاجر إليه";
+
+        MatnAtMadarRule.Classify(MatnAligner.Align(MatnText.ExtractBody(a), MatnText.ExtractBody(b)))
+            .Should().Be(MatnAtMadarRule.DiffKind.None);
+    }
+
+    [Fact]
+    public void OneContiguousStretch_IsStillAnAddition()
+    {
+        const string a = "قال رسول الله ﷺ إنما الأعمال بالنيات ولكل امرئ ما نوى";
+        const string b = "قال رسول الله ﷺ إنما الأعمال بالنيات ولكل امرئ ما نوى فمن كانت هجرته إلى الله ورسوله فهجرته إلى الله ورسوله";
+
+        MatnAtMadarRule.Classify(MatnAligner.Align(MatnText.ExtractBody(a), MatnText.ExtractBody(b)))
+            .Should().Be(MatnAtMadarRule.DiffKind.Addition);
+    }
+
+    [Fact]
+    public void RemarkThatTheWordingIsTheSame_IsCutFromTheBody()
+    {
+        MatnText.ExtractBody("قال النبي ﷺ: الجنة أقرب إلى أحدكم من شراك نعله لفظ حديثهما سواء")
+            .Should().EndWith("من شراك نعله");
+    }
+}
