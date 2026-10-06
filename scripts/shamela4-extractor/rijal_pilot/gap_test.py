@@ -39,6 +39,13 @@ VERBS = (r'(?:^|\s|،)و?(?:حدثناه|أخبرناه|أنبأناه|حدثن�
          r'|ثنا|نا|أنا|أبنا|قرئ على|قرأت على|قرأنا على|كنت أسمع|أسمع|سمعت|سمع|يحدثنا|يحدثه|يحدث|حدث'
          r'|عن|قال|قالت|أن|يقول)(?=\s|،|:)')
 HARAKAT_RE = re.compile(r'[ً-ْٰـ]')
+# Al-Bayhaqi's edition writes the verbs with a final alef maqsura («أخبرنى», «حدثنى»): VERBS knows only the ya forms, so
+# «حدثنا يحيى، أخبرنى محمد» stayed one segment and Muhammad was lost (Sunan al-Kubra 15101). The verbs are made ya forms.
+VERB_MAQSURA = re.compile(r'(?<![^\s،.:;(\[])(و?(?:حدثن|أخبرن|اخبرن|أنبأن|انبأن))ى(?=[\s،.:;)\]])')
+
+
+def normalize_verbs(text: str) -> str:
+    return VERB_MAQSURA.sub(lambda m: m.group(1) + 'ي', text)
 
 
 # Clean-up of a narrator segment: honorifics before the name, "ببغداد"/"بمكة" and "إملاء"
@@ -114,7 +121,7 @@ def chain_segments_verbs(arabic: str) -> list[tuple[str, list[str]]]:
     """Each name segment with the transmission verbs that follow it, up to the next kept segment:
     "الأعمش، عن إبراهيم" gives ("الأعمش", ["عن"]), the formula al-A'mash used for his shaykh."""
     # Invisible direction marks around punctuation ("قال‏:‏" in al-Adab al-Mufrad) hide the verbs.
-    t = re.sub('[‌-‏‪-‮﻿]', '', HARAKAT_RE.sub('', arabic))
+    t = normalize_verbs(re.sub('[‌-‏‪-‮﻿]', '', HARAKAT_RE.sub('', arabic)))
     t = PREVIOUS_TAIL.sub('', t)
     marks = list(NUMBERED_ISNAD.finditer(t))
     if marks:
