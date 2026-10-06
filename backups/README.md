@@ -11,6 +11,7 @@ Each file is a numbered version so later data migrations (e.g. the move from Itq
 | v4 | `SmartHadithTree_Shamela_v4_2026-10-05.bak` | 2026-10-05 | 462 MB | Yes / Yes | `e5ba630986a76a1d4e73a846ac77ba738e53898fe417b1694adf3d8cbe494295` |
 | v5 | `SmartHadithTree_Shamela_v5_2026-10-05.bak` | 2026-10-05 | 474 MB | Yes / Yes | `63413b6727c72133ff0e0dd4aad2678da475ca111636a7e6b956c96e0b308394` |
 | v6 | `SmartHadithTree_Shamela_v6_2026-10-07.bak` | 2026-10-07 | 493 MB | Yes / Yes | `c43c10c777edaf326dbea266d40b654b80300c11aae4ef0e7ce78ab9e68af13b` |
+| v7 | `SmartHadithTree_Shamela_v7_2026-10-07.bak` | 2026-10-07 | 497 MB | Yes / Yes | `5a738bb4005c87b78cff87e203c9a3a4475e5c79061c8b056c7abd9b8d83792a` |
 
 Both files pass `RESTORE VERIFYONLY` (checked 2026-10-03).
 The counts below were taken by restoring each backup and querying it directly.
@@ -128,3 +129,16 @@ A fresh database built from the improved resolver (`docs/changelog.md`, 2026-10-
 | Mudallisin / mukhtalit hearings | 158 / 166 | 165 / 168 |
 
 Isnad gaps (an undecided name inside a chain, branch by branch, 295,952 branches): 108,066 in v5, 94,032 in v6 (14,661 closed, 1,624 opened, 27,578 names gained, 694 lost, 3,996 narrators changed). The nine Ilal pages: findings 127 -> 121, matn Qadihah 11 -> 10, every grade unchanged (`docs/challenge/evaluation/ilal-pages-v6-2026-10-07.json`).
+
+## v7 — verbs with a final alef maqsura (database `SmartHadithTree_ShamelaV7`)
+
+The v6 build with one resolver fix: al-Bayhaqi writes «أخبرنى / حدثنى» with ى, which the segmenter did not know, so a narrator after such a verb was lost («أخبرنى محمد بن إبراهيم التيمي» in Sunan al-Kubra 15101). Chains re-exported for all 31 books (the registry is unchanged); 3,512 of 21,849 Bayhaqi records changed, 30 other books by 1 to 14. Every hadith Guid differs from v6.
+
+| Table | v6 | v7 |
+|---|---|---|
+| Hadiths | 274,597 | 274,597 |
+| Transmissions | 1,262,178 | 1,266,022 |
+| Narrators | 44,282 | 44,282 |
+| Mudallisin / mukhtalit hearings | 165 / 168 | 165 / 168 |
+
+The nine Ilal pages: findings 121 -> 119, Qadihah 10 -> 9, every grade unchanged (`docs/challenge/evaluation/ilal-pages-v7-2026-10-07.json`).

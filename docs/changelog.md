@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-07: Verbs with a final alef maqsura (resolver) and the V7 database
+
+- **Bug**: al-Bayhaqi's edition writes «أخبرنى / حدثنى / أنبأنى» with ى; `VERBS` and the tahwil patterns knew only the ya forms, so «حدثنا يحيى بن سعيد، أخبرنى محمد بن إبراهيم التيمي» stayed one segment and Muhammad ibn Ibrahim was lost: the tree drew Yahya ibn Sa'id hearing straight from Alqama (Sunan al-Kubra 15101). `normalize_verbs` (`gap_test.py`, used by `chain_segments_verbs` and `tahwil._clean`) turns these verbs into the ya forms before matching. The same text also polluted names («أخبرنى عمى عمارة», «حدثنى أبى», «وحدثنى على»).
+- **Measured** on all 274,597 chains, before and after: 3,549 records change, 3,512 of them in Sunan al-Kubra (+3,081 names, +4,533 resolved, 2,014 records longer); the other 30 books change by 1 to 14 records. 57 records get shorter, because a name gained at the front pushes the tail past the 8-name cap of a single chain (found in 4 of 10 sampled; the cap is old, see `docs/backlog.md`). A random sample of 10 changed records read by hand: 9 clearly better, 1 unchanged.
+- **Database `SmartHadithTree_ShamelaV7`** built from the new chains (registry unchanged, so no pipeline run): 1,266,022 transmissions (v6: 1,262,178), narrators, hadiths and Ilal data as in v6. Backup `backups/SmartHadithTree_Shamela_v7_2026-10-07.bak` (verified). The nine Ilal pages: findings 121 -> 119, matn 47 -> 46, Qadihah 10 -> 9, every grade unchanged (`docs/challenge/evaluation/ilal-pages-v7-2026-10-07.json`); the niyyat page 11 -> 9 findings, Qadihah 1 -> 0. The Api and Etl `appsettings.json` now point at V7. Every hadith Guid differs from v6, so saved `/takhreej?ids=` and `/tree/<id>` links of v6 do not work.
+
+---
+
 ## 2026-10-07: Source card split from the first narrator (frontend)
 
 - **Bug**: the card of a chain's first narrator was drawn as «المصدر والمُخَرِّج» and named after a lookup on his full name, so Yahya ibn Sa'id al-Ansari showed as «مالك بن أنس» («... بن مالك بن النجار» matched «مالك») and Ahmad ibn Ishaq as «أحمد بن حنبل». Sufyan ibn Uyaynah showed as «البخاري».
