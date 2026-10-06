@@ -129,8 +129,8 @@ test.describe('buildComparativeGraph', () => {
     expect(g.nodes.find((n) => n.id === 'C')!.type).toBe('narrator');
     expect(g.edges.map((e) => [e.source, e.target])).toEqual([
       ['C', 'D'],
-      ['C', 'ref-h1'],
-      ['D', 'ref-h2'],
+      ['C', 'ref-صحيح البخاري'],
+      ['D', 'ref-صحيح مسلم'],
     ]);
   });
 
@@ -145,13 +145,18 @@ test.describe('buildComparativeGraph', () => {
     expect([name('Y1'), name('Y2'), name('Z')]).toEqual(['يحيى بن سعيد بن قيس', 'يحيى بن سعيد بن فروخ', 'سفيان بن عيينة']);
   });
 
-  test('a hadith with several chains has one source card, linked to each first narrator', () => {
-    const g = build([
-      cnode({ id: 'a0', narratorId: 'C', stepOrder: 0, parentNodeId: null, sourceHadithIds: ['h1'], sourceBooks: ['صحيح البخاري'] }),
-      cnode({ id: 'b0', narratorId: 'D', stepOrder: 0, parentNodeId: null, sourceHadithIds: ['h1'], sourceBooks: ['صحيح البخاري'] }),
-    ]);
-    expect(g.nodes.filter((n) => n.type === 'reference').map((n) => n.id)).toEqual(['ref-h1']);
-    expect(g.edges.map((e) => [e.source, e.target])).toEqual([['C', 'ref-h1'], ['D', 'ref-h1']]);
+  test('a book has one source card, whatever the number of its hadiths and chains, linked to each first narrator', () => {
+    const more = [...sources, { hadithId: 'h3', bookName: 'صحيح البخاري', hadithNumber: 3, matnSnippet: '' }];
+    const g = buildComparativeGraph({
+      sources: more,
+      nodes: [
+        cnode({ id: 'a0', narratorId: 'C', stepOrder: 0, parentNodeId: null, sourceHadithIds: ['h1'], sourceBooks: ['صحيح البخاري'] }),
+        cnode({ id: 'b0', narratorId: 'D', stepOrder: 0, parentNodeId: null, sourceHadithIds: ['h1', 'h3'], sourceBooks: ['صحيح البخاري'] }),
+      ],
+    } as ComparativeTreeResponseDto);
+    const refs = g.nodes.filter((n) => n.type === 'reference');
+    expect(refs.map((n) => [n.id, (n.data as { hadithNumber: string }).hadithNumber])).toEqual([['ref-صحيح البخاري', '1, 3']]);
+    expect(g.edges.map((e) => [e.source, e.target])).toEqual([['C', 'ref-صحيح البخاري'], ['D', 'ref-صحيح البخاري']]);
   });
 
   test('variation and travel hints seen on a later transmission are kept on the card', () => {

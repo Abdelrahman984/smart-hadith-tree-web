@@ -58,7 +58,7 @@ const ReferenceNode = ({ data, selected }: { data: ReferenceNodeData; selected?:
               style={{ backgroundColor: `${meta.color}20`, color: meta.color }}
             >
               <Bookmark className="w-3 h-3 inline" />
-              <span>رقم {data.hadithNumber}</span>
+              <span title={String(data.hadithNumber)}>{String(data.hadithNumber).includes(",") ? "أرقام" : "رقم"} {data.hadithNumber}</span>
             </span>
           )}
         </div>

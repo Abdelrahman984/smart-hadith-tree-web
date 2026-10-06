@@ -126,19 +126,21 @@ export function buildComparativeGraph(tree: ComparativeTreeResponseDto, tooltips
   }));
 
   const nodes = new Map<string, Node>();
-  // One source card per hadith, linked to every first narrator of its chains (a hadith can have several chains).
-  const references = new Map<string, { bookName: string; hadithNumber?: string | number; narratorIds: Set<string> }>();
+  // One source card per book, listing its hadiths and linked to every first narrator of their chains.
+  const references = new Map<string, { bookName: string; numbers: Set<string | number>; narratorIds: Set<string> }>();
 
   for (const n of tree.nodes) {
     if (n.stepOrder === 0) {
       const own = sources.filter((s) => n.sourceHadithIds?.includes(s.hadithId));
       const found = own.length > 0
-        ? own.map((s) => ({ key: `ref-${s.hadithId}`, bookName: s.bookName, hadithNumber: s.hadithNumber }))
-        : (n.sourceBooks ?? []).map((bookName) => ({ key: `ref-${bookName}`, bookName, hadithNumber: undefined }));
+        ? own.map((s) => ({ bookName: s.bookName, hadithNumber: s.hadithNumber }))
+        : (n.sourceBooks ?? []).map((bookName) => ({ bookName, hadithNumber: undefined }));
       for (const f of found) {
-        const ref = references.get(f.key) ?? { bookName: f.bookName, hadithNumber: f.hadithNumber, narratorIds: new Set<string>() };
+        const key = `ref-${f.bookName}`;
+        const ref = references.get(key) ?? { bookName: f.bookName, numbers: new Set(), narratorIds: new Set<string>() };
+        if (f.hadithNumber) ref.numbers.add(f.hadithNumber);
         ref.narratorIds.add(n.narratorId);
-        references.set(f.key, ref);
+        references.set(key, ref);
       }
     }
 
@@ -165,7 +167,8 @@ export function buildComparativeGraph(tree: ComparativeTreeResponseDto, tooltips
     nodes.set(n.narratorId, { id: n.narratorId, type: "narrator", position: { x: 0, y: 0 }, data });
   }
 
-  for (const [id, { bookName, hadithNumber, narratorIds }] of references) {
+  for (const [id, { bookName, numbers, narratorIds }] of references) {
+    const hadithNumber = numbers.size > 0 ? Array.from(numbers).sort((a, b) => Number(a) - Number(b)).join(", ") : undefined;
     nodes.set(id, referenceNode(id, bookName, hadithNumber, [bookName]));
     for (const narratorId of narratorIds) {
       edges.push(buildEdge(`e-${narratorId}-${id}`, narratorId, id, { sourceBooks: [bookName] }));
