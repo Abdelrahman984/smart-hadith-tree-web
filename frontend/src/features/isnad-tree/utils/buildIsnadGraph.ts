@@ -7,7 +7,7 @@ import type {
 } from "@/types/api";
 import { buildEdge, type EdgeFacts } from "./edgeStyle";
 import { getFamousReferenceOwnerName } from "./formatFamousReferenceName";
-import { formatScholarlyNarratorName, formatTwoPartNarratorName } from "./formatNarratorName";
+import { disambiguateNarratorNames, formatScholarlyNarratorName, formatTwoPartNarratorName } from "./formatNarratorName";
 import type { BuiltGraph, NarratorNodeData, ReferenceNodeData } from "./graphTypes";
 
 /**
@@ -85,6 +85,13 @@ function referenceNode(id: string, bookName: string, hadithNumber: ReferenceNode
   return { id, type: "reference", position: { x: 0, y: 0 }, data };
 }
 
+/** The data of the narrator cards, so names can be adjusted in place. */
+function narratorCards(nodes: Map<string, Node>): NarratorNodeData[] {
+  return Array.from(nodes.values())
+    .filter((n) => n.type === "narrator")
+    .map((n) => n.data as NarratorNodeData);
+}
+
 /** Tree of one hadith. */
 export function buildSingleGraph(tree: IsnadTreeResponseDto, tooltips?: Tooltips): BuiltGraph {
   const nodes = new Map<string, Node>();
@@ -105,6 +112,7 @@ export function buildSingleGraph(tree: IsnadTreeResponseDto, tooltips?: Tooltips
     }
   }
 
+  disambiguateNarratorNames(narratorCards(nodes));
   return { nodes: Array.from(nodes.values()), edges, bookNames: [tree.bookName] };
 }
 
@@ -163,6 +171,8 @@ export function buildComparativeGraph(tree: ComparativeTreeResponseDto, tooltips
       edges.push(buildEdge(`e-${narratorId}-${id}`, narratorId, id, { sourceBooks: [bookName] }));
     }
   }
+
+  disambiguateNarratorNames(narratorCards(nodes));
 
   return {
     nodes: Array.from(nodes.values()),

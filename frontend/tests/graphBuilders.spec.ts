@@ -134,6 +134,17 @@ test.describe('buildComparativeGraph', () => {
     ]);
   });
 
+  test('two different narrators with the same short name are told apart by their grandfather', () => {
+    const g = build([
+      cnode({ id: 'a0', narratorId: 'C', stepOrder: 0, parentNodeId: null, sourceHadithIds: ['h1'] }),
+      cnode({ id: 'a1', narratorId: 'Y1', stepOrder: 1, parentNodeId: 'a0', narratorName: 'يحيى بن سعيد بن قيس بن عمرو الأنصاري' }),
+      cnode({ id: 'a2', narratorId: 'Y2', stepOrder: 1, parentNodeId: 'a0', narratorName: 'يحيى بن سعيد بن فروخ القطان' }),
+      cnode({ id: 'a3', narratorId: 'Z', stepOrder: 1, parentNodeId: 'a0', narratorName: 'سفيان بن عيينة بن أبي عمران' }),
+    ]);
+    const name = (id: string) => (g.nodes.find((n) => n.id === id)!.data as { narratorName: string }).narratorName;
+    expect([name('Y1'), name('Y2'), name('Z')]).toEqual(['يحيى بن سعيد بن قيس', 'يحيى بن سعيد بن فروخ', 'سفيان بن عيينة']);
+  });
+
   test('a hadith with several chains has one source card, linked to each first narrator', () => {
     const g = build([
       cnode({ id: 'a0', narratorId: 'C', stepOrder: 0, parentNodeId: null, sourceHadithIds: ['h1'], sourceBooks: ['صحيح البخاري'] }),
