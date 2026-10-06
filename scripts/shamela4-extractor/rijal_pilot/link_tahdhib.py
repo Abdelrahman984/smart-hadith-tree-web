@@ -156,11 +156,14 @@ def merge_same_person(entries: list[dict]) -> tuple[list[dict], list[list[str]]]
     nis_df = Counter(n for ns in nis for n in ns)
     buckets: dict[tuple, list[int]] = defaultdict(list)
     for i, u in enumerate(units):
+        # A fallback entry (Lisan, Siyar) is merged only with another fallback entry, never into a main one: it must not
+        # change what a main narrator matches (that made «علي بن عبد العزيز» and «عطاء» ties).
+        fb = 'fb' if entries[i].get('fallback') else 'main'
         if len(u) >= 3:
-            buckets[('3', *u[:3])].append(i)
+            buckets[(fb, '3', *u[:3])].append(i)
         elif len(u) == 2:
             for n in sorted(nis[i]):                         # a fixed order: the result must not depend on the hash seed
-                buckets[('2', *u, n)].append(i)
+                buckets[(fb, '2', *u, n)].append(i)
 
     def two_names_agree(a: int, b: int) -> bool:
         """Two names are too common to go on alone: the rest of the name must be the same, or share a rare nisba."""
@@ -191,9 +194,9 @@ def merge_same_person(entries: list[dict]) -> tuple[list[dict], list[list[str]]]
             continue                                    # a book lists two: two narrators
         if any(clash(a, b) for k, a in enumerate(members) for b in members[k + 1:]):
             continue
-        if key[0] == '2' and not all(two_names_agree(members[0], m) for m in members[1:]):
+        if key[1] == '2' and not all(two_names_agree(members[0], m) for m in members[1:]):
             continue
-        if key[0] == '3':
+        if key[1] == '3':
             if any('tahdhib' in x for x in src):
                 # Against Tahdhib a later namesake with the same three names is possible: wait for a shared nisba or kunya.
                 if not all((nis[members[0]] & nis[m]) or (kun[members[0]] & kun[m]) for m in members[1:]):
@@ -446,6 +449,35 @@ for j, toks in enumerate(own_tokens):
     for w in toks:
         laqab_index[w].add(j)
 
+# --- Fallback entries (Lisan al-Mizan, the Siyar): weak or famous narrators of other books ----------------------------
+# A name is looked up among the other entries first, exactly as if the fallback ones did not exist; only when nothing
+# matches is it looked up among the fallback ones. Searching them together made their namesakes tie «أنس بن مالك» and
+# «بندار» (the fallback entries named «بندار» ended the search before the laqab step reached محمد بن بشار), and made
+# the Taqrib and cross-reference aliases (which need a single hit) fail. So the name indexes exist twice: from here on
+# the globals are the main ones, and `candidates` (below, after everything is built) swaps in the fallback ones for the
+# second look. `isms` is one of them: the fallback «بندار بن عمر…» must not stop «بندار» being a laqab nobody is named.
+_FALLBACK = {_j for _j, _e in enumerate(entries) if _e.get('fallback')}
+_main_indexes, _fallback_indexes = {}, {}
+
+
+def _split_indexes(names):
+    for name in names:
+        main, fb = defaultdict(set), defaultdict(set)
+        for key, found in globals()[name].items():
+            if found - _FALLBACK:
+                main[key] = found - _FALLBACK
+            if found & _FALLBACK:
+                fb[key] = found & _FALLBACK
+        _main_indexes[name], _fallback_indexes[name] = main, fb
+        globals()[name] = main
+
+
+if _FALLBACK:
+    _main_indexes['isms'] = {_i[0] for _j, _i in enumerate(ism) if _i and _j not in _FALLBACK}
+    _fallback_indexes['isms'] = set(isms)
+    isms = _main_indexes['isms']
+    _split_indexes(('by_token', 'ism_index', 'kunya_index', 'laqab_index'))
+
 _dir = os.path.dirname(os.path.abspath(sys.argv[1]))
 _taqrib = os.path.join(_dir, 'taqrib.json')
 taqrib_alias_hits = 0
@@ -482,6 +514,10 @@ for _j, _e in enumerate(entries):
             exact_aliases[_t].add(_j)
         elif _t:
             loose_aliases[_t].add(_j)
+
+
+if _FALLBACK:
+    _split_indexes(('alias_index', 'exact_aliases', 'loose_aliases'))
 
 
 @lru_cache(maxsize=None)
@@ -552,32 +588,8 @@ for x in xrefs:
 candidates.cache_clear()
 name_candidates.cache_clear()
 
-# --- Fallback entries (Lisan al-Mizan: weak and rare narrators) -----------------------------------------------------
-# A name is looked up among the other entries first, exactly as if the fallback ones did not exist; only when nothing
-# matches is it looked up among the fallback ones. Searching them together made their namesakes tie «أنس بن مالك» and
-# «بندار» (the fallback entries named «بندار» ended the search before the laqab step reached محمد بن بشار), a loss
-# that outweighed what they added. So the name indexes exist twice, and `candidates` swaps them for the second look.
-_FALLBACK = {_j for _j, _e in enumerate(entries) if _e.get('fallback')}
+# The two-look `candidates` (see the note above `_FALLBACK`).
 if _FALLBACK:
-    _INDEXES = ('by_token', 'ism_index', 'kunya_index', 'laqab_index', 'alias_index', 'exact_aliases', 'loose_aliases')
-
-    def _split_index(index):
-        main, fb = defaultdict(set), defaultdict(set)
-        for key, found in index.items():
-            if found - _FALLBACK:
-                main[key] = found - _FALLBACK
-            if found & _FALLBACK:
-                fb[key] = found & _FALLBACK
-        return main, fb
-
-    _main_indexes, _fallback_indexes = {}, {}
-    for _name in _INDEXES:
-        _main_indexes[_name], _fallback_indexes[_name] = _split_index(globals()[_name])
-    # `isms` (every entry's first name) decides whether a bare word is a laqab nobody is named («بندار»): the fallback
-    # entries «بندار بن عمر…» must not take that rule away from محمد بن بشار.
-    _main_indexes['isms'] = {i[0] for _j, i in enumerate(ism) if i and _j not in _FALLBACK}
-    _fallback_indexes['isms'] = set(isms)
-    globals().update(_main_indexes)                # from here on, everything sees the main entries only
     _plain_candidates, _plain_name_candidates = candidates.__wrapped__, name_candidates.__wrapped__
     _cached_name_candidates = name_candidates
 
@@ -586,12 +598,13 @@ if _FALLBACK:
         found = _plain_candidates(name)
         if found:
             return found
+        _saved = {_n: globals()[_n] for _n in _fallback_indexes}
         globals().update(_fallback_indexes)
         globals()['name_candidates'] = _plain_name_candidates       # its cache holds main-index answers
         try:
             return _plain_candidates(name)
         finally:
-            globals().update(_main_indexes)
+            globals().update(_saved)
             globals()['name_candidates'] = _cached_name_candidates
 
 print(f'entries: {len(entries)}  crossref aliases attached: {alias_hits}/{len(xrefs)}  Taqrib aliases: {taqrib_alias_hits}')

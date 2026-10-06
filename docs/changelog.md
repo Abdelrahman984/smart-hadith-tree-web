@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-06: Siyar as a second fallback registry; the fallback made complete (resolver, applies at the next rebuild)
+
+- **`parse_siyar.py`** writes `extra_siyar.json` from the dumped Siyar (5,772 entries, shaykh and student lists, headers from the table-of-contents titles), marked `fallback`.
+- **Fallback fixes** (`link_tahdhib.py`, `chain_resolver.py`, `gap_test.py`): the name indexes are split before the Taqrib and cross-reference aliases are attached; `DEFAULT_FOR` and the compiler entry ignore fallback entries; fallback entries merge only with each other.
+- **Measured** on all 274,597 chains, the two books on or off, branch by branch: 11,267 names gained, 4,145 gaps closed against 511 opened, 104 names lost, 257 real swaps; undecided names inside chains 89,497 to 83,935 (-6.2%). Bench: 428 gained, 14 lost, agreement unchanged. Details and the earlier failed attempts: `docs/backlog.md` §2.
+
+---
+
 ## 2026-10-06: Lisan al-Mizan as a fallback registry; the same-person merge made deterministic (resolver, applies at the next rebuild)
 
 - **Fallback entries** (`link_tahdhib.py`): entries marked `fallback` get their own name indexes, used only when a name matches nobody among the other entries, so their namesakes no longer turn «أنس بن مالك» or «بندار» into ties. `make_extra_lisan.py` writes `extra_lisan.json` from `lisan.json` (9,072 entries, headers cut at the first narrating word).

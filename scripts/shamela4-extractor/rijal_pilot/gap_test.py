@@ -166,7 +166,7 @@ def lookup(seg: str, prev: int | None) -> set[int]:
 
 # Several entries can share the prefix (al-Hakim also has an empty duplicate from السلسبيل): the one
 # with the most lists is the compiler, since his shaykh list gives the chain's first link.
-compiler = max((i for i, e in enumerate(entries) if COMPILER and e['header'].startswith(COMPILER)),
+compiler = max((i for i, e in enumerate(entries) if COMPILER and e['header'].startswith(COMPILER) and not e.get('fallback')),
                key=lambda i: len(entries[i]['shuyukh']) + len(entries[i]['talamidh']), default=None)
 print('compiler entry:', entries[compiler]['header'][:60] if compiler is not None else None)
 
