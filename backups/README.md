@@ -10,6 +10,7 @@ Each file is a numbered version so later data migrations (e.g. the move from Itq
 | v3 | `SmartHadithTree_v3_2026-10-05.bak` | 2026-10-05 | 466 MB | Yes / Yes | `cb5fcf8de255a72b73d710b464ac3d41fa0ee5008b80d3b8809659801e3507a8` |
 | v4 | `SmartHadithTree_Shamela_v4_2026-10-05.bak` | 2026-10-05 | 462 MB | Yes / Yes | `e5ba630986a76a1d4e73a846ac77ba738e53898fe417b1694adf3d8cbe494295` |
 | v5 | `SmartHadithTree_Shamela_v5_2026-10-05.bak` | 2026-10-05 | 474 MB | Yes / Yes | `63413b6727c72133ff0e0dd4aad2678da475ca111636a7e6b956c96e0b308394` |
+| v6 | `SmartHadithTree_Shamela_v6_2026-10-07.bak` | 2026-10-07 | 493 MB | Yes / Yes | `c43c10c777edaf326dbea266d40b654b80300c11aae4ef0e7ce78ab9e68af13b` |
 
 Both files pass `RESTORE VERIFYONLY` (checked 2026-10-03).
 The counts below were taken by restoring each backup and querying it directly.
@@ -115,3 +116,15 @@ Copy-only backup of `SmartHadithTree_ShamelaV5`, a fresh database loaded from a 
 
 19,982 hadiths now have two or more chains (two or more rows at step 1); 0 orphan transmissions, 0 self-links; `RESTORE VERIFYONLY ... WITH CHECKSUM` passes; 11 migrations. Restore it as `SmartHadithTree_Shamela` (what the connection strings of the Api and the Etl name) or under any name, and point `ConnectionStrings:DefaultConnection` at it. The registry, chains and `ilal.json` it was built from are in `data/shamela_rijal/` (git-ignored; the v4 copies are `registry_v4.json`, `ilal_v4.json` and `chains_v4/`).
 
+## v6 — resolver improvements (database `SmartHadithTree_ShamelaV6`)
+
+A fresh database built from the improved resolver (`docs/changelog.md`, 2026-10-06/07): the isnad segmenter, the same-person merge, Lisan al-Mizan, the Siyar and the Thiqat of Ibn Qutlubugha as fallback registries, and the pair merge. Every hadith Guid differs from v5, so saved `/takhreej?ids=` and `/tree/<id>` links of v5 do not work on it. Not yet the default: the Api and Etl `appsettings.json` still point at V5.
+
+| Table | v5 | v6 |
+|---|---|---|
+| Hadiths | 274,597 | 274,597 |
+| Transmissions | 1,217,978 | 1,262,178 |
+| Narrators | 23,502 | 44,282 |
+| Mudallisin / mukhtalit hearings | 158 / 166 | 165 / 168 |
+
+Isnad gaps (an undecided name inside a chain, branch by branch, 295,952 branches): 108,066 in v5, 94,032 in v6 (14,661 closed, 1,624 opened, 27,578 names gained, 694 lost, 3,996 narrators changed). The nine Ilal pages: findings 127 -> 121, matn Qadihah 11 -> 10, every grade unchanged (`docs/challenge/evaluation/ilal-pages-v6-2026-10-07.json`).
