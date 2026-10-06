@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-07: Narrators are named as the chosen matns name them
+
+- **Problem**: the tree showed the registry name (a long full name, or a name the books rarely use) while the isnads of the chosen hadiths write him as «سفيان» or «ابن عيينة».
+- **Fix** (`NarratorMentionedName.cs`, `HadithSearchService`, `buildIsnadGraph.ts`): for each narrator the API builds candidate forms of his name (first name, first name + father, + grandfather, «ابن X», the nisbah, each `KnownAs` part), counts them in the isnad texts (`FullIsnadText`) of the hadiths he appears in, and returns the most frequent one as `mentionedName` (ties go to the longer form). A bare first name followed by «بن» counts for the longer name, so «محمد بن يحيى» is not read as «محمد». Diacritics, alef/ya/ta marbuta variants and «أبي/أبا» are ignored when matching. The cards use `mentionedName`, and fall back to the old formatting when no isnad names him (e.g. the compiler). Two cards that end with the same name are still told apart by the longer name.
+
+---
+
 ## 2026-10-07: A compiler is not drawn twice (frontend)
 
 - **Bug**: when the first narrator of a chain was the compiler himself (أحمد بن الحسين for al-Bayhaqi, محمد بن يزيد for Ibn Majah), his narrator card sat right above the source card of his own book, the same person twice. Most source cards had it.

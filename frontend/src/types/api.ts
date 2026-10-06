@@ -16,6 +16,8 @@ export interface IsnadNodeDto {
   narratorId: string;
   narratorName: string;
   knownAs: string | null;
+  /** The form of his name the chosen hadiths' isnads use most; null when none names him. */
+  mentionedName?: string | null;
   generationTier: string | null;
   stepOrder: number;
   parentNodeId: string | null;

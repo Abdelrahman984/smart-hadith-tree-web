@@ -142,7 +142,7 @@ export function buildSingleGraph(tree: IsnadTreeResponseDto, tooltips?: Tooltips
     const compilerOnly = isOnlyCompiler(n, books);
     if (!compilerOnly && !nodes.has(n.narratorId)) {
       const data: NarratorNodeData = {
-        narratorName: formatTwoPartNarratorName(n.narratorName || n.knownAs),
+        narratorName: n.mentionedName || formatTwoPartNarratorName(n.narratorName || n.knownAs),
         ...narratorData(n, tooltips),
       };
       nodes.set(n.narratorId, { id: n.narratorId, type: "narrator", position: { x: 0, y: 0 }, data });
@@ -203,7 +203,7 @@ export function buildComparativeGraph(tree: ComparativeTreeResponseDto, tooltips
     }
 
     const data: NarratorNodeData = {
-      narratorName: formatScholarlyNarratorName(n.narratorName, n.knownAs),
+      narratorName: n.mentionedName || formatScholarlyNarratorName(n.narratorName, n.knownAs),
       ...narratorData(n, tooltips),
       hasMatnVariation: n.hasMatnVariation,
       matnVariationSnippet: n.matnVariationSnippet,

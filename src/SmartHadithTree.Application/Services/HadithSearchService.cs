@@ -553,6 +553,7 @@ public class HadithSearchService(
             return null;
 
         var nodes = await chainRepository.GetIsnadTreeAsync(hadithId, ct);
+        SetMentionedNames(nodes, [hadith], _ => [hadithId]);
 
         return new IsnadTreeResponseDto
         {
@@ -562,6 +563,25 @@ public class HadithSearchService(
             MatnArabic = hadith.MatnArabic,
             Nodes = nodes
         };
+    }
+
+    /// <summary>
+    /// Names each narrator the way the chosen hadiths' isnads mention him most. A narrator seen in several nodes is
+    /// named once, from the isnads of every hadith he appears in.
+    /// </summary>
+    private static void SetMentionedNames<T>(List<T> nodes, List<HadithText> hadiths, Func<T, IEnumerable<Guid>> hadithIdsOf)
+        where T : IsnadNodeDto
+    {
+        var isnadById = hadiths.ToDictionary(h => h.Id, h => h.FullIsnadText ?? h.MatnArabic);
+        foreach (var narrator in nodes.GroupBy(n => n.NarratorId))
+        {
+            var texts = narrator
+                .SelectMany(hadithIdsOf)
+                .Distinct()
+                .Select(id => isnadById.GetValueOrDefault(id));
+            var name = NarratorMentionedName.Choose(narrator.First().NarratorName, narrator.First().KnownAs, texts);
+            foreach (var node in narrator) node.MentionedName = name;
+        }
     }
 
     /// <summary>
@@ -595,6 +615,7 @@ public class HadithSearchService(
 
         // Get merged chain nodes
         var nodes = await chainRepository.GetComparativeIsnadTreeAsync(hadithIds, ct);
+        SetMentionedNames(nodes, hadiths, n => n.SourceHadithIds);
 
         var response = new ComparativeTreeResponseDto
         {
