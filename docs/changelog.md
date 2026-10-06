@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-06: Ilal matn comparison, fewer false findings (backlog §3 and §4)
+
+- **Abridged texts are not omissions** (`MatnAtMadarRule`): a text with no content word of its own and at most 3 in all (`MaxFragmentWords`) that sits wholly inside a longer one is an abridgement, not an addition or omission. `Classify` returns `None` for it, and the rule leaves it out of the clusters so it counts as support for no version. «يقول» is now a framing word. `MatnVariation` (variant highlighting on the comparative page) calls `Classify`, so a fragment is no longer shown as a variant there.
+- **Notes and noise are cut from the matn before comparing** (`MatnText.ExtractBody`, no rebuild needed): `[...]` spans (editor notes, page markers); «رواه / أخرجه / لم يرو / تفرد به / حكم حسين / هذا الحديث»; pointers («فذكر مثله», «وذكر الحديث», «بمثل حديث»); the printed edition's symbols; and a second isnad pasted into the record (only once the matn start is known, and not «حدثنا رسول الله»). The TypeScript port `frontend/src/features/isnad-tree/utils/matnDiff.ts` is kept in step.
+- **Scattered one-word swaps are not a contradiction** (`Classify`): the old rule counted two scattered single-word swaps (خشبه / خشبته) as a contradiction while ignoring one; only a multi-word site counts now.
+- **Measured** on 9 pages (4 reviewed, 5 not tuned on), live API, before and after: matn findings 83 to 68, of which «قادحة» 42 to 33. Tahur 11 to 4 (3 «قادحة»), Halal 16 to 10 «قادحة», Jannah 3 to 1. Nasiha rose from 18 to 21 matn findings (11 «قادحة» before and after): more Ziyadah (5 to 7) now that abridgements no longer hide them. What is left is mostly real wording and length differences between versions, an unranked narrator counted weak (backlog §3) and one-off commentary the cleanup does not know.
+- **Tests**: 243 backend (`AbridgedMatnTests`, `MatnCleanupTests`), 10 in `tests/matnDiff.spec.ts`.
+
+---
 ## 2026-10-05: Production deploy and CI/CD
 
 - Live at https://smart-hadith.idealisticsolutions.com (one hostname: `/api/*` goes to the API), behind the host's shared edge Caddy. Database restored from `SmartHadithTree_Shamela_v5_2026-10-05.bak` as `SmartHadithTree`.

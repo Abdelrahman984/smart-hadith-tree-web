@@ -4,6 +4,7 @@ using SmartHadithTree.Application.Services;
 using SmartHadithTree.Application.Services.Ilal;
 using SmartHadithTree.Application.Services.Ilal.Rules;
 using SmartHadithTree.Domain.Enums;
+using SmartHadithTree.Domain.Utilities;
 
 namespace SmartHadithTree.Tests.Application.Ilal;
 
@@ -211,5 +212,68 @@ public class IlalAnalysisServiceTests
         // the weak compiler is ignored; الزهري (tier 4) is the weakest link
         tariq.WeakestNarratorId.Should().Be(b.Id("الزهري"));
         tariq.WeakestTier.Should().Be(4);
+    }
+}
+
+/// <summary>
+/// «الطهور شطر الإيمان»: Ibn Abi Shayba (37) and Awana (38) quote only the opening saying; Muslim and
+/// the others give the whole hadith. The short texts are abridgements, not omissions by a narrator.
+/// </summary>
+public class AbridgedMatnTests
+{
+    private const string Short = "أن رسول الله ﷺ كان يقول: الطهور شطر الإيمان";
+    private const string Long = "قال رسول الله ﷺ: الطهور شطر الإيمان، والحمد لله تملأ الميزان، وسبحان الله والحمد لله تملآن ما بين السماوات والأرض، والصلاة نور، والصدقة برهان";
+    private const string Wudu = "قال رسول الله ﷺ: الطهور شطر الإيمان، والوضوء ضياء، والصبر برهان، والصلاة نور، والصدقة سر";
+
+    private static IlalTestBuilder Narrators() => new IlalTestBuilder()
+        .Narrator("أبان").Narrator("يحيى").Narrator("معمر").Narrator("ثالث")
+        .Narrator("الراوي").Narrator("الصحابي", "companion")
+        .Narrator("ابن أبي شيبة").Narrator("مسلم").Narrator("أحمد").Narrator("الدارمي");
+
+    [Theory]
+    [InlineData(Short, Long)]
+    [InlineData(Long, Short)]
+    public void ShortFragmentOfALongerText_IsNotAnAdditionOrOmission(string reference, string compared)
+    {
+        var diff = MatnAligner.Align(MatnText.ExtractBody(reference), MatnText.ExtractBody(compared));
+
+        MatnAtMadarRule.Classify(diff).Should().Be(MatnAtMadarRule.DiffKind.None);
+    }
+
+    [Fact]
+    public void FragmentCompiler_DoesNotProduceFindingsAgainstTheLongVersions()
+    {
+        var b = Narrators();
+        b.Chain(Short, "مصنف ابن أبي شيبة", "ابن أبي شيبة", "حدثنا", "أبان", "عن", "الراوي", "عن", "الصحابي");
+        b.Chain(Long, "صحيح مسلم", "مسلم", "حدثنا", "يحيى", "عن", "الراوي", "عن", "الصحابي");
+        b.Chain(Long, "مسند أحمد", "أحمد", "حدثنا", "معمر", "عن", "الراوي", "عن", "الصحابي");
+
+        new MatnAtMadarRule().Evaluate(b.Build()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void FragmentIsNotCountedAsSupportForAnyVersion()
+    {
+        // Two real versions that differ; the fragment must not tip the balance toward either of them.
+        var b = Narrators();
+        b.Chain(Short, "مصنف ابن أبي شيبة", "ابن أبي شيبة", "حدثنا", "أبان", "عن", "الراوي", "عن", "الصحابي");
+        b.Chain(Long, "صحيح مسلم", "مسلم", "حدثنا", "يحيى", "عن", "الراوي", "عن", "الصحابي");
+        b.Chain(Wudu, "سنن الدارمي", "الدارمي", "حدثنا", "معمر", "عن", "الراوي", "عن", "الصحابي");
+
+        var findings = new MatnAtMadarRule().Evaluate(b.Build()).ToList();
+
+        findings.Should().ContainSingle().Which.Type.Should().Be(IllahType.Idtirab);
+    }
+
+    [Fact]
+    public void RealAdditionOverAFullShortText_StillCounts()
+    {
+        // Four content words are a narration of their own, so the extra clause is a real addition.
+        var b = Narrators();
+        b.Chain("عن الصحابي أن رسول الله ﷺ كان إذا ذهب المذهب أبعد", "مصنف ابن أبي شيبة", "ابن أبي شيبة", "حدثنا", "أبان", "عن", "الراوي", "عن", "الصحابي");
+        b.Chain("عن الصحابي أن رسول الله ﷺ كان إذا ذهب المذهب أبعد فذهب لحاجة فقال ائتني بوضوء فتوضأ ومسح على الخفين", "صحيح مسلم", "مسلم", "حدثنا", "يحيى", "عن", "الراوي", "عن", "الصحابي");
+
+        new MatnAtMadarRule().Evaluate(b.Build()).Should().ContainSingle()
+            .Which.Type.Should().Be(IllahType.Ziyadah);
     }
 }

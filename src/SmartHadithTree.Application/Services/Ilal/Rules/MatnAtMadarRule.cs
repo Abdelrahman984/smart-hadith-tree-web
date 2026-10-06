@@ -24,8 +24,17 @@ public sealed class MatnAtMadarRule : IIlalRule
     /// </summary>
     public const int MinSubstitutedWords = 2;
 
+    /// <summary>
+    /// A text with at most this many content words, wholly contained in a longer one, is an abridgement
+    /// (a compiler quoting only the opening saying), not an omission by the narrator. A full narration of
+    /// its own is longer (the shortest one compared in the tests has four).
+    /// </summary>
+    public const int MaxFragmentWords = 3;
+
     /// <summary>How a compared text differs from a reference text.</summary>
     public enum DiffKind { None, Unrelated, Addition, Omission, Contradiction }
+
+    private enum Fragment { None, Reference, Compared }
 
     private sealed class TextCluster
     {
@@ -47,12 +56,21 @@ public sealed class MatnAtMadarRule : IIlalRule
     private static IEnumerable<IlalFindingDto> EvaluateSplit(IlalContext context, SplitPoint split)
     {
         // 1. Group branches whose texts agree (only minor wording differences) into clusters.
+        var candidates = split.Branches
+            .Select(b => (Branch: b, Tokens: MatnText.Tokenize(MatnText.ExtractBody(b.Chains[0].MatnArabic))))
+            .Where(c => c.Tokens.Length > 0)
+            .ToList();
+
+        // An abridged text says nothing about the part it leaves out, so it is not evidence for any cluster.
+        var kept = candidates
+            .Where(c => !candidates.Any(o => o.Branch != c.Branch
+                && FindFragment(MatnAligner.Align(o.Tokens, c.Tokens)) == Fragment.Compared))
+            .ToList();
+
         var clusters = new List<TextCluster>();
-        foreach (var branch in split.Branches)
+        foreach (var (branch, tokens) in kept)
         {
             var rep = branch.Chains[0];
-            var tokens = MatnText.Tokenize(MatnText.ExtractBody(rep.MatnArabic));
-            if (tokens.Length == 0) continue;
 
             var home = clusters.FirstOrDefault(c => Classify(MatnAligner.Align(c.Tokens, tokens)) == DiffKind.None);
             if (home == null)
@@ -171,7 +189,7 @@ public sealed class MatnAtMadarRule : IIlalRule
 
     private static readonly HashSet<string> FramingTokens = new(StringComparer.Ordinal)
     {
-        "ان", "انه", "انها", "قال", "فقال", "النبي", "رسول", "الله", "نبي",
+        "ان", "انه", "انها", "قال", "فقال", "يقول", "النبي", "رسول", "الله", "نبي",
         // Narrative preface that only sets the scene («كنت مع رسول الله في بعض أسفاره وكان …»); a text
         // that opens with it and one that does not are the same hadith, not an addition.
         "كنت", "مع", "في", "بعض", "اسفاره", "كان", "وكان"
@@ -181,6 +199,7 @@ public sealed class MatnAtMadarRule : IIlalRule
     public static DiffKind Classify(AlignmentResult diff)
     {
         if (!AreRelated(diff)) return DiffKind.Unrelated;
+        if (FindFragment(diff) != Fragment.None) return DiffKind.None;
 
         var addedTokens = diff.Segments
             .Where(s => s.Kind == AlignmentKind.Added)
@@ -216,7 +235,8 @@ public sealed class MatnAtMadarRule : IIlalRule
         {
             return DiffKind.Omission;
         }
-        if (substituted >= MinSubstitutedWords && diff.Similarity < 0.9) return DiffKind.Contradiction;
+        // Single words swapped here and there (خشبه / خشبته, ضرار / إضرار) are narration by meaning or spelling,
+        // the same as one swapped word, which is not flagged either; only a multi-word site (above) is.
         return DiffKind.None;
     }
 
@@ -236,6 +256,23 @@ public sealed class MatnAtMadarRule : IIlalRule
         var shorter = Math.Min(reference, compared);
 
         return shorter >= MinSignificantWords && (double)shared / shorter >= MinRelatedSimilarity;
+    }
+
+    /// <summary>
+    /// Which side, if any, is only an abridgement of the other: it has no content word of its own and
+    /// at most <see cref="MaxFragmentWords"/> in all.
+    /// </summary>
+    private static Fragment FindFragment(AlignmentResult diff)
+    {
+        var shared = diff.Segments.Where(s => s.Kind == AlignmentKind.Equal).Sum(s => s.Tokens.Count(IsContentWord));
+        if (shared == 0 || shared > MaxFragmentWords) return Fragment.None;
+
+        var referenceOwn = diff.Segments.Where(s => s.Kind == AlignmentKind.Removed).Sum(s => s.Tokens.Count(IsContentWord));
+        var comparedOwn = diff.Segments.Where(s => s.Kind == AlignmentKind.Added).Sum(s => s.Tokens.Count(IsContentWord));
+
+        if (referenceOwn == 0 && comparedOwn > 0) return Fragment.Reference;
+        if (comparedOwn == 0 && referenceOwn > 0) return Fragment.Compared;
+        return Fragment.None;
     }
 
     /// <summary>

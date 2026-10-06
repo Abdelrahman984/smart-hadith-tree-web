@@ -42,8 +42,8 @@ Counts below come from the review log at the end; they are small samples, so re-
 
 | # | Cause | Seen on | Needs a rebuild | Why first |
 |---|---|---|---|---|
-| 1 | A short text that is a subset of a longer one counted as «omission» | 11 of 17 findings on the Tahur page | no | one Ilal rule, removes the most false «قادحة» |
-| 2 | Matn commentary, editor notes and symbols stay in the matn | 3 pages | yes (books) | feeds Nakarah, Idtirab and Ziyadah with fake differences |
+| 1 | A short text that is a subset of a longer one counted as «omission» | 11 of 17 findings on the Tahur page | no | **done 2026-10-06** (see Done; dev, not merged) |
+| 2 | Matn commentary, editor notes and symbols stay in the matn | 3 pages; 28 of 45 «قادحة» matn findings on 9 pages | yes (books) | **cut at compare time since 2026-10-06** (no rebuild); the stored matn still carries it, so the display and the search do too |
 | 3 | Unranked narrator treated as weak | 3 pages | no | one rule, false «ضعيف» in Nakarah |
 | 4 | Chains cut before a Companion, dropped or wrong narrators (tahwil forms, parentheses, undecided kunya; the ~860 names in the carried-over table) | 3 pages | yes (resolver) | wrong chains, not just wrong warnings |
 | 5 | Marfu detection, ziyadah on repeated words | 1 page each | no | small rules |
@@ -151,6 +151,7 @@ Each page is classified by cause. Add a row per page; if a cause shows up again,
 
 | Date | Item | Commit |
 |---|---|---|
+| 2026-10-06 | Cause 1 (abridged text) and the compare-time cleanup of cause 2, scattered one-word swaps no longer a contradiction. Measured on 9 pages: matn findings 83 to 68, «قادحة» 42 to 33; details in `docs/changelog.md` | not committed yet |
 | 2026-10-05 | Phase 8: grade from route tiers, compiler links, kin words, tahwil chains, travel notes, page fixes; app on V5 | `95fdedc` … `e897569`, docs `4b6f3cd` |
 | 2026-10-05 | B5: low-confidence findings (Tanbih below 0.3) fold into a collapsed group; tab badges count only the visible ones | `HEAD` of the commit that added this file |
 | 2026-10-05 | Scratch database `SmartHadithTree_ScratchC1` and `data/shamela_rijal_c1/` dropped (V5 and its v5 backup hold the same data) | not in git |
