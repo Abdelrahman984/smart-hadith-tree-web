@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-06: Registry, same narrator in two books (resolver, applies at the next rebuild)
+
+- **`link_tahdhib.py`**: entries of different books that are one narrator are merged (`merge_same_person`): three generations of the nasab agree (or two, with the same nasab tail or a rare shared nisba), a shared nisba, kunya or the same nasab confirms it, and no nisba, kunya, death date or great-grandfather contradicts. Never two entries of one book or of Tahdhib. 212 entries merged (23,502 to 23,290); the merged narrator keeps the other header's words in the matching indexes; `registry.json` gets `merged_ids`; `link_ilal.py` follows an override id that was merged away. Review with `SHOW_MERGED=<seed>`; `NO_MERGE=1` switches it off.
+- **Measured** on all 274,597 chains (scratch export): 719 gaps closed against 57 opened, 1,344 gained narrators, 48 lost some; undecided names inside chains 90,730 to 89,497. Ilal links unchanged (158 mudallisin, 131 mukhtalitun). Details and the analysis of what the remaining ties are: `docs/backlog.md` §1.
+
+---
+
 ## 2026-10-06: Isnad segmenter (resolver, applies at the next rebuild)
 
 - **`gap_test.py`**: brackets and parentheses in the isnad are dropped with their content kept (an editor's restored narrator); «يحدث» and «قرئ على / قرأت على / كنت أسمع» are verbs; «ز-» is dropped; «النبى» / «نبي الله» end the isnad; «أنه / أنها» at the end of a segment and «بلغه / بلغني» are not part of a name, and «بلغه أن…» ends the isnad.
