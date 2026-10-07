@@ -6,7 +6,8 @@
 - **Fix**: README, `deploy/deployment.md` and `backups/README.md` now give the v7 Drive link, file name and restore command; `docker-compose.yml` connects to `SmartHadithTree_ShamelaV7` too (`docker-compose.prod.yml` is unchanged and still uses `SmartHadithTree`). The README also states that the AI key is optional, that Windows + a local SQL Server are needed, that the test project needs the .NET 10 SDK, and links the live demo.
 - **Checked**: the Drive link opens.
 - **Checked**: `RESTORE FILELISTONLY` on the v7 backup lists the logical names `SmartHadithTree_ShamelaV7` (data) and `SmartHadithTree_ShamelaV7_log`, the ones the `MOVE` clause in `deploy/deployment.md` uses.
-- **Not checked**: the Docker restore itself with the v7 backup (only the file names were read).
+- **Checked**: the restore command of `deploy/deployment.md` (the `MOVE` clause with the `V7` names, run with `sqlcmd` in a throwaway `mssql/server:2022-latest` container with `backups/` mounted read-only) restores the v7 backup in about 21 s: 274,597 hadiths, 44,282 narrators, 1,266,022 transmissions, the v7 counts of `backups/README.md`.
+- **Not checked**: the `api` and `web` images against that database (only the restore was run, not `docker compose up --build`).
 
 ---
 
