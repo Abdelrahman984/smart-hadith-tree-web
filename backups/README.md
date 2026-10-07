@@ -130,7 +130,9 @@ A fresh database built from the improved resolver (`docs/changelog.md`, 2026-10-
 
 Isnad gaps (an undecided name inside a chain, branch by branch, 295,952 branches): 108,066 in v5, 94,032 in v6 (14,661 closed, 1,624 opened, 27,578 names gained, 694 lost, 3,996 narrators changed). The nine Ilal pages: findings 127 -> 121, matn Qadihah 11 -> 10, every grade unchanged (`docs/challenge/evaluation/ilal-pages-v6-2026-10-07.json`).
 
-## v7 — verbs with a final alef maqsura (database `SmartHadithTree_ShamelaV7`)
+## v7 — verbs with a final alef maqsura (database `SmartHadithTree_ShamelaV7`, the current one)
+
+Download: [Google Drive](https://drive.google.com/file/d/19oYawbGHpfwR9ZhwsnsFSGPFGINo88cF/view?usp=sharing). The file is 521,072,640 bytes (497 MB) and its SHA-256 matches the table above; the Api and Etl `appsettings.json` and `docker-compose.yml` point at this database.
 
 The v6 build with one resolver fix: al-Bayhaqi writes «أخبرنى / حدثنى» with ى, which the segmenter did not know, so a narrator after such a verb was lost («أخبرنى محمد بن إبراهيم التيمي» in Sunan al-Kubra 15101). Chains re-exported for all 31 books (the registry is unchanged); 3,512 of 21,849 Bayhaqi records changed, 30 other books by 1 to 14. Every hadith Guid differs from v6.
 
