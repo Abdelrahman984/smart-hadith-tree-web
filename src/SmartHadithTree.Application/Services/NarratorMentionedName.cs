@@ -17,9 +17,13 @@ public static partial class NarratorMentionedName
     /// The form of the narrator's name most often found in <paramref name="isnadTexts"/>, spelled as in his registry
     /// name; null when no form of it is found (the caller keeps its own display name).
     /// </summary>
-    public static string? Choose(string? fullName, string? knownAs, IEnumerable<string?> isnadTexts, string? kunyah = null)
+    public static string? Choose(
+        string? fullName, string? knownAs, IEnumerable<string?> isnadTexts, string? kunyah = null,
+        ISet<string>? ambiguousForms = null)
     {
-        var candidates = Candidates(fullName, knownAs, kunyah);
+        var candidates = Candidates(fullName, knownAs, kunyah)
+            .Where(c => ambiguousForms?.Contains(string.Join(' ', c.Tokens)) != true)
+            .ToList();
         if (candidates.Count == 0) return null;
 
         var texts = isnadTexts
@@ -45,6 +49,13 @@ public static partial class NarratorMentionedName
 
         return best;
     }
+
+    /// <summary>
+    /// The normalized forms of this narrator's name. A form that several narrators of one tree share ("أبو بكر",
+    /// "محمد", "سفيان") cannot tell which of them an isnad means, so the caller collects these and leaves them out.
+    /// </summary>
+    public static IEnumerable<string> FormKeys(string? fullName, string? knownAs, string? kunyah = null) =>
+        Candidates(fullName, knownAs, kunyah).Select(c => string.Join(' ', c.Tokens));
 
     /// <summary>Forms of the name worth looking for, each with its display spelling and normalized tokens.</summary>
     private static List<(string Display, string[] Tokens)> Candidates(string? fullName, string? knownAs, string? kunyah)
@@ -114,8 +125,8 @@ public static partial class NarratorMentionedName
     }
 
     /// <summary>
-    /// How many times the tokens occur in the text. A lone first name followed by "بن" ("محمد بن …") is the start of a
-    /// longer name, not a mention of the bare name, so it is left to the longer form.
+    /// How many times the tokens occur in the text. A form without "بن" of its own, followed by "بن" ("محمد بن …",
+    /// "أبو بكر بن أبي شيبة"), is the start of a longer name, not a mention of the shorter one, so it is left out.
     /// </summary>
     private static int CountOccurrences(string[] text, string[] tokens)
     {
@@ -127,7 +138,7 @@ public static partial class NarratorMentionedName
             if (!match) continue;
 
             var next = i + tokens.Length;
-            if (tokens.Length == 1 && next < text.Length && Connectors.Contains(text[next])) continue;
+            if (next < text.Length && Connectors.Contains(text[next]) && !tokens.Any(Connectors.Contains)) continue;
             count++;
         }
         return count;

@@ -57,4 +57,33 @@ public class NarratorMentionedNameTests
         NarratorMentionedName.Choose("عبد الله بن عمر بن الخطاب", null, ["عن عبدالله بن عمر عن النبي"])
             .Should().Be("عبد الله بن عمر");
     }
+
+    [Fact]
+    public void Choose_KunyahFollowedByPatronymic_IsNotAMentionOfTheBareKunyah()
+    {
+        // "أبو بكر بن أبي شيبة" is someone else's name; it must not make al-Bayhaqi "أبو بكر".
+        NarratorMentionedName.Choose("أحمد بن الحسين بن علي البيهقي", null, ["حدثنا أبو بكر بن أبي شيبة"], "أبو بكر")
+            .Should().BeNull();
+    }
+
+    [Fact]
+    public void Choose_FormsSharedWithAnotherNarratorOfTheTree_AreLeftOut()
+    {
+        var texts = new[] { "أخبرنا أبو عبد الله الحافظ وأبو عبد الله الثاني حدثنا محمد بن يعقوب" };
+        var shared = new HashSet<string> { "ابو عبد الله" };
+
+        NarratorMentionedName.Choose("محمد بن يعقوب بن يوسف", null, texts, "أبو عبد الله", shared)
+            .Should().Be("محمد بن يعقوب");
+        NarratorMentionedName.Choose("محمد بن يعقوب بن يوسف", null, texts, "أبو عبد الله")
+            .Should().Be("أبو عبد الله");
+    }
+
+    [Fact]
+    public void FormKeys_SameFirstNameOfTwoNarrators_Collides()
+    {
+        var a = NarratorMentionedName.FormKeys("سفيان بن عيينة بن أبي عمران", null);
+        var b = NarratorMentionedName.FormKeys("سفيان بن سعيد بن مسروق الثوري", null);
+
+        a.Intersect(b).Should().Contain("سفيان");
+    }
 }

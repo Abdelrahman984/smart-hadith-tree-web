@@ -579,14 +579,26 @@ public class HadithSearchService(
             .Select(n => new { n.Id, n.Kunyah })
             .ToDictionaryAsync(n => n.Id, n => n.Kunyah, ct);
         var isnadById = hadiths.ToDictionary(h => h.Id, h => h.FullIsnadText ?? h.MatnArabic);
-        foreach (var narrator in nodes.GroupBy(n => n.NarratorId))
+        var byNarrator = nodes.GroupBy(n => n.NarratorId).ToList();
+
+        // Forms of a name that belong to more than one narrator of this tree say nothing about which one is meant.
+        var ambiguous = byNarrator
+            .SelectMany(g => NarratorMentionedName
+                .FormKeys(g.First().NarratorName, g.First().KnownAs, kunyahs.GetValueOrDefault(g.Key))
+                .Distinct())
+            .GroupBy(key => key)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToHashSet();
+
+        foreach (var narrator in byNarrator)
         {
             var texts = narrator
                 .SelectMany(hadithIdsOf)
                 .Distinct()
                 .Select(id => isnadById.GetValueOrDefault(id));
             var name = NarratorMentionedName.Choose(
-                narrator.First().NarratorName, narrator.First().KnownAs, texts, kunyahs.GetValueOrDefault(narrator.Key));
+                narrator.First().NarratorName, narrator.First().KnownAs, texts, kunyahs.GetValueOrDefault(narrator.Key), ambiguous);
             foreach (var node in narrator) node.MentionedName = name;
         }
     }
