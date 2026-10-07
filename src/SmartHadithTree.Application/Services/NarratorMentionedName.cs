@@ -148,6 +148,11 @@ public static partial class NarratorMentionedName
                 match = text[i + j] == tokens[j] || (j == 0 && text[i + j] == "و" + tokens[j]);
             if (!match) continue;
 
+            // Right after "بن" or "أبو" the words are the rest of someone's nasab or kunyah ("محمد بن عبد الله",
+            // "أبو عبد الله"), not a mention of a narrator of that name.
+            if (i > 0 && !Connectors.Contains(tokens[0]) && tokens[0] != "ابو" &&
+                (Connectors.Contains(text[i - 1]) || text[i - 1] == "ابو")) continue;
+
             var next = i + tokens.Length;
             if (next < text.Length && Connectors.Contains(text[next]) && !tokens.Any(Connectors.Contains)) continue;
             count++;

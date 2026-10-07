@@ -106,4 +106,13 @@ public class NarratorMentionedNameTests
         ansari["يحيي بن سعيد"].Should().Be(2);
         qattan["يحيي بن سعيد"].Should().Be(0);
     }
+
+    [Fact]
+    public void Choose_NameInsideAKunyahOrANasab_IsNotAMention()
+    {
+        // "أبو عبد الله" and "محمد بن عبد الله" must not make al-Humaydi "عبد الله".
+        var texts = new[] { "أخبرنا أبو عبد الله الحافظ حدثنا محمد بن عبد الله", "حدثنا الحميدي" };
+
+        NarratorMentionedName.Choose("عبد الله بن الزبير بن عيسى", null, texts).Should().BeNull();
+    }
 }
