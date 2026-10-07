@@ -50,6 +50,16 @@ public static partial class NarratorMentionedName
         return best;
     }
 
+    /// <summary>How often each normalized form of the narrator's name occurs in the given isnad texts.</summary>
+    public static Dictionary<string, int> Counts(
+        string? fullName, string? knownAs, IEnumerable<string?> isnadTexts, string? kunyah = null)
+    {
+        var texts = isnadTexts.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => Tokenize(t!)).ToList();
+        return Candidates(fullName, knownAs, kunyah).ToDictionary(
+            c => string.Join(' ', c.Tokens),
+            c => texts.Sum(text => CountOccurrences(text, c.Tokens)));
+    }
+
     /// <summary>
     /// The normalized forms of this narrator's name. A form that several narrators of one tree share ("أبو بكر",
     /// "محمد", "سفيان") cannot tell which of them an isnad means, so the caller collects these and leaves them out.
@@ -134,7 +144,8 @@ public static partial class NarratorMentionedName
         for (var i = 0; i + tokens.Length <= text.Length; i++)
         {
             var match = true;
-            for (var j = 0; j < tokens.Length && match; j++) match = text[i + j] == tokens[j];
+            for (var j = 0; j < tokens.Length && match; j++)
+                match = text[i + j] == tokens[j] || (j == 0 && text[i + j] == "و" + tokens[j]);
             if (!match) continue;
 
             var next = i + tokens.Length;
@@ -144,7 +155,7 @@ public static partial class NarratorMentionedName
         return count;
     }
 
-    /// <summary>Words of the text without diacritics, with alef/yaa/ta marbuta unified, "أبي/أبا" read as "أبو" and "عبد X" joined.</summary>
+    /// <summary>Words of the text without diacritics, with alef/yaa/ta marbuta unified, "أبي/أبا" read as "أبو" and "عبد X" joined and a leading "ال" dropped.</summary>
     private static string[] Tokenize(string text)
     {
         var plain = ArabicNormalizer.Normalize(text)
@@ -156,6 +167,9 @@ public static partial class NarratorMentionedName
             .Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Select(w => w is "ابي" or "ابا" ? "ابو" : w)
             .ToList();
+        for (var i = 0; i < words.Count; i++)
+            if (words[i].Length > 4 && words[i].StartsWith("ال", StringComparison.Ordinal) && words[i] != "الله")
+                words[i] = words[i][2..];
 
         // "عبد الله" and "عبدالله" are the same name: join "عبد" to the word after it.
         var tokens = new List<string>();

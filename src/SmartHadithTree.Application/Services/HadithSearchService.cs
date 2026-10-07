@@ -581,24 +581,32 @@ public class HadithSearchService(
         var isnadById = hadiths.ToDictionary(h => h.Id, h => h.FullIsnadText ?? h.MatnArabic);
         var byNarrator = nodes.GroupBy(n => n.NarratorId).ToList();
 
-        // Forms of a name that belong to more than one narrator of this tree say nothing about which one is meant.
-        var ambiguous = byNarrator
-            .SelectMany(g => NarratorMentionedName
-                .FormKeys(g.First().NarratorName, g.First().KnownAs, kunyahs.GetValueOrDefault(g.Key))
-                .Distinct())
-            .GroupBy(key => key)
-            .Where(g => g.Count() > 1)
-            .Select(g => g.Key)
-            .ToHashSet();
+        string? KunyahOf(Guid id) => kunyahs.GetValueOrDefault(id);
+        List<string?> IsnadsOf(IEnumerable<T> narratorNodes) => narratorNodes
+            .SelectMany(hadithIdsOf)
+            .Distinct()
+            .Select(id => isnadById.GetValueOrDefault(id))
+            .ToList();
+
+        // A form shared by several narrators of this tree ("يحيى بن سعيد", "سفيان") goes to the one whose isnads
+        // use it clearly most; when none does, nobody gets it.
+        var counts = byNarrator.ToDictionary(
+            g => g.Key,
+            g => NarratorMentionedName.Counts(g.First().NarratorName, g.First().KnownAs, IsnadsOf(g), KunyahOf(g.Key)));
+        var excluded = byNarrator.ToDictionary(g => g.Key, _ => new HashSet<string>());
+        foreach (var form in counts.SelectMany(c => c.Value.Keys).GroupBy(k => k).Where(g => g.Count() > 1))
+        {
+            var holders = counts.Where(c => c.Value.ContainsKey(form.Key)).Select(c => (c.Key, Count: c.Value[form.Key])).ToList();
+            var max = holders.Max(h => h.Count);
+            var owner = max > 0 && holders.Count(h => h.Count == max) == 1 ? holders.First(h => h.Count == max).Key : (Guid?)null;
+            foreach (var holder in holders.Where(h => h.Key != owner)) excluded[holder.Key].Add(form.Key);
+        }
 
         foreach (var narrator in byNarrator)
         {
-            var texts = narrator
-                .SelectMany(hadithIdsOf)
-                .Distinct()
-                .Select(id => isnadById.GetValueOrDefault(id));
             var name = NarratorMentionedName.Choose(
-                narrator.First().NarratorName, narrator.First().KnownAs, texts, kunyahs.GetValueOrDefault(narrator.Key), ambiguous);
+                narrator.First().NarratorName, narrator.First().KnownAs, IsnadsOf(narrator), KunyahOf(narrator.Key),
+                excluded[narrator.Key]);
             foreach (var node in narrator) node.MentionedName = name;
         }
     }

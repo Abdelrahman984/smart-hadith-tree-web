@@ -86,4 +86,24 @@ public class NarratorMentionedNameTests
 
         a.Intersect(b).Should().Contain("سفيان");
     }
+
+    [Fact]
+    public void Choose_IgnoresTheArticleAndAJoinedWaw()
+    {
+        NarratorMentionedName.Choose("ليث بن سعد بن عبد الرحمن الفهمي", null, ["أخبرنا الليث بن سعد"])
+            .Should().Be("ليث بن سعد");
+        NarratorMentionedName.Choose("سفيان بن عيينة", null, ["حدثنا الحميدي وسفيان قال"], null)
+            .Should().Be("سفيان");
+    }
+
+    [Fact]
+    public void Counts_LetsTheSharedFormGoToTheNarratorWhoseIsnadsUseItMost()
+    {
+        var texts = new[] { "حدثنا يحيى بن سعيد عن سفيان", "حدثنا يحيى بن سعيد" };
+        var ansari = NarratorMentionedName.Counts("يحيى بن سعيد بن قيس الأنصاري", null, texts);
+        var qattan = NarratorMentionedName.Counts("يحيى بن سعيد بن فروخ القطان", null, texts.Take(0));
+
+        ansari["يحيي بن سعيد"].Should().Be(2);
+        qattan["يحيي بن سعيد"].Should().Be(0);
+    }
 }
