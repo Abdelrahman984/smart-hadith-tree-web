@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-07: React warning «Cannot update a component while rendering» on the workspace (frontend)
+
+- **Bug**: `HadithWorkspace` called `useWorkspaceStore.getState().init(...)` while rendering, which sets the store while other components (the workspace of the page being left) are subscribed to it. React logged «Cannot update a component (`HadithWorkspace`) while rendering a different component». Not related to the narrator names.
+- **Fix** (`HadithWorkspace.tsx`): the defaults are set in a `useLayoutEffect` on mount, so they are still in place before the first paint (the panel does not slide open) and no longer during render. Type check and lint are clean; **not run in a browser** (no Api or database in the build environment): open `/takhreej` and `/tree/<id>` once and check the console and that the panel starts open on a wide screen.
+
 ## 2026-10-07: Narrators are named as the chosen matns name them
 
 - **Nisbah added**: after the form is chosen, the narrator's own nisbah (any «ال…» word of his full name, also after «ويقال») is appended when an isnad writes it right after the name: «علقمة بن وقاص الليثي», «محمد بن إبراهيم التيمي», «يحيى بن سعيد الأنصاري». The nisbah also separates the two Yahya ibn Sa'id cards, so the frontend no longer swaps them for the three-part name («… بن قيس»).
