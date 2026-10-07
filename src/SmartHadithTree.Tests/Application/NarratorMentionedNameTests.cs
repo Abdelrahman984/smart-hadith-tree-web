@@ -69,7 +69,7 @@ public class NarratorMentionedNameTests
     [Fact]
     public void Choose_FormsSharedWithAnotherNarratorOfTheTree_AreLeftOut()
     {
-        var texts = new[] { "أخبرنا أبو عبد الله الحافظ وأبو عبد الله الثاني حدثنا محمد بن يعقوب" };
+        var texts = new[] { "أخبرنا أبو عبد الله الحافظ قال أبو عبد الله الثاني حدثنا محمد بن يعقوب" };
         var shared = new HashSet<string> { "ابو عبد الله" };
 
         NarratorMentionedName.Choose("محمد بن يعقوب بن يوسف", null, texts, "أبو عبد الله", shared)
