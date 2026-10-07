@@ -4,7 +4,8 @@
 
 - **Problem**: the README downloaded and restored the v5 backup into `SmartHadithTree_ShamelaV5`, while the Api and Etl connect to `SmartHadithTree_ShamelaV7`. Someone following it literally got an empty database.
 - **Fix**: README, `deploy/deployment.md` and `backups/README.md` now give the v7 Drive link, file name and restore command; `docker-compose.yml` connects to `SmartHadithTree_ShamelaV7` too (`docker-compose.prod.yml` is unchanged and still uses `SmartHadithTree`). The README also states that the AI key is optional, that Windows + a local SQL Server are needed, that the test project needs the .NET 10 SDK, and links the live demo.
-- **Not checked**: the Docker restore with the v7 backup (the logical file names in the `MOVE` clause are assumed; confirm with `RESTORE FILELISTONLY`), and the Drive link from a signed-out browser.
+- **Checked**: the Drive link opens.
+- **Not checked**: the Docker restore with the v7 backup (the logical file names in the `MOVE` clause are assumed; confirm with `RESTORE FILELISTONLY`).
 
 ---
 
