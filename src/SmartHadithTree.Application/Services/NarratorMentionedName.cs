@@ -33,21 +33,55 @@ public static partial class NarratorMentionedName
         if (texts.Count == 0) return null;
 
         string? best = null;
+        string[] bestTokens = [];
         var bestCount = 0;
-        var bestLength = 0;
         foreach (var (display, tokens) in candidates)
         {
             var count = texts.Sum(text => CountOccurrences(text, tokens));
             if (count == 0) continue;
-            if (count > bestCount || (count == bestCount && tokens.Length > bestLength))
+            if (count > bestCount || (count == bestCount && tokens.Length > bestTokens.Length))
             {
                 best = display;
+                bestTokens = tokens;
                 bestCount = count;
-                bestLength = tokens.Length;
             }
         }
 
-        return best;
+        return best == null ? null : WithNisbah(best, bestTokens, fullName, texts);
+    }
+
+    /// <summary>
+    /// The chosen form followed by the narrator's own nisbah when an isnad writes it after the name
+    /// ("علقمة بن وقاص" + "الليثي"). The nisbah also tells apart two narrators who share the short name.
+    /// </summary>
+    private static string WithNisbah(string name, string[] nameTokens, string? fullName, List<string[]> texts)
+    {
+        var nisbahs = (fullName ?? "")
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(w => w.Length > 3 && w.StartsWith("ال", StringComparison.Ordinal) && w != "الله")
+            .Distinct()
+            .Select(w => (Word: w, Token: Tokenize(w).FirstOrDefault()))
+            .Where(n => n.Token != null)
+            .ToList();
+
+        // A form that is itself the nisbah ("الثوري") has nothing to add.
+        if (nameTokens.Length == 1 && nisbahs.Any(n => n.Token == nameTokens[0])) return name;
+
+        string? bestWord = null;
+        var bestCount = 0;
+        foreach (var (word, token) in nisbahs)
+        {
+            if (nameTokens.Contains(token!)) continue;
+            var withNisbah = nameTokens.Append(token!).ToArray();
+            var count = texts.Sum(text => CountOccurrences(text, withNisbah));
+            if (count > bestCount)
+            {
+                bestWord = word;
+                bestCount = count;
+            }
+        }
+
+        return bestWord == null ? name : $"{name} {bestWord}";
     }
 
     /// <summary>How often each normalized form of the narrator's name occurs in the given isnad texts.</summary>

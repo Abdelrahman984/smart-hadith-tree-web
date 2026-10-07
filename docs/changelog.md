@@ -2,6 +2,8 @@
 
 ## 2026-10-07: Narrators are named as the chosen matns name them
 
+- **Nisbah added**: after the form is chosen, the narrator's own nisbah (any «ال…» word of his full name, also after «ويقال») is appended when an isnad writes it right after the name: «علقمة بن وقاص الليثي», «محمد بن إبراهيم التيمي», «يحيى بن سعيد الأنصاري». The nisbah also separates the two Yahya ibn Sa'id cards, so the frontend no longer swaps them for the three-part name («… بن قيس»).
+
 - **Also fixed**: the single-tree query (`HadithChainRepository.GetIsnadTreeAsync`) is raw SQL and did not select the new `MentionedName` column, which would have broken `/api/Tree/<id>` (the unit tests do not run that query). It now selects `NULL AS MentionedName`; the single-hadith tree gets its mentioned name in `HadithSearchService`. **Not run against a real database**: check `/api/Tree/<id>` once.
 
 - **Problem**: the tree showed the registry name (a long full name, or a name the books rarely use) while the isnads of the chosen hadiths write him as «سفيان» or «ابن عيينة».

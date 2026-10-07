@@ -115,4 +115,31 @@ public class NarratorMentionedNameTests
 
         NarratorMentionedName.Choose("عبد الله بن الزبير بن عيسى", null, texts).Should().BeNull();
     }
+
+    [Fact]
+    public void Choose_AddsTheNisbahWhenAnIsnadWritesItAfterTheName()
+    {
+        var texts = new[] { "عَنْ عَلْقَمَةَ بْنِ وَقَّاصٍ", "عَنْ عَلْقَمَةَ بْنِ وَقَّاصٍ اللَّيْثِيِّ" };
+
+        NarratorMentionedName.Choose("علقمة بن وقاص بن محصن الليثي العتواري المدني", null, texts)
+            .Should().Be("علقمة بن وقاص الليثي");
+    }
+
+    [Fact]
+    public void Choose_TakesTheNisbahFromAfterTheYaqulaAnnotation()
+    {
+        var name = "يحيى بن سعيد بن قيس بن عمرو ويقال: يحيى بن سعيد بن قيس بن قهد الأنصاري";
+
+        NarratorMentionedName.Choose(name, null, ["حدثنا يحيى بن سعيد الأنصاري", "عن يحيى بن سعيد"])
+            .Should().Be("يحيى بن سعيد الأنصاري");
+        NarratorMentionedName.Choose(name, null, ["عن يحيى بن سعيد"]).Should().Be("يحيى بن سعيد");
+    }
+
+    [Fact]
+    public void Choose_NisbahOnlyForm_IsLeftAlone()
+    {
+        NarratorMentionedName.Choose(
+                "سفيان بن سعيد بن مسروق الثوري", null, ["أخبرنا سفيان هو الثوري"], null, new HashSet<string> { "سفيان" })
+            .Should().Be("الثوري");
+    }
 }
