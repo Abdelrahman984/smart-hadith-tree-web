@@ -19,11 +19,8 @@ public class BulkDataIngestionService(
         BatchSize = 10_000,
         BulkCopyTimeout = 600,          // 10 minutes
         SetOutputIdentity = false,      // GUIDs are pre-assigned client-side
-        PreserveInsertOrder = true,
-        SqlBulkCopyOptions =
-            SqlBulkCopyOptions.CheckConstraints |
-            SqlBulkCopyOptions.TableLock |
-            SqlBulkCopyOptions.KeepIdentity
+        PreserveInsertOrder = true
+        // PostgreSQL bulk insert is binary COPY: constraints are always checked, and there is no identity to keep.
     };
 
     /// <summary>

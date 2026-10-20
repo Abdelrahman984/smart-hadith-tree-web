@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-21: PostgreSQL phase 3, the ETL loads the full corpus (branch `feature/postgres`)
+
+- **Package**: `EFCore.BulkExtensions.PostgreSql` instead of the metapackage; `SqlBulkCopyOptions` removed. The build has no warnings any more (the `System.Security.Cryptography.Pkcs` vulnerability warnings came through the SqlServer/Oracle providers).
+- **Bug fixed** (`src/SmartHadithTree.Etl/Program.cs`): the first full load failed at the transmissions, because the binary `COPY` uses the connection string's 30 s `Command Timeout`, not EF's 600 s. The ETL now sets 600 s on the connection string too.
+- **Checked** on a fresh PostgreSQL 18 database: `data/shamela_rijal` then `seed-ilal-shamela` load in about 4 minutes; every table count and the per-book counts of all 31 books (hadiths, text lengths, transmissions, `StepOrder` sums) equal the v7 baseline. A matn phrase search uses the trigram index (20 ms).
+
+---
+
 ## 2026-10-21: PostgreSQL phase 2, the isnad queries (branch `feature/postgres`)
 
 - **Ported** (`HadithChainRepository`): the single-tree recursive CTE (`WITH RECURSIVE`, quoted names, `uuid`/`text` casts with matching types in both branches) and the comparative query (`gen_random_uuid()`, `= ANY` with one `uuid[]` parameter).

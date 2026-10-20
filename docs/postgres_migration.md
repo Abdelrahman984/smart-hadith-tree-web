@@ -5,7 +5,9 @@ Status (2026-10-21), branch `feature/postgres`:
   (see its README).
 - **Phase 1 done**: the code builds and migrates against PostgreSQL 18; see "Phase 1: what was done" below.
 - **Phase 2 done**: both raw queries of `HadithChainRepository` are PostgreSQL and return the same rows as the old
-  T-SQL; see "Phase 2: what was done". No real corpus is loaded into PostgreSQL yet (phase 3).
+  T-SQL; see "Phase 2: what was done".
+- **Phase 3 done**: the ETL loads the full v7 corpus into PostgreSQL in about 4 minutes, and every table and
+  per-book count matches the SQL Server baseline; see "Phase 3: what was done".
 
 ## Why it is a contained change
 
@@ -164,6 +166,34 @@ query translation; see phase 5).
   the full load.
 - Load into a scratch database first (`ConnectionStrings__DefaultConnection` env override already supported), then
   run `seed-ilal-shamela`. Compare counts with phase 0. Run `ANALYZE` after the load.
+
+#### Phase 3: what was done
+- `EFCore.BulkExtensions` → `EFCore.BulkExtensions.PostgreSql` 9.0.2, and `SqlBulkCopyOptions` removed. The build
+  now has no warnings (the NU1902/NU1903 `System.Security.Cryptography.Pkcs` warnings came through the SqlServer
+  and Oracle providers of the metapackage), and nothing references `Microsoft.Data.SqlClient` any more.
+- **Bug found by the first full load**: the `COPY` of the 1,266,022 transmissions failed in
+  `NpgsqlBinaryImporter.Complete` with a read timeout, and the transaction rolled back. The binary importer takes
+  its timeout from the connection string's `Command Timeout` (default 30 s), not from EF's `CommandTimeout(600)`,
+  and finishing that `COPY` (three foreign keys and three indexes) takes longer. The ETL now also sets
+  `CommandTimeout = 600` on its connection string (`src/SmartHadithTree.Etl/Program.cs`).
+  Side effect seen in that run: `seed-ilal-shamela` on the empty database logged 0 rows and still
+  "ETL completed successfully".
+- **Checked** on the test container, fresh database: `dotnet run -c Release --project src/SmartHadithTree.Etl --
+  data/shamela_rijal` (resolver output written 2026-10-07 02:07, five minutes before the v7 backup) in 233 s
+  (parse 52 s; hadiths about 2 min, most likely because the GIN indexes are maintained during the `COPY`; transmissions 50 s),
+  then `seed-ilal-shamela data/shamela_rijal` in 3 s (165 mudallisin, 141 mukhtalitun, 168 hearings, 76 group
+  rules), then `ANALYZE`.
+  - **Tables**: identical to v7 (Hadiths 274,597, Transmissions 1,266,022, Narrators 44,282, ScholarEvaluations
+    131,994, NarratorRelations 153,519, MukhtalitHearings 168, MukhtalitGroupRules 76, HadithClusters 0,
+    mudallisin 165).
+  - **Per book**: `book-counts-sqlserver.csv` reproduced exactly for all 31 books (hadiths, matn and isnad
+    characters, transmissions, sum of `StepOrder`), with `char_length` in place of `DATALENGTH/2`.
+  - `NormalizedFullName` filled for all 44,282 narrators (25,291 differ from `FullName`).
+  - `NormalizedMatn LIKE '%انما الاعمال بالنيات%'` runs as a bitmap scan on `IX_Hadiths_NormalizedMatn_Trgm`,
+    20 ms over the 274,597 hadiths. Database size 1.49 GB.
+- `UpsertNarratorsAsync` and `ReplaceNarratorRelationsAsync` have no callers. The upsert matches on `FullName`,
+  which on PostgreSQL becomes `ON CONFLICT` and needs a unique index on that column (there is none); not run.
+- Possible speed-up, not done: create the GIN indexes after the load instead of maintaining them during `COPY`.
 
 ### Phase 4: behaviour differences to check in Application
 - **Ordering ties.** `OrderBy(h => h.MatnArabic.Length)` + `Skip/Take` and `NarratorService`'s `Take(50)` without

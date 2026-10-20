@@ -19,10 +19,13 @@ builder.Configuration
     .AddEnvironmentVariables();
 
 // ── Register Services ──────────────────────────────────────────────
+// 10 minutes for bulk operations. Also on the connection string: the binary COPY of EFCore.BulkExtensions takes its
+// timeout from there (default 30 s), not from EF's CommandTimeout, and finishing the COPY of the transmissions
+// (foreign keys and indexes on 1.27M rows) takes longer than that.
+var etlConnectionString = new Npgsql.NpgsqlConnectionStringBuilder(
+    builder.Configuration.GetConnectionString("DefaultConnection")) { CommandTimeout = 600 }.ConnectionString;
 builder.Services.AddDbContext<HadithTreeDbContext>(options =>
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        npgsql => npgsql.CommandTimeout(600))); // 10 minutes for bulk operations
+    options.UseNpgsql(etlConnectionString, npgsql => npgsql.CommandTimeout(600)));
 
 // Parsers (pluggable — add new parsers here)
 builder.Services.AddTransient<IDataSourceParser, SmartHadithTree.Etl.Parsers.Shamela.ShamelaDatasetParser>();

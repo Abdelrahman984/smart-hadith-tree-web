@@ -7,7 +7,8 @@ all 11 SQL Server migrations applied), API built from tag `pre-postgres` (`f1c64
 |---|---|---|
 | `search-sqlserver.json` / `.log` | `scripts/eval_search.py` (21 cases, no `--judge`) | `python scripts/eval_search.py --compare docs/challenge/evaluation/postgres-baseline/search-sqlserver.json` |
 | `verify-sqlserver.json` / `.log` | `scripts/eval_verify.py` (29 cases, 1 run) | `python scripts/eval_verify.py --compare docs/challenge/evaluation/postgres-baseline/verify-sqlserver.json` |
-| `book-counts-sqlserver.csv` | Per book (`NormalizedBookName`): hadiths, matn chars, isnad chars, transmissions, sum of `StepOrder` | Same query on PostgreSQL (`char_length` for the char sums), then diff the CSVs |
+| `book-counts-sqlserver.csv` | Per book (`NormalizedBookName`): hadiths, matn chars, isnad chars, transmissions, sum of `StepOrder` | `docker exec -i <container> psql -U sht -d smart_hadith_tree --csv < book-counts-postgres.sql`, then diff the CSVs |
+| `book-counts-postgres.csv` | The same query on PostgreSQL after the phase 3 full load (2026-10-21): identical to the SQL Server file | — |
 | `snapshot-cases.json` | 36 hadiths keyed by book/chapter/number (31 = first hadith with ≥ 4 transmissions per book, 5 = tahwil with 2–4 step-1 rows) and 20 narrator queries (10 names, with and without tashkeel) | Input of `scripts/snapshot_api.py` |
 | `snapshot-sqlserver.json` | `/tree`, `/takhreej/related`, `/ilal`, `/takhreej?ids=` (hadith + 5 related) per case, `/narrators/search` per query | `python scripts/snapshot_api.py --compare docs/challenge/evaluation/postgres-baseline/snapshot-sqlserver.json <new>.json` |
 
