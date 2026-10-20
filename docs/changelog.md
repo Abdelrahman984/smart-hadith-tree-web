@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-21: PostgreSQL phase 6, side-by-side parity check (branch `feature/postgres`)
+
+- **Setup**: tag `pre-postgres` on SQL Server v7 (`:5148`) and this branch on the PostgreSQL test container with the full corpus (`:5147`), both Release, same AI provider.
+- **Identical**: search eval (MRR 0.866, no rank changed), verify eval (29/29, no status changed), the nine Ilal pages (119 findings, 9 Qadihah, every grade as in v7), all 36 isnad trees, and the related-hadith sets.
+- **Faster**: hadith search 844 → 72 ms median, verify 789 → 74, related hadiths 1,196 → 148, Ilal 1,160 → 96, narrator search 129 → 14 (trigram indexes). Trees and merged trees about the same.
+- **Different, all explained** (`docs/postgres_migration.md`, "Phase 6: results"): the phase 4 group-rule hint, tiebreakers and related order; and narrator search, where SQL Server **found nothing** for names with أ/إ/آ/ة (مالك بن أنس, أبو هريرة, قتادة, عائشة…) because only the query was normalized; PostgreSQL finds them.
+- **Found, not fixed**: `MatnAtMadarRule` picks its reference matn by the order of the turuq, so مسند أحمد #2 is a Shudhudh **Tanbih** in one order and **Qadihah** in another, with the same four turuq.
+
+---
+
 ## 2026-10-21: PostgreSQL phase 5, integration tests on a real database (branch `feature/postgres`)
 
 - **New** (`src/SmartHadithTree.Tests/Integration/`): 11 tests on a `postgres:18` Testcontainers database migrated with the real migrations. They cover what the InMemory tests cannot run: the two isnad queries (tahwil branches, two compilers, the merged tree and its `uuid[]` parameter), search as PostgreSQL translates it (tashkeel, `LIKE` with literal `%`/`_`, narrator order, alef variants), the ETL's binary `COPY`, and the Ilal engine's group-rule order.

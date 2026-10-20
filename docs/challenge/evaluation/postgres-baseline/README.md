@@ -12,6 +12,11 @@ all 11 SQL Server migrations applied), API built from tag `pre-postgres` (`f1c64
 | `snapshot-cases.json` | 36 hadiths keyed by book/chapter/number plus `matnSha1` (book/chapter/number repeat 4,925 times in v7; added in phase 4) (31 = first hadith with ≥ 4 transmissions per book, 5 = tahwil with 2–4 step-1 rows) and 20 narrator queries (10 names, with and without tashkeel) | Input of `scripts/snapshot_api.py` |
 | `snapshot-sqlserver.json` | `/tree`, `/takhreej/related`, `/ilal`, `/takhreej?ids=` (hadith + 5 related) per case, `/narrators/search` per query | `python scripts/snapshot_api.py --compare docs/challenge/evaluation/postgres-baseline/snapshot-sqlserver.json <new>.json` |
 
+**Phase 6** (side by side, 2026-10-21; results in `docs/postgres_migration.md`, "Phase 6: results"):
+`snapshot-sqlserver-phase6.json` / `snapshot-postgres-phase6.json`, `search-*-phase6.json/.log`,
+`verify-*-phase6.json/.log`, `ilal-pages-*-phase6.json/.log` (`sqlserver` = tag `pre-postgres` on `:5148`,
+`postgres` = branch `feature/postgres` on `:5147`).
+
 ## Numbers
 
 **Tables** (identical to the v7 row of `backups/README.md`): Hadiths 274,597 · Transmissions 1,266,022 ·

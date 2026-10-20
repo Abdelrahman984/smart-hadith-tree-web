@@ -12,6 +12,8 @@ Status (2026-10-21), branch `feature/postgres`:
   had none, as proposed and approved); see "Phase 4".
 - **Phase 5 done**: 11 Testcontainers integration tests on a real PostgreSQL 18 (isnad CTEs, search translation,
   bulk `COPY`, Ilal loading); see "Phase 5: what was done".
+- **Phase 6 done**: the `pre-postgres` build on SQL Server and this branch on PostgreSQL, side by side: evals and
+  Ilal pages identical, every API difference explained, searches 8–12× faster; see "Phase 6: results".
 
 ## Why it is a contained change
 
@@ -323,6 +325,58 @@ What was done:
   (the ETL assigns random ids, and the comparative anchors use `NEWID()`), so tree/takhreej/ilal must match exactly.
 - `python scripts/eval_search.py --compare docs/challenge/evaluation/baseline_sqlserver.json` and the `/verify`
   equivalent: no regressions; expect latency to drop on multi-word searches.
+
+#### Phase 6: results (2026-10-21)
+Setup: tag `pre-postgres` in a worktree, Release, on `:5148` against SQL Server `SmartHadithTree_ShamelaV7`; this
+branch (`5793664`), Release, on `:5147` against the test container (phase 3 full load, migrated to
+`AddGroupRuleOrdinal`, Ilal reloaded). Same user secrets, so the same AI provider. Launch configs `api-sqlserver-pre`
+and `api-pg` in `.claude/launch.json` (local, untracked; the PostgreSQL password is read from a file at start).
+Files in `docs/challenge/evaluation/postgres-baseline/` (`*-phase6.*`).
+
+| Check | SQL Server (`pre-postgres`) | PostgreSQL (this branch) |
+|---|---|---|
+| Phase 0 snapshot vs today, same build | identical (the old build is stable) | — |
+| `eval_search` (21 cases) | hit@1 15/18, hit@3 16/18, MRR 0.866, precision 0.93 | **identical**; no rank changed (`--compare`) |
+| `eval_verify` (29 cases) | 29/29, 8/8 negatives abstained | **identical**; no status changed (`--compare`) |
+| `eval_ilal_pages` (9 pages) | 119 findings, 46 matn, 9 Qadihah = the v7 record | **identical**, every grade unchanged |
+| Snapshot: trees (36) | — | **identical** |
+| Snapshot: related lists (36, as sets) | — | **identical** (order differs: phase 4B) |
+| Snapshot: merged trees / Ilal reports | — | 5 / 4 differ, all explained below |
+| Snapshot: narrator search (20 queries) | — | 16 differ, all explained below |
+
+Latency (median ms, both warm, same machine):
+
+| Endpoint | SQL Server | PostgreSQL |
+|---|---|---|
+| `eval_search` (hadith search) | 844 | **72** |
+| `eval_verify` | 789 | **74** |
+| `/takhreej/related` | 1,196 | **148** |
+| `/ilal/{id}` | 1,160 | **96** |
+| `/narrators/search` | 129 | **14** |
+| `/tree`, `/takhreej?ids=` | 23, 27 | 28, 38 |
+
+The substring searches are where SQL Server scanned and PostgreSQL uses the trigram indexes. Trees and merged trees
+are the same small CTE queries on both, a few milliseconds slower on PostgreSQL in Docker.
+
+Every difference, by cause:
+- **Group-rule hint (phase 4B, intended)**: Ilal and merged-tree reports of سنن ابن ماجه #1 and جامع الترمذي #1
+  quote the first «before» and «after» rule instead of one arbitrary rule.
+- **Tiebreaker (phase 4A, intended)**: the merged tree of السنن الكبرى للبيهقي #1, one node's `transmissionTerm`
+  (أخبرنا → عن): the merge takes the narrator's first row, which is now fixed instead of the database's.
+- **Related order (phase 4B, intended)**: the snapshot builds merged trees from the first 5 related hadiths, so
+  البيهقي #373 compares a different 5 (same related set); its Ilal report has the same finding types and severities.
+- **Narrator search (phase 1, a bug fixed)**: on SQL Server, **مالك بن أنس, أبو هريرة, قتادة, عائشة, شعبة بن الحجاج,
+  حماد بن سلمة return nothing**, with or without tashkeel. The query goes through `ArabicNormalizer` (أ→ا, ة→ه), the
+  column does not, and `Arabic_100_CI_AI` ignores the diacritics but not those letters: any name with أ/إ/آ/ة could
+  not be found. PostgreSQL searches the normalized columns and returns 2–48 narrators, the expected one first in
+  most cases (أبو هريرة, قتادة, عبد الله بن عمر, شعبة بن الحجاج, حماد بن سلمة). الزهري and عبد الله بن عمر hit the cap of
+  50 on both; which 50 now follows the new order. سفيان الثوري and نافع مولى ابن عمر return nothing on both (no
+  registry name contains them as one string; not a migration issue).
+- **Order-dependent Ilal verdict (pre-existing, exposed by phase 4B)**: مسند أحمد #2 has the same 4 turuq on both,
+  but `MatnAtMadarRule` takes its reference matn from the turuq's order. SQL Server's arbitrary order compared
+  Ahmad with ابن ماجه #1395 («زاد… ولم يذكرها», **Tanbih**, 0.45); the length order compares him with أبي يعلى #12
+  («اختلف الرواة… شاذة», **Qadihah**, 0.5). The order is now deterministic, but the verdict still depends on it.
+  A rule-engine question, not a migration one; left as a follow-up.
 
 ### Phase 7: ops and docs
 - `docker-compose.yml` / `docker-compose.prod.yml`: `postgres:18` service, `POSTGRES_PASSWORD` instead of
