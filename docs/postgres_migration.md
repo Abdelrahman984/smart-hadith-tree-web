@@ -10,6 +10,8 @@ Status (2026-10-21), branch `feature/postgres`:
   per-book count matches the SQL Server baseline; see "Phase 3: what was done".
 - **Phase 4 done**: part A (tiebreakers on queries that already sort) and part B (an order for the five reads that
   had none, as proposed and approved); see "Phase 4".
+- **Phase 5 done**: 11 Testcontainers integration tests on a real PostgreSQL 18 (isnad CTEs, search translation,
+  bulk `COPY`, Ilal loading); see "Phase 5: what was done".
 
 ## Why it is a contained change
 
@@ -141,6 +143,10 @@ query translation; see phase 5).
 - `GetIsnadTreeAsync`: `WITH RECURSIVE`, quoted identifiers and aliases, `::uuid` / `::text` casts,
   `TransmissionTerm::text` in the recursive branch (its column is `varchar(50)`, the anchor's `NULL::text`),
   `false` for `IsAnomaly`.
+  *Corrected in phase 5 by breaking each on purpose:* the recursive branch's `::text` cast is not required
+  (the `NULL::text` anchor sets the column type and `varchar` converts implicitly; kept for clarity), and quoting
+  the **aliases** is not required either (Npgsql falls back to a case-insensitive column lookup). Quoting the
+  **tables and columns** is required, since they were created as quoted PascalCase names.
 - `GetComparativeIsnadTreeAsync` is not recursive (a `UNION ALL` of the compilers and every edge): quoted names,
   `gen_random_uuid()` for the anchor ids, and `= ANY({0})` with one `uuid[]` parameter instead of an `IN` list
   built from one placeholder per hadith.
@@ -281,6 +287,34 @@ What was done:
   small fixture (2–3 hadiths with tahwil, shared narrators) and covers: `GetIsnadTreeAsync`,
   `GetComparativeIsnadTreeAsync`, hadith search with Arabic diacritics, narrator search with/without tashkeel,
   bulk insert + upsert. This closes the current gap where raw SQL has no tests at all.
+
+#### Phase 5: what was done
+- `Testcontainers.PostgreSql` 4.6.0 in `SmartHadithTree.Tests`; `Integration/PostgresFixture.cs` starts one
+  `postgres:18` container per run (xUnit collection fixture) and applies the real migrations. Tests share the
+  database and isolate themselves: fresh GUIDs, and a random Arabic marker word (`Marker.New()`, letters the
+  normalizer leaves alone) for anything searched by text. All are tagged `[Trait("Category", "Integration")]`.
+- 11 tests in 4 files:
+  - `IsnadQueryTests`: a tahwil isnad converging on one Companion (5 nodes, both branches, parent links, terms,
+    `GradeEn` from `IbnHajarRank`, the temporal-break anomaly on one branch only, `SourceKey` order); two compilers
+    sharing the zero id, in `SourceKey` order; the comparative tree merging a shared sheikh and Companion with both
+    sources, through the `uuid[]` parameter with 3 ids (one without a chain) and with 1.
+  - `SearchTranslationTests`: matn search with and without tashkeel in the query; `Contains` → `LIKE`, and `%`
+    / `_` in the searched text match literally (Npgsql escapes them); narrator search with and without tashkeel
+    in the new order; alef variants.
+  - `BulkIngestionTests`: `BulkDataIngestionService.IngestAsync` copies all five tables, and the computed
+    normalized names reach the table through binary `COPY` (read back with raw SQL).
+  - `IlalLoadingTests`: `IlalAnalysisService` on PostgreSQL (orders through the `Sheikh` navigation) quotes the
+    group rules by `Ordinal`, not by physical order.
+- **Checked**: 11/11 pass, twice in a row; full suite 301/303 (the 2 known stale-count tests), 61 s including the
+  container start. Each test was also checked against a deliberate break: without `ORDER BY "Ordinal"` the
+  `IlalLoadingTests` test fails 3 of 3 runs (it first passed by luck, because one `SaveChanges` inserts in key
+  order, so the rules are now saved one at a time, last first); the other two breaks showed the corrections
+  noted in phase 2.
+- **Without Docker**: run `dotnet test --filter "Category!=Integration"` (checked: 292 tests, the 11 excluded).
+  What the integration tests do when Docker is missing was not observed: Testcontainers found Docker Desktop
+  even with `DOCKER_HOST` pointing elsewhere, and Docker was not stopped for the check. CI (`deploy.yml`,
+  `ubuntu-24.04`) has Docker and will run them.
+- Not covered: `UpsertNarratorsAsync` (no callers; it would need a unique index on `FullName` on PostgreSQL).
 
 ### Phase 6: parity check
 - Run old build (tag `pre-postgres`, SQL Server, port 5148) and new build (PG, port 5147).

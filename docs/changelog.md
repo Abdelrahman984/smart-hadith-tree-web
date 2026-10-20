@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-21: PostgreSQL phase 5, integration tests on a real database (branch `feature/postgres`)
+
+- **New** (`src/SmartHadithTree.Tests/Integration/`): 11 tests on a `postgres:18` Testcontainers database migrated with the real migrations. They cover what the InMemory tests cannot run: the two isnad queries (tahwil branches, two compilers, the merged tree and its `uuid[]` parameter), search as PostgreSQL translates it (tashkeel, `LIKE` with literal `%`/`_`, narrator order, alef variants), the ETL's binary `COPY`, and the Ilal engine's group-rule order.
+- **Checked**: 11/11 pass twice; full suite 301/303 (the 2 known stale-count tests). Breaking the `Ordinal` order makes its test fail every time.
+- **Corrected** (`docs/postgres_migration.md`, phase 2): breaking them on purpose showed that neither the `::text` cast in the recursive branch nor the quoting of the column aliases is required; quoting the tables and columns is.
+- **Needs Docker**. Without it: `dotnet test --filter "Category!=Integration"`.
+
+---
+
 ## 2026-10-21: PostgreSQL phase 4B, an order for the reads that had none (branch `feature/postgres`)
 
 - **Mukhtalit group rules**: new `Ordinal` (the books' order from `ilal.json`; migration `AddGroupRuleOrdinal`, run `seed-ilal-shamela` once to fill it). When a student's own timing is unknown, the Ikhtilat note now quotes the first «before» **and** the first «after» rule instead of whichever rule the database returned first; for 15 narrators the rules go both ways, so the quoted verdict could flip. Rules that state no timing are no longer quoted as «قبل الاختلاط».
