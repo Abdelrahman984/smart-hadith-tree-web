@@ -15,7 +15,7 @@ public class NarratorService(IHadithTreeDbContext context) : INarratorService
         var normalizedQuery = SmartHadithTree.Domain.Utilities.ArabicNormalizer.Normalize(query);
 
         return await context.Narrators
-            .Where(n => n.FullName.Contains(normalizedQuery) || (n.KnownAs != null && n.KnownAs.Contains(normalizedQuery)))
+            .Where(n => n.NormalizedFullName.Contains(normalizedQuery) || (n.NormalizedKnownAs != null && n.NormalizedKnownAs.Contains(normalizedQuery)))
             .Take(50)
             .Select(n => new NarratorSearchResultDto
             {

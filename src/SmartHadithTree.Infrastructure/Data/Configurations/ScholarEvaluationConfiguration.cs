@@ -28,23 +28,19 @@ public class ScholarEvaluationConfiguration : IEntityTypeConfiguration<ScholarEv
         // ── String Properties ──────────────────────────────────────
         builder.Property(e => e.ScholarName)
             .IsRequired()
-            .HasMaxLength(300)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(300);
 
         builder.Property(e => e.EvaluationText)
-            .IsRequired()
-            .UseCollation("Arabic_100_CI_AI");
+            .IsRequired();
 
         builder.Property(e => e.SourceBook)
-            .HasMaxLength(300)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(300);
 
         builder.Property(e => e.SourceVolume)
             .HasMaxLength(20);
 
         builder.Property(e => e.VerdictRating)
-            .HasMaxLength(100)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(100);
 
         // ── Indexes ────────────────────────────────────────────────
         // Fast retrieval of all evaluations for a narrator (used by RAG pipeline).

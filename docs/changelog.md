@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-21: PostgreSQL phase 1, provider and model (branch `feature/postgres`)
+
+- **Provider**: Api, Etl and `IlalCompare` use Npgsql (`Npgsql.EntityFrameworkCore.PostgreSQL` 9.0.4) instead of SQL Server. Connection strings point at `Host=localhost;Database=smart_hadith_tree;Username=sht`, with the password from `PGPASSWORD` or `pgpass.conf`.
+- **Model**: the `Arabic_100_CI_AI` collations are gone; `Arabic_100_BIN2` columns are `COLLATE "C"`. New `Narrator.NormalizedFullName` / `NormalizedKnownAs` (computed from `FullName` / `KnownAs` with `ArabicNormalizer`), which narrator search now queries. `pg_trgm` GIN indexes on `NormalizedMatn`, `FullIsnadText`, `NormalizedBookName` and the two narrator columns.
+- **Migrations**: the 11 SQL Server migrations moved to `Data/Migrations.SqlServer/` (not compiled); one new Npgsql `InitialCreate`.
+- **Checked** on a throwaway PostgreSQL 18 container: the migration applies; the seed ETL loads through the current bulk insert; `Contains` translates to a trigram-indexable `LIKE '%…%'`; narrator search ignores tashkeel. 284/286 tests pass; the 2 failures expect pre-v7 counts and fail the same way at tag `pre-postgres`.
+- **Not working yet**: `/api/Tree` and `/api/Takhreej` (raw T-SQL, phase 2); no real corpus loaded into PostgreSQL yet (phase 3).
+
+---
+
 ## 2026-10-21: Plan and SQL Server baseline for moving to PostgreSQL
 
 - **Plan**: `docs/postgres_migration.md` lists every SQL Server dependency (collations, the two raw recursive CTEs, migrations, `SqlBulkCopy` options, Docker/backup tooling) and the phases of the move. No code changed.

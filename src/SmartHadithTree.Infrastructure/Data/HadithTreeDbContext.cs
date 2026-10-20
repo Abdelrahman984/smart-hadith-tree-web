@@ -6,7 +6,8 @@ namespace SmartHadithTree.Infrastructure.Data;
 
 /// <summary>
 /// EF Core database context for the Smart Hadith Tree application.
-/// Configured with Arabic_100_CI_AI collation for accent-insensitive Arabic text searches.
+/// Arabic text is searched through normalized columns (no tashkeel, unified alef/ta marbuta) with
+/// pg_trgm indexes, not through a database collation.
 /// </summary>
 public class HadithTreeDbContext : DbContext, IHadithTreeDbContext
 {
@@ -28,9 +29,8 @@ public class HadithTreeDbContext : DbContext, IHadithTreeDbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Database-wide Arabic collation: makes all text comparisons
-        // accent-insensitive, so searching "محمد" matches "مُحَمَّدٌ" (with Tashkeel).
-        modelBuilder.UseCollation("Arabic_100_CI_AI");
+        // Trigram indexes (gin_trgm_ops) on the normalized search columns.
+        modelBuilder.HasPostgresExtension("pg_trgm");
 
         // Apply all IEntityTypeConfiguration<T> implementations from this assembly.
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HadithTreeDbContext).Assembly);

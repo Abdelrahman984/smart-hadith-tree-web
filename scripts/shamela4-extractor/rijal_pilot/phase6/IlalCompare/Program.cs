@@ -12,7 +12,9 @@ var pairs = JsonSerializer.Deserialize<Dictionary<string, List<string[]>>>(File.
 var perBook = args.Length > 4 ? int.Parse(args[4]) : 150;
 
 var options = new DbContextOptionsBuilder<HadithTreeDbContext>()
-    .UseSqlServer($"Server=.;Database={database};Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true",
+    // PostgreSQL since the move off SQL Server; the v2/Shamela databases it compared then are SQL Server backups
+    // (tag pre-postgres has the SQL Server version of this tool).
+    .UseNpgsql($"Host=localhost;Port=5432;Database={database};Username=sht",
         o => o.CommandTimeout(300))
     .Options;
 await using var db = new HadithTreeDbContext(options);

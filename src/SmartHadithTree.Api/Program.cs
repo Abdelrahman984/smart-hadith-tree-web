@@ -15,16 +15,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ── Database ───────────────────────────────────────────────────────
 builder.Services.AddDbContext<HadithTreeDbContext>(options =>
-    options.UseSqlServer(
+    options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
-        sqlOptions =>
+        npgsqlOptions =>
         {
-            sqlOptions.CommandTimeout(120);
-            sqlOptions.EnableRetryOnFailure(
+            npgsqlOptions.CommandTimeout(120);
+            npgsqlOptions.EnableRetryOnFailure(
                 maxRetryCount: 3,
                 maxRetryDelay: TimeSpan.FromSeconds(5),
-                errorNumbersToAdd: null);
-            sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory");
+                errorCodesToAdd: null);
+            npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory");
         }));
 
 // Register Semantic Kernel

@@ -49,8 +49,7 @@ public class TransmissionConfiguration : IEntityTypeConfiguration<Transmission>
 
         // ── Properties ─────────────────────────────────────────────
         builder.Property(t => t.TransmissionTerm)
-            .HasMaxLength(50)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(50);
 
         // ── Indexes ────────────────────────────────────────────────
 

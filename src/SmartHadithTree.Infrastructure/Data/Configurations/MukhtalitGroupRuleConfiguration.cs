@@ -22,17 +22,14 @@ public class MukhtalitGroupRuleConfiguration : IEntityTypeConfiguration<Mukhtali
 
         builder.Property(r => r.GroupAr)
             .IsRequired()
-            .HasMaxLength(300)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(300);
 
         builder.Property(r => r.Quote)
             .IsRequired()
-            .HasMaxLength(1000)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(1000);
 
         builder.Property(r => r.SourceBook)
-            .HasMaxLength(300)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(300);
 
         builder.HasIndex(r => r.MukhtalitId)
             .HasDatabaseName("IX_MukhtalitGroupRules_MukhtalitId");

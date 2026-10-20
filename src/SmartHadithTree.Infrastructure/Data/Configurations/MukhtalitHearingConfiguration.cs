@@ -26,12 +26,10 @@ public class MukhtalitHearingConfiguration : IEntityTypeConfiguration<MukhtalitH
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(h => h.Evidence)
-            .HasMaxLength(1000)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(1000);
 
         builder.Property(h => h.SourceBook)
-            .HasMaxLength(300)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(300);
 
         builder.HasIndex(h => new { h.MukhtalitId, h.StudentId })
             .IsUnique()

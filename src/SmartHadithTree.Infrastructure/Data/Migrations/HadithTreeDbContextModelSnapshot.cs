@@ -2,8 +2,8 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SmartHadithTree.Infrastructure.Data;
 
 #nullable disable
@@ -17,25 +17,25 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .UseCollation("Arabic_100_CI_AI")
-                .HasAnnotation("ProductVersion", "9.0.20")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+                .HasAnnotation("ProductVersion", "9.0.21")
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("SmartHadithTree.Domain.Entities.HadithCluster", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("GawamiClusterId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Taraf")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -46,50 +46,53 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("BookName")
                         .IsRequired()
                         .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(300)");
 
                     b.Property<string>("Chapter")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("FullIsnadText")
-                        .HasColumnType("nvarchar(max)")
-                        .UseCollation("Arabic_100_BIN2");
+                        .HasColumnType("text")
+                        .UseCollation("C");
 
                     b.Property<Guid?>("HadithClusterId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<int>("HadithNumber")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("MatnArabic")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("text");
 
                     b.Property<string>("NormalizedBookName")
                         .IsRequired()
                         .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)")
-                        .UseCollation("Arabic_100_BIN2");
+                        .HasColumnType("character varying(300)")
+                        .UseCollation("C");
 
                     b.Property<string>("NormalizedMatn")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .UseCollation("Arabic_100_BIN2");
+                        .HasColumnType("text")
+                        .UseCollation("C");
 
                     b.Property<string>("Volume")
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("character varying(50)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("FullIsnadText")
+                        .HasDatabaseName("IX_Hadiths_FullIsnadText_Trgm");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("FullIsnadText"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("FullIsnadText"), new[] { "gin_trgm_ops" });
 
                     b.HasIndex("HadithClusterId");
 
@@ -99,8 +102,19 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                     b.HasIndex("NormalizedBookName")
                         .HasDatabaseName("IX_Hadiths_NormalizedBookName");
 
+                    b.HasIndex("NormalizedMatn")
+                        .HasDatabaseName("IX_Hadiths_NormalizedMatn_Trgm");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("NormalizedMatn"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("NormalizedMatn"), new[] { "gin_trgm_ops" });
+
                     b.HasIndex("BookName", "HadithNumber")
                         .HasDatabaseName("IX_Hadiths_BookName_HadithNumber");
+
+                    b.HasIndex(new[] { "NormalizedBookName" }, "IX_Hadiths_NormalizedBookName_Trgm");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex(new[] { "NormalizedBookName" }, "IX_Hadiths_NormalizedBookName_Trgm"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex(new[] { "NormalizedBookName" }, "IX_Hadiths_NormalizedBookName_Trgm"), new[] { "gin_trgm_ops" });
 
                     b.ToTable("Hadiths", (string)null);
                 });
@@ -109,30 +123,27 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("GroupAr")
                         .IsRequired()
                         .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(300)");
 
                     b.Property<Guid>("MukhtalitId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Quote")
                         .IsRequired()
                         .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<string>("SourceBook")
                         .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(300)");
 
                     b.Property<int>("Timing")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -146,26 +157,24 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Evidence")
                         .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<Guid>("MukhtalitId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("SourceBook")
                         .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(300)");
 
                     b.Property<Guid>("StudentId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<int>("Timing")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -182,105 +191,107 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Biography")
-                        .HasColumnType("nvarchar(max)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("text");
 
                     b.Property<string>("BirthPlace")
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(200)");
 
                     b.Property<int?>("BirthYearHijri")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("DeathPlace")
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(200)");
 
                     b.Property<int?>("DeathYearHijri")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(500)");
 
                     b.Property<int?>("GawamiId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("GawamiRank")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("GenerationTier")
                         .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(150)");
 
                     b.Property<bool>("HasMukhtalit")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<int?>("IbnHajarRank")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("IkhtilatNote")
                         .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<int?>("IkhtilatSeverity")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<bool>("IsMudallis")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<string>("ItqanGrade")
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("character varying(50)");
 
                     b.Property<int?>("ItqanId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("KnownAs")
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("Kunyah")
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(200)");
 
                     b.Property<int?>("MudallisTier")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<bool>("NoHearingAfterIkhtilat")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("NormalizedFullName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .UseCollation("C");
+
+                    b.Property<string>("NormalizedKnownAs")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .UseCollation("C");
 
                     b.Property<string>("ResidencePlaces")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<int?>("ShamelaManId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("SourceKey")
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
+                        .HasColumnType("character varying(40)");
 
                     b.Property<int?>("TotalNarrationsCount")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<int?>("UniqueHadithCount")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("Verdict")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(500)");
 
                     b.HasKey("Id");
 
@@ -292,11 +303,22 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
 
                     b.HasIndex("ItqanId")
                         .IsUnique()
-                        .HasDatabaseName("IX_Narrators_ItqanId")
-                        .HasFilter("[ItqanId] IS NOT NULL");
+                        .HasDatabaseName("IX_Narrators_ItqanId");
 
                     b.HasIndex("KnownAs")
                         .HasDatabaseName("IX_Narrators_KnownAs");
+
+                    b.HasIndex("NormalizedFullName")
+                        .HasDatabaseName("IX_Narrators_NormalizedFullName_Trgm");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("NormalizedFullName"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("NormalizedFullName"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("NormalizedKnownAs")
+                        .HasDatabaseName("IX_Narrators_NormalizedKnownAs_Trgm");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("NormalizedKnownAs"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("NormalizedKnownAs"), new[] { "gin_trgm_ops" });
 
                     b.HasIndex("ShamelaManId")
                         .HasDatabaseName("IX_Narrators_ShamelaManId");
@@ -304,7 +326,7 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                     b.HasIndex("SourceKey")
                         .IsUnique()
                         .HasDatabaseName("IX_Narrators_SourceKey")
-                        .HasFilter("[SourceKey] IS NOT NULL");
+                        .HasFilter("\"SourceKey\" IS NOT NULL");
 
                     b.ToTable("Narrators", (string)null);
                 });
@@ -313,18 +335,18 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Source")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("character varying(50)");
 
                     b.Property<Guid>("StudentId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<Guid>("TeacherId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
@@ -342,44 +364,40 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("EvaluationText")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("text");
 
                     b.Property<int?>("GawamiAlemId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<int?>("GawamiRawyId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("NarratorId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("ScholarName")
                         .IsRequired()
                         .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(300)");
 
                     b.Property<string>("SourceBook")
                         .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(300)");
 
                     b.Property<int?>("SourcePage")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("SourceVolume")
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("VerdictRating")
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
 
@@ -396,24 +414,23 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<Guid>("HadithId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<Guid>("SheikhId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<int>("StepOrder")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("StudentId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("TransmissionTerm")
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .UseCollation("Arabic_100_CI_AI");
+                        .HasColumnType("character varying(50)");
 
                     b.HasKey("Id");
 

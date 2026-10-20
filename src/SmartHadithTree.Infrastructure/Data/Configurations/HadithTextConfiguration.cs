@@ -20,32 +20,29 @@ public class HadithTextConfiguration : IEntityTypeConfiguration<HadithText>
 
         // ── String Properties ──────────────────────────────────────
         builder.Property(h => h.MatnArabic)
-            .IsRequired()
-            .UseCollation("Arabic_100_CI_AI");
+            .IsRequired();
         builder.Property(h => h.NormalizedMatn)
             .IsRequired()
-            .UseCollation("Arabic_100_BIN2");
+            .UseCollation("C");
         // MatnArabic is nvarchar(max) by default — Hadith texts can be lengthy.
 
         builder.Property(h => h.BookName)
             .IsRequired()
-            .HasMaxLength(300)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(300);
 
         builder.Property(h => h.NormalizedBookName)
             .IsRequired()
             .HasMaxLength(300)
-            .UseCollation("Arabic_100_BIN2");
+            .UseCollation("C");
 
         builder.Property(h => h.Volume)
             .HasMaxLength(50);
 
         builder.Property(h => h.Chapter)
-            .HasMaxLength(500)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(500);
 
         builder.Property(h => h.FullIsnadText)
-            .UseCollation("Arabic_100_BIN2");
+            .UseCollation("C");
 
         // ── Indexes ────────────────────────────────────────────────
         // Composite index for lookup-by-reference (book + number).
@@ -59,5 +56,21 @@ public class HadithTextConfiguration : IEntityTypeConfiguration<HadithText>
         // NormalizedBookName index for fast book filtering.
         builder.HasIndex(h => h.NormalizedBookName)
             .HasDatabaseName("IX_Hadiths_NormalizedBookName");
+
+        // Trigram (pg_trgm) indexes for the substring searches of HadithSearchService (Contains / LIKE '%x%').
+        builder.HasIndex(h => h.NormalizedMatn)
+            .HasMethod("gin")
+            .HasOperators("gin_trgm_ops")
+            .HasDatabaseName("IX_Hadiths_NormalizedMatn_Trgm");
+
+        builder.HasIndex(h => h.FullIsnadText)
+            .HasMethod("gin")
+            .HasOperators("gin_trgm_ops")
+            .HasDatabaseName("IX_Hadiths_FullIsnadText_Trgm");
+
+        // Named overload: a second unnamed HasIndex on NormalizedBookName would reconfigure the B-tree index above.
+        builder.HasIndex(h => h.NormalizedBookName, "IX_Hadiths_NormalizedBookName_Trgm")
+            .HasMethod("gin")
+            .HasOperators("gin_trgm_ops");
     }
 }

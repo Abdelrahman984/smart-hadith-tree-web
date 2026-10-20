@@ -20,9 +20,9 @@ builder.Configuration
 
 // ── Register Services ──────────────────────────────────────────────
 builder.Services.AddDbContext<HadithTreeDbContext>(options =>
-    options.UseSqlServer(
+    options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
-        sql => sql.CommandTimeout(600))); // 10 minutes for bulk operations
+        npgsql => npgsql.CommandTimeout(600))); // 10 minutes for bulk operations
 
 // Parsers (pluggable — add new parsers here)
 builder.Services.AddTransient<IDataSourceParser, SmartHadithTree.Etl.Parsers.Shamela.ShamelaDatasetParser>();
@@ -49,9 +49,9 @@ logger.LogInformation("║   Smart Hadith Tree — ETL Data Pipeline     ║");
 logger.LogInformation("║   شجرة الأسانيد الذكية — خط أنابيب البيانات ║");
 logger.LogInformation("╚══════════════════════════════════════════════╝");
 logger.LogInformation("Source: {Source}", source);
-var target = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(
+var target = new Npgsql.NpgsqlConnectionStringBuilder(
     builder.Configuration.GetConnectionString("DefaultConnection"));
-logger.LogInformation("Database: {Server} / {Database}", target.DataSource, target.InitialCatalog);
+logger.LogInformation("Database: {Server} / {Database}", target.Host, target.Database);
 
 try
 {
