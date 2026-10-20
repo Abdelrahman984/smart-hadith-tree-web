@@ -1,0 +1,128 @@
+{
+  "S01": {
+    "rank": 1,
+    "results": 10,
+    "probe": false,
+    "relevance": 88
+  },
+  "S02": {
+    "rank": 2,
+    "results": 26,
+    "probe": false,
+    "relevance": 88,
+    "precision_top": 0.9
+  },
+  "S03": {
+    "rank": 20,
+    "results": 50,
+    "probe": false,
+    "relevance": 88,
+    "precision_top": 0.9
+  },
+  "S04": {
+    "rank": 1,
+    "results": 48,
+    "probe": false,
+    "relevance": 100
+  },
+  "S05": {
+    "rank": 1,
+    "results": 28,
+    "probe": false,
+    "relevance": 100
+  },
+  "S06": {
+    "rank": 1,
+    "results": 19,
+    "probe": false,
+    "relevance": 75
+  },
+  "S07": {
+    "rank": 1,
+    "results": 9,
+    "probe": false,
+    "relevance": 88
+  },
+  "S08": {
+    "rank": 1,
+    "results": 16,
+    "probe": false,
+    "relevance": 100
+  },
+  "S09": {
+    "rank": 1,
+    "results": 17,
+    "probe": false,
+    "relevance": 100
+  },
+  "S10": {
+    "rank": 1,
+    "results": 16,
+    "probe": false,
+    "relevance": 100
+  },
+  "S11": {
+    "rank": 33,
+    "results": 50,
+    "probe": false,
+    "relevance": 88,
+    "precision_top": 1.0
+  },
+  "S12": {
+    "rank": 1,
+    "results": 45,
+    "probe": false,
+    "relevance": 88
+  },
+  "S13": {
+    "rank": 1,
+    "results": 12,
+    "probe": false,
+    "relevance": 100
+  },
+  "S14": {
+    "rank": 1,
+    "results": 26,
+    "probe": false,
+    "relevance": 100
+  },
+  "S15": {
+    "rank": 1,
+    "results": 28,
+    "probe": false,
+    "relevance": 100
+  },
+  "S16": {
+    "rank": 1,
+    "results": 20,
+    "probe": false,
+    "relevance": 88
+  },
+  "S17": {
+    "rank": 1,
+    "results": 5,
+    "probe": false,
+    "relevance": 100
+  },
+  "S18": {
+    "rank": 1,
+    "results": 8,
+    "probe": false,
+    "relevance": 100
+  },
+  "D01": {
+    "rank": null,
+    "results": 0,
+    "probe": true
+  },
+  "D02": {
+    "rank": null,
+    "results": 9,
+    "probe": true
+  },
+  "D03": {
+    "rank": null,
+    "results": 0,
+    "probe": true
+  }
+}

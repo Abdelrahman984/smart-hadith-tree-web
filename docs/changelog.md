@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-21: Plan and SQL Server baseline for moving to PostgreSQL
+
+- **Plan**: `docs/postgres_migration.md` lists every SQL Server dependency (collations, the two raw recursive CTEs, migrations, `SqlBulkCopy` options, Docker/backup tooling) and the phases of the move. No code changed.
+- **Baseline (phase 0)**: tag `pre-postgres` on `f1c6493`; search eval (MRR 0.866, median 1,253 ms), verify eval (29/29), per-book counts and an API snapshot of 36 hadiths + 20 narrator queries, all in `docs/challenge/evaluation/postgres-baseline/`.
+- **New script**: `scripts/snapshot_api.py` saves tree/takhreej/ilal/narrator-search output and compares two snapshots across databases (random GUIDs are relabelled by book/number and narrator name).
+- **Found**: two snapshots of the same SQL Server database already differ in one place, the order of the omitting narrators in a Shudhudh finding (`MatnAtMadarRule`, مسند أحمد #2), because it follows database row order.
+
+---
+
 ## 2026-10-07: Getting started points at the v7 backup
 
 - **Problem**: the README downloaded and restored the v5 backup into `SmartHadithTree_ShamelaV5`, while the Api and Etl connect to `SmartHadithTree_ShamelaV7`. Someone following it literally got an empty database.
