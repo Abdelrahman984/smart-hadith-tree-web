@@ -101,12 +101,25 @@ public sealed class IkhtilatRule : IIlalRule
         _ => ""
     };
 
-    /// <summary>The books' rule for a group of his students, as a hint where the student's own timing is not recorded.</summary>
+    /// <summary>
+    /// The books' rules for groups of his students, as a hint where the student's own timing is not recorded:
+    /// the first «before» rule and the first «after» rule in the books' order, so that a narrator whose rules
+    /// go both ways is not shown as only one of them. Rules that state no timing (e.g. «من كتب عنه من كتابه»)
+    /// are not quoted, since the hint is about before or after the ikhtilat.
+    /// </summary>
     private static string GroupRuleHint(IlalContext context, Guid mukhtalitId)
     {
-        if (!context.GroupRules.TryGetValue(mukhtalitId, out var rules) || rules.Count == 0) return "";
-        var rule = rules[0];
-        var verdict = rule.Timing == HearingTiming.After ? "بعد الاختلاط" : "قبل الاختلاط";
-        return $" وقد نُص في جماعة من تلاميذه ({rule.Group}) أن سماعهم {verdict}: «{rule.Quote}».";
+        if (!context.GroupRules.TryGetValue(mukhtalitId, out var rules)) return "";
+        var before = rules.FirstOrDefault(r => r.Timing == HearingTiming.Before);
+        var after = rules.FirstOrDefault(r => r.Timing == HearingTiming.After);
+        return (before, after) switch
+        {
+            (not null, not null) =>
+                $" وقد نُص في جماعة من تلاميذه ({before.Group}) أن سماعهم قبل الاختلاط: «{before.Quote}»، " +
+                $"وفي ({after.Group}) أن سماعهم بعده: «{after.Quote}».",
+            (not null, null) => $" وقد نُص في جماعة من تلاميذه ({before.Group}) أن سماعهم قبل الاختلاط: «{before.Quote}».",
+            (null, not null) => $" وقد نُص في جماعة من تلاميذه ({after.Group}) أن سماعهم بعد الاختلاط: «{after.Quote}».",
+            _ => ""
+        };
     }
 }

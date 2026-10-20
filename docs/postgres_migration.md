@@ -8,8 +8,8 @@ Status (2026-10-21), branch `feature/postgres`:
   T-SQL; see "Phase 2: what was done".
 - **Phase 3 done**: the ETL loads the full v7 corpus into PostgreSQL in about 4 minutes, and every table and
   per-book count matches the SQL Server baseline; see "Phase 3: what was done".
-- **Phase 4, part A done** (tiebreakers on queries that already sort); **part B proposed**, waiting for a decision
-  (reads with no order at all, among them the group-rule hint); see "Phase 4".
+- **Phase 4 done**: part A (tiebreakers on queries that already sort) and part B (an order for the five reads that
+  had none, as proposed and approved); see "Phase 4".
 
 ## Why it is a contained change
 
@@ -233,7 +233,7 @@ the GUID, which the ETL regenerates on every load.
   `ORDER BY length("MatnArabic"), "NormalizedBookName", "HadithNumber", "Id"`. The comparative trees have 324 nodes
   vs 320, because their related hadiths come from the unordered `Take(20)` below.
 
-#### Phase 4, part B: reads with no order at all (proposal, not done)
+#### Phase 4, part B: reads with no order at all (done, the "Proposed order" column was chosen)
 Here a cap or a `[0]` picks rows, so an order is a behaviour choice:
 
 | Read | What depends on it | Proposed order | Alternative |
@@ -243,6 +243,29 @@ Here a cap or a `[0]` picks rows, so an order is a behaviour choice:
 | `NarratorService.SearchNarratorsAsync`: `Take(50)` with no order | Which 50 narrators the search box lists for short queries | Names that start with the query first, then by `NormalizedFullName` length, then `SourceKey` | `NormalizedFullName` length, `SourceKey` |
 | `IlalAnalysisService.LoadContextAsync`: transmissions with no order | `BuildPaths` walks links in load order and stops at `MaxPathsPerHadith`, so which tahwil branches survive the cap, and their order | `StepOrder`, the sheikh's `SourceKey`, `Id` | A chain ordinal on `Transmissions` written by the ETL from the resolver's chain order (migration + reload) |
 | `NarratorService` tooltip: `ScholarEvaluations…VerdictRating.FirstOrDefault()` | The grade shown when the narrator has no `GawamiRank`/`Verdict`: 3,459 narrators have several evaluations | `ScholarName` (byte-wise), then `Id` | Most severe `VerdictRating` first |
+
+What was done:
+- `MukhtalitGroupRule.Ordinal` (migration `AddGroupRuleOrdinal`; `ShamelaIlalService` writes the rule's position in
+  the narrator's `group_rules` list). **Existing databases need `seed-ilal-shamela` once** (3–5 s): until then every
+  rule has `Ordinal` 0 and the order falls back to `Id`. `IlalAnalysisService` loads the rules by `Ordinal`.
+  `IkhtilatRule.GroupRuleHint` quotes the first «before» and the first «after» rule. Rules without a timing
+  («other» in `ilal.json`, `HearingTiming.Unknown`: حفص بن غياث, سويد بن سعيد, «من كتب عنه من كتابه») are no longer
+  quoted; before, any rule that was not «after» was quoted as «أن سماعهم قبل الاختلاط».
+- `FindRelatedHadithsAsync`: `MatnArabic.Length`, `NormalizedBookName`, `HadithNumber`, `Id` before `Take(20)`.
+- `SearchNarratorsAsync`: prefix match (full name or `KnownAs`) first, then `NormalizedFullName.Length`,
+  `SourceKey`, `Id`. (`SourceKey` sorts in the column's default collation here, not byte-wise: it only breaks ties
+  of equal-length names, and `EF.Functions.Collate` would not run on the InMemory tests.)
+- `LoadContextAsync`: transmissions by `StepOrder`, the sheikh's `SourceKey`, `Id`.
+- Tooltip: evaluations by `ScholarName`, then `Id`.
+- **Tests** (+6): both-ways group rules quote the first before and first after rule in order; after-only; no-timing
+  rules not quoted; narrator search order; tooltip order; related hadiths keep the 20 shortest, shortest first.
+  290/292 pass (the 2 known stale-count tests).
+- **Checked** on the full corpus (test container, migrated, Ilal reloaded: شريك's 4 rules have `Ordinal` 0–3 in the
+  books' order): related + Ilal analysis for the 36 snapshot cases twice, 36 reports with 44 findings, identical
+  between the runs. The takhreej of سنن ابن ماجه #1 now says «…وقد نُص في جماعة من تلاميذه (الذين سمعوا منه بواسط)
+  أن سماعهم قبل الاختلاط: «…»، وفي (المتأخرون عنه بالكوفة) أن سماعهم بعده: «…»». مسند أحمد #2's related hadiths are
+  now the 20 shortest matches, so its Shudhudh finding is worded differently from the phase 0 snapshot. Expect
+  such differences in phase 6 wherever the old `Take(20)` picked other hadiths.
 - **`string.Contains` translation** (checked in phase 1: Npgsql 9 emits `LIKE '%…%'`, so nothing to do).
   Check with `ToQueryString()` what Npgsql emits for `Contains(param)`.
   If it is `strpos(...) > 0`, the trigram index is not used; switch those predicates to

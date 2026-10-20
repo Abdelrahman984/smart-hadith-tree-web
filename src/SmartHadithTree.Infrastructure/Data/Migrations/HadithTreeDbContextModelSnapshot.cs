@@ -133,6 +133,9 @@ namespace SmartHadithTree.Infrastructure.Data.Migrations
                     b.Property<Guid>("MukhtalitId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Quote")
                         .IsRequired()
                         .HasMaxLength(1000)

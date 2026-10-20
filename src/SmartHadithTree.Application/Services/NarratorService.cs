@@ -16,6 +16,11 @@ public class NarratorService(IHadithTreeDbContext context) : INarratorService
 
         return await context.Narrators
             .Where(n => n.NormalizedFullName.Contains(normalizedQuery) || (n.NormalizedKnownAs != null && n.NormalizedKnownAs.Contains(normalizedQuery)))
+            // Names that start with the query, then shorter (closer) names, so the 50 shown are the same every time.
+            .OrderBy(n => n.NormalizedFullName.StartsWith(normalizedQuery) || (n.NormalizedKnownAs != null && n.NormalizedKnownAs.StartsWith(normalizedQuery)) ? 0 : 1)
+            .ThenBy(n => n.NormalizedFullName.Length)
+            .ThenBy(n => n.SourceKey)
+            .ThenBy(n => n.Id)
             .Take(50)
             .Select(n => new NarratorSearchResultDto
             {
@@ -74,7 +79,7 @@ public class NarratorService(IHadithTreeDbContext context) : INarratorService
                 Id = n.Id,
                 FullName = n.KnownAs ?? n.FullName,
                 GenerationTier = n.GenerationTier,
-                GradeSummary = n.GawamiRank ?? n.Verdict ?? n.ScholarEvaluations.Select(e => e.VerdictRating).FirstOrDefault() ?? "غير معروف",
+                GradeSummary = n.GawamiRank ?? n.Verdict ?? n.ScholarEvaluations.OrderBy(e => e.ScholarName).ThenBy(e => e.Id).Select(e => e.VerdictRating).FirstOrDefault() ?? "غير معروف",
                 GradeEn = n.ItqanGrade ?? NarratorGradeScale.ToGradeEn(n.IbnHajarRank)
             })
             .FirstOrDefaultAsync(ct);

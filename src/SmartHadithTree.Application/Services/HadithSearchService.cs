@@ -714,6 +714,10 @@ public class HadithSearchService(
 
         var relatedHadiths = await context.Hadiths
             .Where(h => h.Id != hadithId && h.NormalizedMatn.Contains(searchSubstring))
+            // Shortest texts that contain the excerpt first (the search's order); about one hadith in ten has more
+            // than 20 matches, and without an order the database decided which 20 (and the Ilal turuq) were shown.
+            .OrderBy(h => h.MatnArabic.Length)
+            .ThenBy(h => h.NormalizedBookName).ThenBy(h => h.HadithNumber).ThenBy(h => h.Id)
             .Take(20)
             .Select(h => new HadithSearchResultDto
             {

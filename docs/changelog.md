@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-21: PostgreSQL phase 4B, an order for the reads that had none (branch `feature/postgres`)
+
+- **Mukhtalit group rules**: new `Ordinal` (the books' order from `ilal.json`; migration `AddGroupRuleOrdinal`, run `seed-ilal-shamela` once to fill it). When a student's own timing is unknown, the Ikhtilat note now quotes the first «before» **and** the first «after» rule instead of whichever rule the database returned first; for 15 narrators the rules go both ways, so the quoted verdict could flip. Rules that state no timing are no longer quoted as «قبل الاختلاط».
+- **Related hadiths** (takhreej list, `/ilal/{id}`): the 20 shortest matches, then book and number, instead of any 20; about one hadith in ten has more matches.
+- **Narrator search**: names that start with the query first, then shorter names. **Tooltip grade**: evaluations in scholar-name order. **Ilal engine**: transmissions in step and registry order, so the tahwil branches kept under the path cap no longer depend on row order.
+- **Checked**: 6 new unit tests (290/292 pass, the 2 known stale-count tests fail as before); on the full corpus in PostgreSQL, 36 Ilal reports are identical between two runs and the شريك note quotes both the Wasit (before) and the Kufa (after) rule.
+
+---
+
 ## 2026-10-21: PostgreSQL phase 4A, ordering tiebreakers (branch `feature/postgres`)
 
 - **Tiebreakers** where a query already sorts, so equal rows no longer come in the database's order: hadith search (three fetches by matn length, and the final ranking), both isnad tree queries (the merge and the anomaly check take the first row), and the hadiths of a chapter in the book browser (`HadithNumber`, then `Volume`, then `Id`).

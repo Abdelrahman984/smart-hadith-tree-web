@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -446,5 +447,33 @@ public class HadithSearchServiceTests
         result[0].RelevancePercent.Should().BeGreaterThan(0);
         result[0].RelevanceReason.Should().NotBeNullOrEmpty();
     }
-}
 
+    [Fact]
+    public async Task FindRelatedHadithsAsync_KeepsTheTwentyShortestMatches_ShortestFirst()
+    {
+        var context = GetInMemoryDbContext();
+        const string matn = "انما الاعمال بالنيات وانما لكل امرئ ما نوى";
+        var sourceId = Guid.NewGuid();
+        context.Hadiths.Add(new HadithText
+        {
+            Id = sourceId, BookName = "صحيح البخاري", HadithNumber = 1,
+            MatnArabic = matn, NormalizedMatn = matn, NormalizedBookName = "صحيح البخاري"
+        });
+        // 25 matches, added in no particular length order: the related list keeps the 20 shortest.
+        foreach (var extra in Enumerable.Range(1, 25).OrderBy(i => (i * 7) % 25))
+        {
+            var text = matn + new string('ه', extra);
+            context.Hadiths.Add(new HadithText
+            {
+                Id = Guid.NewGuid(), BookName = "سنن أبي داود", HadithNumber = 100 + extra,
+                MatnArabic = text, NormalizedMatn = text, NormalizedBookName = "سنن ابي داود"
+            });
+        }
+        await context.SaveChangesAsync();
+
+        var service = new HadithSearchService(context, new Mock<IHadithChainRepository>().Object, new Mock<ITaqwiyahService>().Object);
+        var related = await service.FindRelatedHadithsAsync(sourceId);
+
+        related.Select(r => r.HadithNumber).Should().Equal(Enumerable.Range(101, 20));
+    }
+}
