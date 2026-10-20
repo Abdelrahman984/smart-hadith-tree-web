@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-21: PostgreSQL phase 2, the isnad queries (branch `feature/postgres`)
+
+- **Ported** (`HadithChainRepository`): the single-tree recursive CTE (`WITH RECURSIVE`, quoted names, `uuid`/`text` casts with matching types in both branches) and the comparative query (`gen_random_uuid()`, `= ANY` with one `uuid[]` parameter).
+- **Checked**: 45 real hadiths (with their GUIDs) copied from SQL Server v7 into a PostgreSQL 18 container; the old T-SQL on SQL Server and the new SQL on PostgreSQL return the same 810 rows for 36 trees and 12 comparative groups. With the full narrator, relation and evaluation tables copied, the tree and takhreej service output matches the phase 0 API snapshot in 71 of 72 cases.
+- **Found**: the one difference is an unordered read: `IkhtilatRule` quotes the first `MukhtalitGroupRule` of a narrator, and the rules are loaded without `ORDER BY`, so SQL Server and PostgreSQL quote different rules for شريك النخعي. Left for phase 4 (needs a choice of order).
+- **Fixed** (`scripts/snapshot_api.py`): the shared all-zero id of tahwil compiler nodes no longer gets a row-order-dependent label.
+
+---
+
 ## 2026-10-21: PostgreSQL phase 1, provider and model (branch `feature/postgres`)
 
 - **Provider**: Api, Etl and `IlalCompare` use Npgsql (`Npgsql.EntityFrameworkCore.PostgreSQL` 9.0.4) instead of SQL Server. Connection strings point at `Host=localhost;Database=smart_hadith_tree;Username=sht`, with the password from `PGPASSWORD` or `pgpass.conf`.

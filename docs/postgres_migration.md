@@ -4,7 +4,8 @@ Status (2026-10-21), branch `feature/postgres`:
 - **Phase 0 done**: tag `pre-postgres` on `f1c6493`, baselines in `docs/challenge/evaluation/postgres-baseline/`
   (see its README).
 - **Phase 1 done**: the code builds and migrates against PostgreSQL 18; see "Phase 1: what was done" below.
-  The tree/takhreej endpoints still contain T-SQL (phase 2), so the API is not usable on PostgreSQL yet.
+- **Phase 2 done**: both raw queries of `HadithChainRepository` are PostgreSQL and return the same rows as the old
+  T-SQL; see "Phase 2: what was done". No real corpus is loaded into PostgreSQL yet (phase 3).
 
 ## Why it is a contained change
 
@@ -132,6 +133,27 @@ query translation; see phase 5).
 - Recursion limit: SQL Server stops at 100 levels by default, PG has no limit. The join on
   `StepOrder = parent.StepOrder + 1` makes depth strictly increase, so it terminates; keep it that way.
 
+#### Phase 2: what was done
+- `GetIsnadTreeAsync`: `WITH RECURSIVE`, quoted identifiers and aliases, `::uuid` / `::text` casts,
+  `TransmissionTerm::text` in the recursive branch (its column is `varchar(50)`, the anchor's `NULL::text`),
+  `false` for `IsAnomaly`.
+- `GetComparativeIsnadTreeAsync` is not recursive (a `UNION ALL` of the compilers and every edge): quoted names,
+  `gen_random_uuid()` for the anchor ids, and `= ANY({0})` with one `uuid[]` parameter instead of an `IN` list
+  built from one placeholder per hadith.
+- **Checked, raw rows** (scratch tool, not in the repo): the 36 snapshot hadiths, their related hadiths, chains and
+  narrators were copied from SQL Server v7 into the test container **with their GUIDs**; the old T-SQL (from tag
+  `pre-postgres`) ran on SQL Server and the new SQL on PostgreSQL for 36 trees and 12 comparative groups (the 3
+  snapshot groups with related hadiths, 8 groups of 4 snapshot hadiths from different books, the 5 tahwil cases):
+  **810 rows, every column and column name identical** (sorted, comparative anchor ids excluded).
+- **Checked, end to end**: with all narrators, relations and evaluations copied too, `HadithSearchService`
+  `GetIsnadTreeAsync` / `GetComparativeTreeAsync` on PostgreSQL against the phase 0 API snapshot
+  (`snapshot_api.normalize`): 71 of 72 outputs identical (696 nodes). The one difference is not SQL: see phase 4,
+  group rule order. (With only the relations among the copied narrators, 3 more Ilal reports differed, because
+  `NarratorsWithRelations` counts all of a narrator's relations; a copy artifact, gone with the full copy.)
+- `snapshot_api.py`: every compiler node of a tahwil tree has the id `00000000-…`, which was labelled after
+  whichever compiler came first, so two tahwil trees (الدارقطني #1, البيهقي #323) differed only in labels. That id
+  now has one fixed label.
+
 ### Phase 3: ETL
 - Drop `SqlBulkCopyOptions` from `BulkConfig` (SQL Server only; keys are GUIDs so `KeepIdentity` is moot).
   `EFCore.BulkExtensions` 9 supports PostgreSQL via binary `COPY`.
@@ -146,7 +168,15 @@ query translation; see phase 5).
 ### Phase 4: behaviour differences to check in Application
 - **Ordering ties.** `OrderBy(h => h.MatnArabic.Length)` + `Skip/Take` and `NarratorService`'s `Take(50)` without
   `OrderBy` return rows in engine-dependent order. Phase 0 found one case that already varies between two runs on
-  SQL Server: the omitter list in `MatnAtMadarRule`'s Shudhudh evidence text (مسند أحمد #2). Add a tiebreaker (`.ThenBy(h => h.Id)`) and an `OrderBy` for
+  SQL Server: the omitter list in `MatnAtMadarRule`'s Shudhudh evidence text (مسند أحمد #2).
+  Phase 2 found one that differs between the engines: `IkhtilatRule.GroupRuleHint` quotes `rules[0]`, and
+  `IlalAnalysisService` loads `MukhtalitGroupRules` without `ORDER BY` (شريك النخعي has 4 rules; SQL Server gave
+  «الذين سمعوا منه بواسط», PostgreSQL «من سمع منه قديما», takhreej of سنن ابن ماجه #1). The rules have GUID keys
+  and no order column, so which rule is "the" hint needs a decision (e.g. by `Timing`, or an ordinal kept from
+  `ilal.json`).
+  Related, latent: in a tahwil tree all compiler nodes share the id `00000000-…`, so
+  `GetIsnadTreeAsync`'s anomaly check (`nodes.FirstOrDefault(n => n.Id == node.ParentNodeId)`) compares a step-1
+  narrator with whichever compiler comes first. It gave the same output on both engines for the 5 tahwil cases. Add a tiebreaker (`.ThenBy(h => h.Id)`) and an `OrderBy` for
   narrators, otherwise search pages will differ between engines and between runs.
 - **`string.Contains` translation** (checked in phase 1: Npgsql 9 emits `LIKE '%…%'`, so nothing to do).
   Check with `ToQueryString()` what Npgsql emits for `Contains(param)`.

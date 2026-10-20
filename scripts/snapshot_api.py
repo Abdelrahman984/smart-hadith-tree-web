@@ -26,6 +26,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 CASES_PATH = ROOT / "docs" / "challenge" / "evaluation" / "postgres-baseline" / "snapshot-cases.json"
 GUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+# Every compiler (step 0) node of a single tree has this id, also when a tahwil isnad has several compilers.
+ZERO_GUID = "00000000-0000-0000-0000-000000000000"
 RELATED_IN_COMPARATIVE = 5
 
 
@@ -124,7 +126,8 @@ def relabel(obj, labels):
 
 
 def normalize(entry):
-    labels = {}
+    # Shared by all compiler nodes, so it cannot be labelled after one of them (that would depend on row order).
+    labels = {ZERO_GUID: "T:<compiler>"}
     collect_labels(entry, labels)
     collect_node_labels(entry, labels)
     return relabel({k: v for k, v in entry.items() if k != "id"}, labels)

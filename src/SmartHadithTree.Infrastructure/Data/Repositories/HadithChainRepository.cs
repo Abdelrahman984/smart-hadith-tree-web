@@ -17,61 +17,64 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
         // We use a Recursive CTE to walk the graph.
         // Anchor: The Student in StepOrder 1 (the Compiler, e.g. Al-Bukhari).
         // Recursive: Join the Transmissions table where StudentId matches the parent's NarratorId.
-        
+        // PostgreSQL: identifiers and aliases are quoted (unquoted names fold to lower case, and SqlQueryRaw maps
+        // columns to IsnadNodeDto by name), and both branches of the recursive CTE must have identical column
+        // types, so TransmissionTerm (varchar(50)) is cast to text on both sides.
+
         var sql = @"
-            WITH RecursiveChain AS (
+            WITH RECURSIVE ""RecursiveChain"" AS (
                 -- Anchor: The Compiler (Student of Step 1)
                 -- DISTINCT: a tahwil isnad has several step-1 rows (one per chain) for the same compiler
                 SELECT DISTINCT
-                    CAST('00000000-0000-0000-0000-000000000000' AS UNIQUEIDENTIFIER) AS Id,
-                    t.StudentId AS NarratorId,
-                    0 AS StepOrder,
-                    CAST(NULL AS UNIQUEIDENTIFIER) AS ParentNodeId,
-                    CAST(NULL AS NVARCHAR(50)) AS TransmissionTerm,
-                    t.HadithId
-                FROM Transmissions t
-                WHERE t.HadithId = {0} AND t.StepOrder = 1
+                    '00000000-0000-0000-0000-000000000000'::uuid AS ""Id"",
+                    t.""StudentId"" AS ""NarratorId"",
+                    0 AS ""StepOrder"",
+                    NULL::uuid AS ""ParentNodeId"",
+                    NULL::text AS ""TransmissionTerm"",
+                    t.""HadithId""
+                FROM ""Transmissions"" t
+                WHERE t.""HadithId"" = {0} AND t.""StepOrder"" = 1
 
                 UNION ALL
 
                 -- Recursive: The Sheikh of the current Narrator
-                SELECT 
-                    child.Id,
-                    child.SheikhId AS NarratorId,
-                    child.StepOrder,
-                    parent.Id AS ParentNodeId,
-                    child.TransmissionTerm,
-                    child.HadithId
-                FROM Transmissions child
-                INNER JOIN RecursiveChain parent 
-                    ON child.StudentId = parent.NarratorId 
-                    AND child.HadithId = parent.HadithId
-                    AND child.StepOrder = parent.StepOrder + 1
+                SELECT
+                    child.""Id"",
+                    child.""SheikhId"",
+                    child.""StepOrder"",
+                    parent.""Id"",
+                    child.""TransmissionTerm""::text,
+                    child.""HadithId""
+                FROM ""Transmissions"" child
+                INNER JOIN ""RecursiveChain"" parent
+                    ON child.""StudentId"" = parent.""NarratorId""
+                    AND child.""HadithId"" = parent.""HadithId""
+                    AND child.""StepOrder"" = parent.""StepOrder"" + 1
             )
-            SELECT 
-                rc.Id,
-                rc.NarratorId,
-                n.FullName AS NarratorName,
-                n.KnownAs,
-                CAST(NULL AS NVARCHAR(MAX)) AS MentionedName,
-                n.GenerationTier,
-                rc.StepOrder,
-                rc.ParentNodeId,
-                rc.TransmissionTerm,
-                COALESCE(n.ItqanGrade, CASE n.IbnHajarRank WHEN 1 THEN 'companion' WHEN 2 THEN 'reliable' WHEN 3 THEN 'reliable' WHEN 4 THEN 'mostly_reliable' WHEN 5 THEN 'mostly_reliable' WHEN 6 THEN 'weak' WHEN 7 THEN 'weak' WHEN 8 THEN 'weak' WHEN 9 THEN 'unknown' WHEN 10 THEN 'abandoned' WHEN 11 THEN 'abandoned' WHEN 12 THEN 'fabricator' END) AS GradeEn,
-                n.IsMudallis,
-                n.HasMukhtalit,
-                n.ResidencePlaces,
-                n.DeathPlace,
-                n.GawamiRank,
-                n.TotalNarrationsCount,
-                n.UniqueHadithCount,
-                CAST(0 AS BIT) AS IsAnomaly,
-                CAST(NULL AS NVARCHAR(MAX)) AS AnomalyReason,
-                CAST(NULL AS NVARCHAR(MAX)) AS TravelNote
-            FROM RecursiveChain rc
-            INNER JOIN Narrators n ON rc.NarratorId = n.Id
-            ORDER BY rc.StepOrder ASC;
+            SELECT
+                rc.""Id"",
+                rc.""NarratorId"",
+                n.""FullName"" AS ""NarratorName"",
+                n.""KnownAs"",
+                NULL::text AS ""MentionedName"",
+                n.""GenerationTier"",
+                rc.""StepOrder"",
+                rc.""ParentNodeId"",
+                rc.""TransmissionTerm"",
+                COALESCE(n.""ItqanGrade"", CASE n.""IbnHajarRank"" WHEN 1 THEN 'companion' WHEN 2 THEN 'reliable' WHEN 3 THEN 'reliable' WHEN 4 THEN 'mostly_reliable' WHEN 5 THEN 'mostly_reliable' WHEN 6 THEN 'weak' WHEN 7 THEN 'weak' WHEN 8 THEN 'weak' WHEN 9 THEN 'unknown' WHEN 10 THEN 'abandoned' WHEN 11 THEN 'abandoned' WHEN 12 THEN 'fabricator' END) AS ""GradeEn"",
+                n.""IsMudallis"",
+                n.""HasMukhtalit"",
+                n.""ResidencePlaces"",
+                n.""DeathPlace"",
+                n.""GawamiRank"",
+                n.""TotalNarrationsCount"",
+                n.""UniqueHadithCount"",
+                false AS ""IsAnomaly"",
+                NULL::text AS ""AnomalyReason"",
+                NULL::text AS ""TravelNote""
+            FROM ""RecursiveChain"" rc
+            INNER JOIN ""Narrators"" n ON rc.""NarratorId"" = n.""Id""
+            ORDER BY rc.""StepOrder"" ASC;
         ";
 
         // Execute raw SQL mapping to the DTO directly
@@ -122,69 +125,69 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
     {
         if (hadithIds.Count == 0) return [];
 
-        // Build parameterized placeholders for the IN clause
-        var paramPlaceholders = string.Join(", ", hadithIds.Select((_, i) => $"{{{i}}}"));
-        var parameters = hadithIds.Cast<object>().ToArray();
+        // One uuid[] parameter for any number of hadiths (= ANY instead of an IN list of placeholders).
+        var ids = hadithIds.ToArray();
 
-        var sql = $@"
-            WITH ChainRows AS (
+        // Quoted identifiers and aliases for the same reasons as in GetIsnadTreeAsync.
+        var sql = @"
+            WITH ""ChainRows"" AS (
                 -- Anchor: Distinct Compiler (Student of Step 1) per Hadith
-                SELECT 
-                    NEWID() AS Id,
-                    c.StudentId AS NarratorId,
-                    0 AS StepOrder,
-                    CAST(NULL AS UNIQUEIDENTIFIER) AS ParentNodeId,
-                    CAST(NULL AS NVARCHAR(50)) AS TransmissionTerm,
-                    c.HadithId
+                SELECT
+                    gen_random_uuid() AS ""Id"",
+                    c.""StudentId"" AS ""NarratorId"",
+                    0 AS ""StepOrder"",
+                    NULL::uuid AS ""ParentNodeId"",
+                    NULL::text AS ""TransmissionTerm"",
+                    c.""HadithId""
                 FROM (
-                    SELECT DISTINCT t.StudentId, t.HadithId
-                    FROM Transmissions t
-                    WHERE t.HadithId IN ({paramPlaceholders}) AND t.StepOrder = 1
+                    SELECT DISTINCT t.""StudentId"", t.""HadithId""
+                    FROM ""Transmissions"" t
+                    WHERE t.""HadithId"" = ANY({0}) AND t.""StepOrder"" = 1
                 ) c
 
                 UNION ALL
 
                 -- Edges: Every transmission step (Sheikh -> Student) for the selected Hadiths
-                SELECT 
-                    t.Id,
-                    t.SheikhId AS NarratorId,
-                    t.StepOrder,
-                    t.StudentId AS ParentNodeId,
-                    t.TransmissionTerm,
-                    t.HadithId
-                FROM Transmissions t
-                WHERE t.HadithId IN ({paramPlaceholders})
+                SELECT
+                    t.""Id"",
+                    t.""SheikhId"",
+                    t.""StepOrder"",
+                    t.""StudentId"",
+                    t.""TransmissionTerm"",
+                    t.""HadithId""
+                FROM ""Transmissions"" t
+                WHERE t.""HadithId"" = ANY({0})
             )
-            SELECT 
-                cr.Id,
-                cr.NarratorId,
-                n.FullName AS NarratorName,
-                n.KnownAs,
-                n.GenerationTier,
-                cr.StepOrder,
-                cr.ParentNodeId,
-                cr.TransmissionTerm,
-                COALESCE(n.ItqanGrade, CASE n.IbnHajarRank WHEN 1 THEN 'companion' WHEN 2 THEN 'reliable' WHEN 3 THEN 'reliable' WHEN 4 THEN 'mostly_reliable' WHEN 5 THEN 'mostly_reliable' WHEN 6 THEN 'weak' WHEN 7 THEN 'weak' WHEN 8 THEN 'weak' WHEN 9 THEN 'unknown' WHEN 10 THEN 'abandoned' WHEN 11 THEN 'abandoned' WHEN 12 THEN 'fabricator' END) AS GradeEn,
-                n.IsMudallis,
-                n.HasMukhtalit,
-                n.ResidencePlaces,
-                n.DeathPlace,
-                n.GawamiRank,
-                n.TotalNarrationsCount,
-                n.UniqueHadithCount,
-                CAST(0 AS BIT) AS IsAnomaly,
-                CAST(NULL AS NVARCHAR(MAX)) AS AnomalyReason,
-                cr.HadithId AS SourceHadithId,
-                h.BookName AS SourceBookName
-            FROM ChainRows cr
-            INNER JOIN Narrators n ON cr.NarratorId = n.Id
-            INNER JOIN Hadiths h ON cr.HadithId = h.Id
-            ORDER BY cr.StepOrder ASC;
+            SELECT
+                cr.""Id"",
+                cr.""NarratorId"",
+                n.""FullName"" AS ""NarratorName"",
+                n.""KnownAs"",
+                n.""GenerationTier"",
+                cr.""StepOrder"",
+                cr.""ParentNodeId"",
+                cr.""TransmissionTerm"",
+                COALESCE(n.""ItqanGrade"", CASE n.""IbnHajarRank"" WHEN 1 THEN 'companion' WHEN 2 THEN 'reliable' WHEN 3 THEN 'reliable' WHEN 4 THEN 'mostly_reliable' WHEN 5 THEN 'mostly_reliable' WHEN 6 THEN 'weak' WHEN 7 THEN 'weak' WHEN 8 THEN 'weak' WHEN 9 THEN 'unknown' WHEN 10 THEN 'abandoned' WHEN 11 THEN 'abandoned' WHEN 12 THEN 'fabricator' END) AS ""GradeEn"",
+                n.""IsMudallis"",
+                n.""HasMukhtalit"",
+                n.""ResidencePlaces"",
+                n.""DeathPlace"",
+                n.""GawamiRank"",
+                n.""TotalNarrationsCount"",
+                n.""UniqueHadithCount"",
+                false AS ""IsAnomaly"",
+                NULL::text AS ""AnomalyReason"",
+                cr.""HadithId"" AS ""SourceHadithId"",
+                h.""BookName"" AS ""SourceBookName""
+            FROM ""ChainRows"" cr
+            INNER JOIN ""Narrators"" n ON cr.""NarratorId"" = n.""Id""
+            INNER JOIN ""Hadiths"" h ON cr.""HadithId"" = h.""Id""
+            ORDER BY cr.""StepOrder"" ASC;
         ";
 
         // Execute raw SQL — returns flat rows with per-hadith attribution
         var rawRows = await context.Database
-            .SqlQueryRaw<ComparativeRawRow>(sql, parameters)
+            .SqlQueryRaw<ComparativeRawRow>(sql, new object[] { ids })
             .ToListAsync(ct);
 
         // Merge: group by NarratorId to collapse shared nodes
