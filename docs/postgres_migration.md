@@ -8,6 +8,8 @@ Status (2026-10-21), branch `feature/postgres`:
   T-SQL; see "Phase 2: what was done".
 - **Phase 3 done**: the ETL loads the full v7 corpus into PostgreSQL in about 4 minutes, and every table and
   per-book count matches the SQL Server baseline; see "Phase 3: what was done".
+- **Phase 4, part A done** (tiebreakers on queries that already sort); **part B proposed**, waiting for a decision
+  (reads with no order at all, among them the group-rule hint); see "Phase 4".
 
 ## Why it is a contained change
 
@@ -206,8 +208,41 @@ query translation; see phase 5).
   `ilal.json`).
   Related, latent: in a tahwil tree all compiler nodes share the id `00000000-…`, so
   `GetIsnadTreeAsync`'s anomaly check (`nodes.FirstOrDefault(n => n.Id == node.ParentNodeId)`) compares a step-1
-  narrator with whichever compiler comes first. It gave the same output on both engines for the 5 tahwil cases. Add a tiebreaker (`.ThenBy(h => h.Id)`) and an `OrderBy` for
-  narrators, otherwise search pages will differ between engines and between runs.
+  narrator with whichever compiler comes first. It gave the same output on both engines for the 5 tahwil cases.
+  Add a tiebreaker (`.ThenBy(h => h.Id)`) and an `OrderBy` for narrators, otherwise search pages will differ
+  between engines and between runs.
+
+#### Phase 4, part A: tiebreakers (done)
+Only queries that already sort, so nothing changes except which of the equal rows comes first. Ties go to keys
+that survive a reload (book, number, volume, registry `SourceKey`, byte-wise collation on both engines), then to
+the GUID, which the ETL regenerates on every load.
+- `HadithSearchService`: the three database fetches ordered by `MatnArabic.Length` (`Skip/Take` page, the
+  candidate cap, the exact-phrase cap) add `NormalizedBookName`, `HadithNumber`, `Id`; the final in-memory ranking
+  adds `BookName` (ordinal) and `Id` after `HadithNumber`.
+- `HadithChainRepository`: the tree query orders by `StepOrder`, `SourceKey COLLATE "C"`, `NarratorId`, `Id`; the
+  comparative query by `StepOrder`, book, number, `HadithId`, `SourceKey`, `NarratorId`, `Id`. The merge takes each
+  narrator's first row (its `TransmissionTerm`), and the anomaly check the first node with the shared zero id, so
+  both depended on row order.
+- `BooksService.GetHadithsAsync`: `HadithNumber`, then `Volume`, then `Id`. Book, chapter and number repeat
+  **4,925** times in v7 (المعجم الكبير restarts its numbers per volume: nine #1, two of them in one chapter).
+- `scripts/snapshot_api.py` relied on book/chapter/number being unique: `snapshot-cases.json` now also carries
+  `matnSha1` (filled from the matn in `snapshot-sqlserver.json`, so the phase 0 baseline keeps the hadith it
+  actually resolved), and `resolve_id` only accepts the hadith with that exact text.
+- **Checked** on the full corpus in the test container: the 36 snapshot trees, resolved by matn hash, have 376
+  nodes, the same as the SQL Server snapshot; a tree requested twice is identical; the search SQL ends in
+  `ORDER BY length("MatnArabic"), "NormalizedBookName", "HadithNumber", "Id"`. The comparative trees have 324 nodes
+  vs 320, because their related hadiths come from the unordered `Take(20)` below.
+
+#### Phase 4, part B: reads with no order at all (proposal, not done)
+Here a cap or a `[0]` picks rows, so an order is a behaviour choice:
+
+| Read | What depends on it | Proposed order | Alternative |
+|---|---|---|---|
+| `IkhtilatRule.GroupRuleHint` quotes `rules[0]` of `MukhtalitGroupRules` | The hint after «ولم يتبين أسمع منه قبل الاختلاط أم بعده»: 29 mukhtalitun have rules, 19 have several, **15 mix before/after**, so the quoted verdict can flip | Add `Ordinal` (position in `ilal.json`, i.e. the book's own order) and quote the **first «before» and the first «after» rule** (one if only one kind exists): «…نُص في (الذين سمعوا منه بواسط) أن سماعهم قبل الاختلاط، وفي (المتأخرون عنه بالكوفة) أن سماعهم بعده» | Keep one rule: the first by `Ordinal`. Or no schema change: order by `Timing`, then `GroupAr` (byte-wise), and quote the first |
+| `HadithSearchService.FindRelatedHadithsAsync`: `Take(20)` with no order | Takhreej related list, `/ilal/{id}` (its turuq and their order, which also fixes the varying Shudhudh omitter list of phase 0), the merged trees; in a sample of 2,000 short hadiths, 194 have more than 20 matches | `MatnArabic.Length`, book, number, `Id`: the shortest texts that contain the matn excerpt, the same order the search uses | Book, number |
+| `NarratorService.SearchNarratorsAsync`: `Take(50)` with no order | Which 50 narrators the search box lists for short queries | Names that start with the query first, then by `NormalizedFullName` length, then `SourceKey` | `NormalizedFullName` length, `SourceKey` |
+| `IlalAnalysisService.LoadContextAsync`: transmissions with no order | `BuildPaths` walks links in load order and stops at `MaxPathsPerHadith`, so which tahwil branches survive the cap, and their order | `StepOrder`, the sheikh's `SourceKey`, `Id` | A chain ordinal on `Transmissions` written by the ETL from the resolver's chain order (migration + reload) |
+| `NarratorService` tooltip: `ScholarEvaluations…VerdictRating.FirstOrDefault()` | The grade shown when the narrator has no `GawamiRank`/`Verdict`: 3,459 narrators have several evaluations | `ScholarName` (byte-wise), then `Id` | Most severe `VerdictRating` first |
 - **`string.Contains` translation** (checked in phase 1: Npgsql 9 emits `LIKE '%…%'`, so nothing to do).
   Check with `ToQueryString()` what Npgsql emits for `Contains(param)`.
   If it is `strpos(...) > 0`, the trigram index is not used; switch those predicates to

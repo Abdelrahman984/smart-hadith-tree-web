@@ -14,6 +14,7 @@ Usage:
 Cases: docs/challenge/evaluation/postgres-baseline/snapshot-cases.json. Standard library only.
 """
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -51,10 +52,15 @@ def q(s):
 
 
 def resolve_id(api, case):
+    # Book, chapter and number are not unique (4,925 repeats in v7, e.g. المعجم الكبير restarts its numbers per
+    # volume), so a case also carries the SHA-1 of its matn and only the hadith with that exact text matches.
     rows, _ = http_json(f"{api}/books/{q(case['book'])}/chapters/{q(case['chapter'])}/hadiths")
     for r in rows if isinstance(rows, list) else []:
-        if r["hadithNumber"] == case["number"]:
-            return r["id"]
+        if r["hadithNumber"] != case["number"]:
+            continue
+        if "matnSha1" in case and hashlib.sha1(r["matnArabic"].encode("utf-8")).hexdigest() != case["matnSha1"]:
+            continue
+        return r["id"]
     return None
 
 

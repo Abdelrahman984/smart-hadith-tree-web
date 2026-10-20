@@ -74,7 +74,9 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
                 NULL::text AS ""TravelNote""
             FROM ""RecursiveChain"" rc
             INNER JOIN ""Narrators"" n ON rc.""NarratorId"" = n.""Id""
-            ORDER BY rc.""StepOrder"" ASC;
+            -- Ties: registry key (the same after a reload), then ids. The anomaly check below takes the first node
+            -- with a given id, and all compilers of a tahwil isnad share the zero id.
+            ORDER BY rc.""StepOrder"" ASC, n.""SourceKey"" COLLATE ""C"", rc.""NarratorId"", rc.""Id"";
         ";
 
         // Execute raw SQL mapping to the DTO directly
@@ -182,7 +184,10 @@ public class HadithChainRepository(HadithTreeDbContext context) : IHadithChainRe
             FROM ""ChainRows"" cr
             INNER JOIN ""Narrators"" n ON cr.""NarratorId"" = n.""Id""
             INNER JOIN ""Hadiths"" h ON cr.""HadithId"" = h.""Id""
-            ORDER BY cr.""StepOrder"" ASC;
+            -- Ties: book and number, registry key (the same after a reload), then ids. The merge below takes each
+            -- narrator's first row (its Id and TransmissionTerm), so the order must not be left to the database.
+            ORDER BY cr.""StepOrder"" ASC, h.""NormalizedBookName"", h.""HadithNumber"", cr.""HadithId"",
+                     n.""SourceKey"" COLLATE ""C"", cr.""NarratorId"", cr.""Id"";
         ";
 
         // Execute raw SQL — returns flat rows with per-hadith attribution

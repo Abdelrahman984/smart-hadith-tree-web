@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-21: PostgreSQL phase 4A, ordering tiebreakers (branch `feature/postgres`)
+
+- **Tiebreakers** where a query already sorts, so equal rows no longer come in the database's order: hadith search (three fetches by matn length, and the final ranking), both isnad tree queries (the merge and the anomaly check take the first row), and the hadiths of a chapter in the book browser (`HadithNumber`, then `Volume`, then `Id`).
+- **Found**: book, chapter and number are not unique (4,925 repeats in v7; المعجم الكبير restarts its numbers per volume), so the book browser listed same-number hadiths in arbitrary order, and `scripts/snapshot_api.py` could resolve a case to the wrong hadith. Snapshot cases now carry a SHA-1 of the matn.
+- **Checked** on the full corpus in PostgreSQL: the 36 snapshot trees have the same 376 nodes as on SQL Server.
+- **Proposed, not done** (`docs/postgres_migration.md`, phase 4 part B): an order for the five reads that have none: the Mukhtalit group-rule hint (its verdict can flip for 15 narrators), related hadiths (`Take(20)`), narrator search (`Take(50)`), the transmissions read by the Ilal engine, and the tooltip grade.
+
+---
+
 ## 2026-10-21: PostgreSQL phase 3, the ETL loads the full corpus (branch `feature/postgres`)
 
 - **Package**: `EFCore.BulkExtensions.PostgreSql` instead of the metapackage; `SqlBulkCopyOptions` removed. The build has no warnings any more (the `System.Security.Cryptography.Pkcs` vulnerability warnings came through the SqlServer/Oracle providers).

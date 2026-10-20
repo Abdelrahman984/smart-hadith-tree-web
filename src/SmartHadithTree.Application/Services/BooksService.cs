@@ -42,7 +42,11 @@ public class BooksService : IBooksService
     {
         return await _context.Hadiths
             .Where(h => h.BookName == bookName && h.Chapter == chapter)
+            // Numbers repeat inside a chapter when a book restarts them per volume (المعجم الكبير: nine #1),
+            // so the volume, then the id, keeps the order fixed instead of leaving it to the database.
             .OrderBy(h => h.HadithNumber)
+            .ThenBy(h => h.Volume)
+            .ThenBy(h => h.Id)
             .Select(h => new HadithSearchResultDto
             {
                 Id = h.Id,
