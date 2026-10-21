@@ -49,3 +49,6 @@ scripts/shamela4-extractor/rijal_pilot/review_drafts/
 
 # Local compose secrets
 .env
+
+# Local Claude files
+.claude/
