@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-21: The deploy check fails closed; DevOps checklist for the PostgreSQL cutover
+
+- **Bug** (first deploy after merging PR #6, run 39524924844): `deploy-remote.sh`'s database-image check failed open. The host's `.env` has no `POSTGRES_PASSWORD`, so `docker compose` could not read the new compose file, the check saw no running `db` and let the deploy through. The pre-deploy backup then failed on the same error and the rollback's `compose up` did too, so no container changed. **Checked**: the live site still answered with the SQL Server build (31 books; narrator search «قتادة» empty, as on SQL Server).
+- **Fix**: the running `db` image is read from Docker labels (`com.docker.compose.project=smart-hadith-tree`, `service=db`), not through compose; an unreadable compose file, or one without a database image, is refused. Stub-tested in five cases (today's host refused, cutover refused, normal deploy and first install let through, no database image refused); the label query checked on a real compose container; `shellcheck` clean.
+- **New**: `deploy/postgres-cutover-tasks.md`, the DevOps engineer's ordered checklist: where production stands, what to get from the owner, pre-checks on the host, the cutover with what to expect at each step, verification (including a check that tells the PostgreSQL build apart), what to report, and the clean-up and nightly backup afterwards.
+
+---
+
 ## 2026-10-21: Matn findings no longer depend on the order of the turuq (branch `fix/ilal-matn-order`, from `feature/postgres`)
 
 - **Bug** (found in phase 6): `MatnAtMadarRule` built its text clusters greedily from the first text it met. It also read a student carried by several books through the first book listed. So the same turuq could give different verdicts. مسند أحمد #2 (four turuq from Waki') was a Shudhudh **Tanbih** against ابن ماجه #1395 in one order and a Shudhudh **Qadihah** against أبي يعلى #12 in another.
