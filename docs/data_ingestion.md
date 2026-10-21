@@ -1,8 +1,8 @@
 # Data Ingestion (ETL) & Corpus Architecture
 
-The Smart Hadith Tree loads classical Hadith and Rijal data into SQL Server with the C# console application `src/SmartHadithTree.Etl`. **Everything comes from a local Shamela 4 installation** (`D:\Islamic\shamela4`); the Itqan dataset is no longer used. The full story of the migration, the decisions, the measurements and the pitfalls is in [`shamela_migration.md`](shamela_migration.md); the comparison with the old database is in [`shamela_phase6_comparison.md`](shamela_phase6_comparison.md).
+The Smart Hadith Tree loads classical Hadith and Rijal data into PostgreSQL (SQL Server until 2026-10-21, `docs/postgres_migration.md`) with the C# console application `src/SmartHadithTree.Etl`. **Everything comes from a local Shamela 4 installation** (`D:\Islamic\shamela4`); the Itqan dataset is no longer used. The full story of the migration, the decisions, the measurements and the pitfalls is in [`shamela_migration.md`](shamela_migration.md); the comparison with the old database is in [`shamela_phase6_comparison.md`](shamela_phase6_comparison.md).
 
-## Current Corpus (database `SmartHadithTree_Shamela`)
+## Current Corpus (database `smart_hadith_tree`, PostgreSQL)
 - **Collections:** `31` canonical Sunni Hadith works
 - **Hadiths:** `274,597` (each edition's own numbering; records cut at the edition's in-text hadith numbers)
 - **Isnad links (`Transmissions`):** `1,125,644` directed Sheikh → Student links
@@ -19,7 +19,7 @@ Shamela 4 (SQLite + Lucene)
         ├─ build_shamela_books.py + split_parts.py ─► data/shamela/<slug>/       (31 books: records, isnad / matn parts)
         └─ rijal_pilot/pipeline.py ─► data/shamela_rijal/registry.json, ilal.json
               └─ export_chains_shamela.py ─► data/shamela_rijal/chains/<slug>.json   (every isnad resolved to registry ids)
-                    └─ dotnet run --project src/SmartHadithTree.Etl -- data/shamela_rijal   ─► SQL Server
+                    └─ dotnet run --project src/SmartHadithTree.Etl -- data/shamela_rijal   ─► PostgreSQL
 ```
 
 The resolver (name matching, isnad segmentation, joint chain resolution) is **Python** (`scripts/shamela4-extractor/rijal_pilot/`); the C# ETL only loads its output. A C# port is Phase 5b of the migration plan, not done.
@@ -63,12 +63,12 @@ dotnet run --project src/SmartHadithTree.Etl -- data/shamela_rijal             #
 dotnet run --project src/SmartHadithTree.Etl -- seed-ilal-shamela data/shamela_rijal   # mudallisin, mukhtalitun, hearings, group rules
 ```
 
-To load into another database (for example a scratch one), set `ConnectionStrings__DefaultConnection` in the environment first. The loader needs about 1 GB of memory and takes about 2 minutes.
+To load into another database (for example a scratch one), set `ConnectionStrings__DefaultConnection` in the environment first. The loader needs about 1 GB of memory and takes about 4 minutes on PostgreSQL (about 2 of them for the hadiths, whose trigram indexes are maintained during the COPY); `seed-ilal-shamela` then takes a few seconds.
 
 ## 5. Database backups and instant restore
 
-Backups are listed in [`../backups/README.md`](../backups/README.md). The current one is `backups/SmartHadithTree_Shamela_v4_2026-10-05.bak` (~462 MB, compressed, checksummed). To restore it:
+Backups are listed in [`../backups/README.md`](../backups/README.md). The current one is `backups/SmartHadithTree_Shamela_v8_pg_2026-10-21.dump` (153 MB, `pg_dump -Fc`). To restore it into the compose database (`docker compose up -d db` first):
 ```powershell
-sqlcmd -S . -Q "RESTORE DATABASE [SmartHadithTree_Shamela] FROM DISK = N'd:\Programming\Full-Stack\Smart-Hadith-Tree\backups\SmartHadithTree_Shamela_v4_2026-10-05.bak' WITH REPLACE, STATS = 25;"
+docker compose exec -T db pg_restore -U sht -d smart_hadith_tree --clean --if-exists --no-owner /backups/SmartHadithTree_Shamela_v8_pg_2026-10-21.dump
 ```
-`SmartHadithTree_v2_2026-10-03.bak` and `SmartHadithTree_v3_2026-10-05.bak` hold the old Itqan-built database.
+The `.bak` files v1–v7 are SQL Server backups from before the move (v2/v3 hold the old Itqan-built database); restoring them needs SQL Server and tag `pre-postgres`.

@@ -25,4 +25,10 @@ public class MukhtalitGroupRule
     public string Quote { get; set; } = string.Empty;
 
     public string? SourceBook { get; set; }
+
+    /// <summary>
+    /// Position of the rule in the narrator's list in <c>ilal.json</c>, i.e. the books' own order. The rules have
+    /// GUID keys, so without it "the first rule" was whatever row the database returned first.
+    /// </summary>
+    public int Ordinal { get; set; }
 }

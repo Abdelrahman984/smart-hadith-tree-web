@@ -82,4 +82,43 @@ public class IkhtilatSeverityTests
             .GroupRule("ابن عيينة", "من سمع منه قبل التغير", HearingTiming.Before, "من سمع منه قبل التغير فروايته صحيحة");
         new IkhtilatRule().Evaluate(unknown.Build()).Single().EvidenceAr.Should().Contain("من سمع منه قبل التغير فروايته صحيحة");
     }
+
+    [Fact]
+    public void GroupRulesGoingBothWays_QuoteTheFirstBeforeAndTheFirstAfterRule_InTheBooksOrder()
+    {
+        // شريك النخعي in ilal.json: two «before» and two «after» rules, interleaved.
+        var b = Fixture(IkhtilatSeverity.Harmful)
+            .GroupRule("ابن عيينة", "الذين سمعوا منه بواسط", HearingTiming.Before, "ليس فيهم تخليط")
+            .GroupRule("ابن عيينة", "المتأخرون عنه بالكوفة", HearingTiming.After, "فيه أوهام")
+            .GroupRule("ابن عيينة", "من سمع منه قديما", HearingTiming.Before, "فحديثه صحيح")
+            .GroupRule("ابن عيينة", "من سمع منه بعدما ولي القضاء", HearingTiming.After, "ففي سماعه بعض الاختلاط");
+
+        var evidence = new IkhtilatRule().Evaluate(b.Build()).Single().EvidenceAr;
+
+        evidence.Should().Contain("(الذين سمعوا منه بواسط) أن سماعهم قبل الاختلاط: «ليس فيهم تخليط»")
+            .And.Contain("وفي (المتأخرون عنه بالكوفة) أن سماعهم بعده: «فيه أوهام»")
+            .And.NotContain("من سمع منه قديما").And.NotContain("ولي القضاء");
+    }
+
+    [Fact]
+    public void OnlyAfterRules_AreQuotedAsAfter()
+    {
+        var b = Fixture(IkhtilatSeverity.Harmful)
+            .GroupRule("ابن عيينة", "من سمع منه سنة سبع وتسعين", HearingTiming.After, "فسماعه لا شيء");
+
+        new IkhtilatRule().Evaluate(b.Build()).Single().EvidenceAr
+            .Should().Contain("(من سمع منه سنة سبع وتسعين) أن سماعهم بعد الاختلاط: «فسماعه لا شيء»");
+    }
+
+    [Fact]
+    public void RulesThatStateNoTiming_AreNotQuotedAsBefore()
+    {
+        // «other» in ilal.json (حفص بن غياث: who wrote from his book); it was quoted as «قبل الاختلاط» before.
+        var b = Fixture(IkhtilatSeverity.Harmful)
+            .GroupRule("ابن عيينة", "من كتب عنه من كتابه", HearingTiming.Unknown, "فمن كتب عنه من كتابه فهو صالح");
+
+        var evidence = new IkhtilatRule().Evaluate(b.Build()).Single().EvidenceAr;
+
+        evidence.Should().NotContain("من كتب عنه من كتابه").And.NotContain("أن سماعهم");
+    }
 }

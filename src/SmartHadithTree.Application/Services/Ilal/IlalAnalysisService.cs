@@ -100,8 +100,11 @@ public class IlalAnalysisService(IHadithTreeDbContext context) : IIlalAnalysisSe
             .Select(h => new { h.Id, h.BookName, h.HadithNumber, h.MatnArabic })
             .ToListAsync(ct);
 
+        // BuildPaths walks the links in this order and stops at MaxPathsPerHadith, so which tahwil branches are kept
+        // must not depend on the database's row order. (GroupBy below keeps this order within each hadith.)
         var transmissions = await context.Transmissions.AsNoTracking()
             .Where(t => ids.Contains(t.HadithId))
+            .OrderBy(t => t.StepOrder).ThenBy(t => t.Sheikh.SourceKey).ThenBy(t => t.Id)
             .Select(t => new { t.HadithId, t.StudentId, t.SheikhId, t.TransmissionTerm, t.StepOrder })
             .ToListAsync(ct);
 
@@ -183,8 +186,10 @@ public class IlalAnalysisService(IHadithTreeDbContext context) : IIlalAnalysisSe
             .Select(h => new { h.MukhtalitId, h.StudentId, h.Timing, h.Evidence, h.SourceBook })
             .ToListAsync(ct);
 
+        // The books' order (Ordinal), so IkhtilatRule quotes the same rules on every run and engine.
         var groupRules = await context.MukhtalitGroupRules.AsNoTracking()
             .Where(r => narratorIds.Contains(r.MukhtalitId))
+            .OrderBy(r => r.MukhtalitId).ThenBy(r => r.Ordinal).ThenBy(r => r.Id)
             .Select(r => new { r.MukhtalitId, r.GroupAr, r.Timing, r.Quote })
             .ToListAsync(ct);
 

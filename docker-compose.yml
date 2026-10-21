@@ -1,27 +1,36 @@
-# Local / single-host stack: SQL Server + API + web.
-#   export MSSQL_SA_PASSWORD='<strong password>'  TOGETHER_API_KEY='<key>'  (GEMINI_API_KEY is the fallback)
+# Local / single-host stack: PostgreSQL + API + web.
+#   export POSTGRES_PASSWORD='<strong password>'  TOGETHER_API_KEY='<key>'  (GEMINI_API_KEY is the fallback)
 #   docker compose up --build
 # Then restore the database (see deploy/deployment.md) and open http://localhost:3000
 services:
   db:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    image: postgres:18
     environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD}
+      POSTGRES_USER: sht
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: smart_hadith_tree
     volumes:
-      - sqldata:/var/opt/mssql
+      # PostgreSQL 18 images keep their data under /var/lib/postgresql/18/docker: mount the parent.
+      - pgdata:/var/lib/postgresql
       - ./backups:/backups:ro
     ports:
-      - "1433:1433"
+      # 5433 by default so it does not clash with a PostgreSQL already installed on the machine.
+      - "${DB_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sht -d smart_hadith_tree"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   api:
     build:
       context: .
       dockerfile: src/SmartHadithTree.Api/Dockerfile
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
-      ConnectionStrings__DefaultConnection: "Server=db;Database=SmartHadithTree_ShamelaV7;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=true"
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=smart_hadith_tree;Username=sht;Password=${POSTGRES_PASSWORD}"
       Together__ApiKey: ${TOGETHER_API_KEY:-}
       Together__ExtraBody: ${TOGETHER_EXTRA_BODY:-}
       Gemini__ApiKey: ${GEMINI_API_KEY:-}
@@ -40,4 +49,4 @@ services:
       - "3000:3000"
 
 volumes:
-  sqldata:
+  pgdata:

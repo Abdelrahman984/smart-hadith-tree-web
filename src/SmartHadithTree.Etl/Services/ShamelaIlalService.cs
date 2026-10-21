@@ -111,7 +111,8 @@ public class ShamelaIlalService(HadithTreeDbContext context, ILogger<ShamelaIlal
                 hearings++;
             }
 
-            foreach (var r in m.GroupRules.Where(r => !string.IsNullOrWhiteSpace(r.Group) && !string.IsNullOrWhiteSpace(r.Quote)))
+            foreach (var (r, ordinal) in m.GroupRules.Select((r, i) => (r, i))
+                         .Where(x => !string.IsNullOrWhiteSpace(x.r.Group) && !string.IsNullOrWhiteSpace(x.r.Quote)))
             {
                 context.MukhtalitGroupRules.Add(new MukhtalitGroupRule
                 {
@@ -120,7 +121,8 @@ public class ShamelaIlalService(HadithTreeDbContext context, ILogger<ShamelaIlal
                     GroupAr = Truncate(r.Group, 300)!,
                     Timing = ParseTiming(r.Timing),
                     Quote = Truncate(r.Quote, 1000)!,
-                    SourceBook = BookName(r.Book)
+                    SourceBook = BookName(r.Book),
+                    Ordinal = ordinal
                 });
                 rules++;
             }

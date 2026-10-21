@@ -36,11 +36,13 @@ public sealed class MatnAtMadarRule : IIlalRule
 
     private enum Fragment { None, Reference, Compared }
 
+    /// <summary>One branch's text at the madar, with its place in the fixed order the clusters are built in.</summary>
+    private sealed record Text(IsnadBranch Branch, IlalChain Chain, string[] Tokens, int Order);
+
     private sealed class TextCluster
     {
-        public required IlalChain Representative { get; init; }
-        public required string[] Tokens { get; init; }
-        public List<IsnadBranch> Branches { get; } = [];
+        public List<Text> Members { get; } = [];
+        public List<IsnadBranch> Branches => Members.Select(m => m.Branch).ToList();
         public int BestTier => Branches.Min(b => b.StudentTier);
 
         /// <summary>
@@ -64,51 +66,81 @@ public sealed class MatnAtMadarRule : IIlalRule
     private static IEnumerable<IlalFindingDto> EvaluateSplit(IlalContext context, SplitPoint split)
     {
         // 1. Group branches whose texts agree (only minor wording differences) into clusters.
+        var tokensOf = split.AllChains.Distinct()
+            .ToDictionary(c => c, c => MatnText.Tokenize(MatnText.ExtractBody(c.MatnArabic)));
         var candidates = split.Branches
-            .Select(b => (Branch: b, Tokens: MatnText.Tokenize(MatnText.ExtractBody(b.Chains[0].MatnArabic))))
-            .Where(c => c.Tokens.Length > 0)
+            .Select(b => (Branch: b, Rep: RepresentativeOf(b, tokensOf)))
+            .Where(c => c.Rep.Tokens.Length > 0)
             .ToList();
 
         // An abridged text says nothing about the part it leaves out, so it is not evidence for any cluster.
         var kept = candidates
             .Where(c => !candidates.Any(o => o.Branch != c.Branch
-                && FindFragment(MatnAligner.Align(o.Tokens, c.Tokens)) == Fragment.Compared))
+                && FindFragment(MatnAligner.Align(o.Rep.Tokens, c.Rep.Tokens)) == Fragment.Compared))
             .ToList();
 
-        var clusters = new List<TextCluster>();
-        foreach (var (branch, tokens) in kept)
-        {
-            var rep = branch.Chains[0];
+        // Nothing below depends on the order the turuq came in: taking the first text of a cluster as its reference made
+        // the same turuq give different verdicts (مسند أحمد #2 against أبي يعلى #12 or ابن ماجه #1395, whichever came
+        // first). The texts get a fixed order, most typical first (highest total similarity to the texts of the other
+        // records; two branches of one tahwil record carry one text), then the stronger student, then the shorter text,
+        // then the text itself; it decides only ties.
+        var typicality = kept.Select(c => kept
+                .Where(o => o.Rep.Chain.HadithId != c.Rep.Chain.HadithId)
+                .Sum(o => MatnAligner.Align(c.Rep.Tokens, o.Rep.Tokens).Similarity))
+            .ToList();
+        var texts = kept
+            .Select((c, i) => (c.Branch, c.Rep.Chain, c.Rep.Tokens, Typicality: Math.Round(typicality[i], 9)))
+            .OrderByDescending(c => c.Typicality)
+            .ThenBy(c => c.Branch.StudentTier)
+            .ThenBy(c => c.Tokens.Length)
+            .ThenBy(c => string.Join(' ', c.Tokens), StringComparer.Ordinal)
+            .ThenBy(c => c.Branch.StudentId)
+            .Select((c, i) => new Text(c.Branch, c.Chain, c.Tokens, i))
+            .ToList();
 
-            var home = clusters.FirstOrDefault(c => Classify(MatnAligner.Align(c.Tokens, tokens)) == DiffKind.None);
-            if (home == null)
+        // Two texts that agree are one version, and so are texts linked through others that agree: «agrees» is not
+        // transitive near the thresholds, and a cluster grown from one seed text changed with the seed.
+        var clusterOf = Enumerable.Range(0, texts.Count).ToArray();
+        int Root(int i) => clusterOf[i] == i ? i : clusterOf[i] = Root(clusterOf[i]);
+        for (var i = 0; i < texts.Count; i++)
+            for (var j = i + 1; j < texts.Count; j++)
+                if (Classify(MatnAligner.Align(texts[i].Tokens, texts[j].Tokens)) == DiffKind.None
+                    || Classify(MatnAligner.Align(texts[j].Tokens, texts[i].Tokens)) == DiffKind.None)
+                    clusterOf[Math.Max(Root(i), Root(j))] = Math.Min(Root(i), Root(j));
+
+        var clusters = texts
+            .GroupBy(t => Root(t.Order))
+            .OrderBy(g => g.Key)
+            .Select(g =>
             {
-                home = new TextCluster { Representative = rep, Tokens = tokens };
-                clusters.Add(home);
-            }
-            home.Branches.Add(branch);
-        }
+                var cluster = new TextCluster();
+                cluster.Members.AddRange(g);
+                return cluster;
+            })
+            .ToList();
 
         if (clusters.Count < 2) yield break;
 
         // 2. The preferred text (المحفوظ) is carried by the strongest cluster.
         var main = clusters.Aggregate((best, c) => IsnadBranching.Compare(c.Branches, best.Branches) > 0 ? c : best);
         var madarName = context.NameOf(split.MadarId);
-        var conflicting = new List<TextCluster>();
+        var conflicting = new List<(TextCluster Cluster, Text Reference, Text Compared, AlignmentResult Diff)>();
 
         foreach (var other in clusters.Where(c => c != main))
         {
-            var diff = MatnAligner.Align(main.Tokens, other.Tokens);
+            // Each side is read by its text closest to the other side, so a difference is reported only when even the
+            // nearest readings of the two versions differ.
+            var (reference, compared, diff) = ClosestPair(main, other);
             var kind = Classify(diff);
             if (kind is DiffKind.None or DiffKind.Unrelated) continue;
 
-            var comparison = ToComparison(main.Representative, other.Representative, diff);
+            var comparison = ToComparison(reference.Chain, compared.Chain, diff);
 
             if (kind == DiffKind.Contradiction)
             {
                 if (IsnadBranching.Compare(main.Branches, other.Branches) == 0)
                 {
-                    conflicting.Add(other);
+                    conflicting.Add((other, reference, compared, diff));
                     continue;
                 }
 
@@ -195,7 +227,7 @@ public sealed class MatnAtMadarRule : IIlalRule
         // 3. Conflicts that cannot be resolved by preference: اضطراب
         if (conflicting.Count > 0)
         {
-            var involved = conflicting.Prepend(main).ToList();
+            var involved = conflicting.Select(c => c.Cluster).Prepend(main).ToList();
             var first = conflicting[0];
             yield return new IlalFindingDto
             {
@@ -209,10 +241,44 @@ public sealed class MatnAtMadarRule : IIlalRule
                 NarratorIds = [split.MadarId, .. involved.SelectMany(c => c.Branches).Select(b => b.StudentId)],
                 HadithIds = involved.SelectMany(c => c.Branches).SelectMany(b => b.Chains).Select(c => c.HadithId).Distinct().ToList(),
                 Confidence = 0.45,
-                MatnComparison = ToComparison(main.Representative, first.Representative,
-                    MatnAligner.Align(main.Tokens, first.Tokens))
+                MatnComparison = ToComparison(first.Reference.Chain, first.Compared.Chain, first.Diff)
             };
         }
+    }
+
+    /// <summary>
+    /// The text of <paramref name="main"/> and the text of <paramref name="other"/> most similar to each other; ties go
+    /// to the earlier texts of the fixed order.
+    /// </summary>
+    private static (Text Reference, Text Compared, AlignmentResult Diff) ClosestPair(TextCluster main, TextCluster other) =>
+        main.Members
+            .SelectMany(m => other.Members.Select(o => (Reference: m, Compared: o, Diff: MatnAligner.Align(m.Tokens, o.Tokens))))
+            .OrderByDescending(p => Math.Round(p.Diff.Similarity, 9))
+            .ThenBy(p => p.Reference.Order)
+            .ThenBy(p => p.Compared.Order)
+            .First();
+
+    /// <summary>
+    /// The text a branch is compared by when several books carry the same student's narration, never simply the first
+    /// listed: the one most similar to the texts of the other records at the madar (a compiler's notes or an abridgement
+    /// make a text less typical), then the longest, then a fixed order.
+    /// </summary>
+    private static (IlalChain Chain, string[] Tokens) RepresentativeOf(
+        IsnadBranch branch, IReadOnlyDictionary<IlalChain, string[]> tokensOf)
+    {
+        if (branch.Chains.Count == 1) return (branch.Chains[0], tokensOf[branch.Chains[0]]);
+
+        return branch.Chains
+            .Select(c => (Chain: c, Tokens: tokensOf[c]))
+            .Select(t => (Text: t, Total: t.Tokens.Length == 0 ? 0 : Math.Round(tokensOf
+                .Where(o => o.Key.HadithId != t.Chain.HadithId && o.Value.Length > 0)
+                .DistinctBy(o => o.Key.HadithId)
+                .Sum(o => MatnAligner.Align(t.Tokens, o.Value).Similarity), 9)))
+            .OrderByDescending(x => x.Total)
+            .ThenByDescending(x => x.Text.Tokens.Length)
+            .ThenBy(x => string.Join(' ', x.Text.Tokens), StringComparer.Ordinal)
+            .ThenBy(x => x.Text.Chain.HadithId)
+            .First().Text;
     }
 
     private static readonly HashSet<string> FramingTokens = new(StringComparer.Ordinal)

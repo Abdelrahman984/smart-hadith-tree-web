@@ -1,0 +1,212 @@
+{
+  "P01": {
+    "status": "exact",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=5; best=1 (السنن الكبرى للبيهقي 184); decided-by=similarity-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "P02": {
+    "status": "exact",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=5; best=1 (السنن الكبرى للبيهقي 184); decided-by=similarity-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "P03": {
+    "status": "exact",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=16; best=1 (مصنف ابن أبي شيبة 32451); decided-by=similarity-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "P04": {
+    "status": "exact",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=16; best=1 (موطأ مالك 3352); decided-by=similarity-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "P05": {
+    "status": "exact",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=22; best=1 (صحيح مسلم 55); decided-by=similarity-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "P06": {
+    "status": "exact",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=36; best=1 (مسند البزار 9099); decided-by=similarity-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "P07": {
+    "status": "exact",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=40; best=1 (المستدرك على الصحيحين 6325); decided-by=similarity-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "V01": {
+    "status": "exact",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=4; best=1 (صحيح ابن خزيمة 1934); decided-by=similarity-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "V02": {
+    "status": "variant",
+    "method": "ai+lexical",
+    "model": "reviewed",
+    "diag": "candidates=1; best=0.778 (سنن النسائي 5039); decided-by=model-review; review-timeout=8s",
+    "unmatched": []
+  },
+  "V03": {
+    "status": "exact",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=9; best=1 (مسند أحمد 3667); decided-by=similarity-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "V04": {
+    "status": "exact",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=9; best=1 (مسند أحمد 3667); decided-by=similarity-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "N01": {
+    "status": "not-found",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=1; best=0 (شعب الإيمان للبيهقي 1508); decided-by=below-review-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "N02": {
+    "status": "not-found",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=8; best=0.75 (السنن الكبرى للبيهقي 184); decided-by=negation-guard; review-timeout=8s",
+    "unmatched": []
+  },
+  "N03": {
+    "status": "not-found",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=5; best=0.2 (مصنف ابن أبي شيبة 31711); decided-by=below-review-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "N04": {
+    "status": "not-found",
+    "method": "ai+lexical",
+    "model": "reviewed",
+    "diag": "candidates=187; best=0.333 (المعجم الكبير للطبراني 7723); decided-by=model-review; review-timeout=8s",
+    "unmatched": []
+  },
+  "I01": {
+    "status": "invalid",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": null,
+    "unmatched": []
+  },
+  "P08": {
+    "status": "exact",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=9; best=1 (مسند أحمد 168); decided-by=similarity-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "P09": {
+    "status": "exact",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=17; best=1 (مسند البزار 9395); decided-by=similarity-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "P10": {
+    "status": "exact",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=16; best=1 (مسند أحمد 23325); decided-by=similarity-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "G01": {
+    "status": "variant",
+    "method": "ai+lexical",
+    "model": "reviewed",
+    "diag": "candidates=84; best=0.667 (مسند أبي داود الطيالسي 2116); decided-by=model-review; review-timeout=8s",
+    "unmatched": [
+      "يكمل",
+      "إيمان"
+    ]
+  },
+  "G02": {
+    "status": "variant",
+    "method": "ai+lexical",
+    "model": "reviewed",
+    "diag": "candidates=12; best=0.667 (مسند البزار 4070); decided-by=model-review; review-timeout=8s",
+    "unmatched": [
+      "الابتسامة"
+    ]
+  },
+  "A01": {
+    "status": "variant",
+    "method": "ai+lexical",
+    "model": "reviewed",
+    "diag": "candidates=9; best=0.714 (السنن الكبرى للبيهقي 184); decided-by=model-review; review-timeout=8s",
+    "unmatched": [
+      "الأقوال"
+    ]
+  },
+  "A02": {
+    "status": "not-found",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=0; best=none; decided-by=no-candidates; review-timeout=8s",
+    "unmatched": []
+  },
+  "A03": {
+    "status": "not-found",
+    "method": "ai+lexical",
+    "model": "reviewed",
+    "diag": "candidates=17; best=0.5 (السنن الكبرى للبيهقي 188); decided-by=model-review; review-timeout=8s",
+    "unmatched": []
+  },
+  "N05": {
+    "status": "exact",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=5; best=1 (مصنف ابن أبي شيبة 37861); decided-by=similarity-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "N06": {
+    "status": "not-found",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=40; best=0 (مصنف ابن أبي شيبة 37281); decided-by=below-review-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "N07": {
+    "status": "not-found",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=7; best=0 (صحيح البخاري 7325); decided-by=below-review-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "N08": {
+    "status": "not-found",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=20; best=0.25 (شعب الإيمان للبيهقي 8374); decided-by=below-review-threshold; review-timeout=8s",
+    "unmatched": []
+  },
+  "N09": {
+    "status": "not-found",
+    "method": "lexical",
+    "model": "not-needed",
+    "diag": "candidates=24; best=0.25 (شعب الإيمان للبيهقي 10096); decided-by=below-review-threshold; review-timeout=8s",
+    "unmatched": []
+  }
+}

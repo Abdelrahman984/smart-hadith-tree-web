@@ -1,4 +1,5 @@
 using SmartHadithTree.Domain.Enums;
+using SmartHadithTree.Domain.Utilities;
 
 namespace SmartHadithTree.Domain.Entities;
 
@@ -14,6 +15,23 @@ public class Narrator
 
     /// <summary>الشهرة / اللقب — The name the narrator is commonly known by.</summary>
     public string? KnownAs { get; set; }
+
+    /// <summary>
+    /// <see cref="FullName"/> without tashkeel and with alef/ta marbuta variants unified, for substring search.
+    /// Derived, so every writer (parsers, importers, bulk insert) stores it; the setter only lets EF materialize it.
+    /// </summary>
+    public string NormalizedFullName
+    {
+        get => ArabicNormalizer.Normalize(FullName);
+        private set { }
+    }
+
+    /// <summary><see cref="KnownAs"/>, normalized like <see cref="NormalizedFullName"/>.</summary>
+    public string? NormalizedKnownAs
+    {
+        get => KnownAs is null ? null : ArabicNormalizer.Normalize(KnownAs);
+        private set { }
+    }
 
     /// <summary>الكنية — Honorific (e.g., أبو هريرة).</summary>
     public string? Kunyah { get; set; }

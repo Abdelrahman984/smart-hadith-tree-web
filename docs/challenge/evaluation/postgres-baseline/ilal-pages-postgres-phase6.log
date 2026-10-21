@@ -1,0 +1,12 @@
+page       src  shw grade     all  matn  matn قادحة
+tahur       16    0 صحيح        8     3           1   was: all 8, matn 3, قادحة 1, grade صحيح
+niyyat       8    1 صحيح        9     3           0   was: all 9, matn 3, قادحة 0, grade صحيح
+jannah       9    0 صحيح        2     0           0   was: all 2, matn 0, قادحة 0, grade صحيح
+mughira     12    1 حسن         9     6           0   was: all 9, matn 6, قادحة 0, grade حسن
+nasiha      30   10 صحيح       22    11           4   was: all 22, matn 11, قادحة 4, grade صحيح
+halal       30    3 صحيح       34    14           4   was: all 34, matn 14, قادحة 4, grade صحيح
+darar       26    8 صحيح       13     4           0   was: all 13, matn 4, قادحة 0, grade صحيح
+kadhib      30   14 صحيح       10     3           0   was: all 10, matn 3, قادحة 0, grade صحيح
+hayaa       30   12 صحيح       12     2           0   was: all 12, matn 2, قادحة 0, grade صحيح
+total                         119    46           9   was: all 119, matn 46, قادحة 9
+saved docs/challenge/evaluation/postgres-baseline/ilal-pages-postgres-phase6.json

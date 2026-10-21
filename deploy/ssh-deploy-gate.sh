@@ -45,6 +45,6 @@ if ! git cat-file -e "$SHA:deploy/deploy-remote.sh" 2>/dev/null; then
   exit 2
 fi
 
-# Untracked host-only files (.env, compose.edge.yml, backups/*.bak) survive a hard reset.
+# Untracked host-only files (.env, compose.edge.yml, backups/*.dump and the old *.bak) survive a hard reset.
 git reset --quiet --hard "$SHA"
 exec ./deploy/deploy-remote.sh "$BEFORE"

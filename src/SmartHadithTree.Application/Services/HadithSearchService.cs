@@ -136,7 +136,7 @@ public class HadithSearchService(
         var orderingPhrases = normalizedAndPhrases.Count > 1 ? normalizedAndPhrases : normalizedOrPhrases;
         if ((request.IsOrdered || request.IsProximity) && orderingPhrases.Count > 1)
         {
-            // Push ordered constraint directly to SQL Server when searching Matn/All with AND phrases
+            // Push ordered constraint directly to the database when searching Matn/All with AND phrases
             if (request.IsOrdered && normalizedAndPhrases.Count > 1)
             {
                 var orderedPattern = "%" + string.Join("%", orderingPhrases) + "%";
@@ -145,6 +145,7 @@ public class HadithSearchService(
 
             var candidates = await queryable
                 .OrderBy(h => h.MatnArabic.Length)
+                .ThenBy(h => h.NormalizedBookName).ThenBy(h => h.HadithNumber).ThenBy(h => h.Id)
                 .Skip(skip)
                 .Take(Math.Max(100, pageSize * 2))
                 .Select(h => new
@@ -197,9 +198,12 @@ public class HadithSearchService(
 
         // The fetch below keeps the shortest matches. A long hadith that contains the exact phrase could be cut
         // before ranking, so when the cap is reached the exact-phrase hits are fetched as well.
+        // Equal lengths are ordered by book and number (the same after a reload) and then Id, so the cut is the
+        // same on every run; without it the database's row order decided which of equal-length matches were kept.
         var candidateCap = skip + Math.Max(150, pageSize * 3);
         var rawCandidates = await queryable
             .OrderBy(h => h.MatnArabic.Length)
+            .ThenBy(h => h.NormalizedBookName).ThenBy(h => h.HadithNumber).ThenBy(h => h.Id)
             .Take(candidateCap)
             .Select(h => new Candidate
             {
@@ -219,6 +223,7 @@ public class HadithSearchService(
             var exactHits = await queryable
                 .Where(h => h.NormalizedMatn.Contains(exactNormalizedPhrase))
                 .OrderBy(h => h.MatnArabic.Length)
+                .ThenBy(h => h.NormalizedBookName).ThenBy(h => h.HadithNumber).ThenBy(h => h.Id)
                 .Take(ExactPhraseCandidateCap)
                 .Select(h => new Candidate
                 {
@@ -270,6 +275,8 @@ public class HadithSearchService(
             .ThenBy(x => x.ClusterSpan)
             .ThenBy(x => x.Hadith.MatnArabic.Length)
             .ThenBy(x => x.Hadith.HadithNumber)
+            .ThenBy(x => x.Hadith.BookName, StringComparer.Ordinal)
+            .ThenBy(x => x.Hadith.Id)
             .Skip(skip)
             .Take(pageSize)
             .Select(x => new HadithSearchResultDto
@@ -707,6 +714,10 @@ public class HadithSearchService(
 
         var relatedHadiths = await context.Hadiths
             .Where(h => h.Id != hadithId && h.NormalizedMatn.Contains(searchSubstring))
+            // Shortest texts that contain the excerpt first (the search's order); about one hadith in ten has more
+            // than 20 matches, and without an order the database decided which 20 (and the Ilal turuq) were shown.
+            .OrderBy(h => h.MatnArabic.Length)
+            .ThenBy(h => h.NormalizedBookName).ThenBy(h => h.HadithNumber).ThenBy(h => h.Id)
             .Take(20)
             .Select(h => new HadithSearchResultDto
             {

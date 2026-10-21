@@ -6,33 +6,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-Backend (repo root, .NET 9, SQL Server on `.`; default DB `SmartHadithTree_ShamelaV7`):
+Backend (repo root, .NET 9, PostgreSQL 18; default connection `Host=localhost;Port=5432;Database=smart_hadith_tree;Username=sht`, password from `PGPASSWORD`/`pgpass.conf`; the compose `db` is on port 5433, so set `$env:ConnectionStrings__DefaultConnection` for it, see README):
 ```powershell
 dotnet build SmartHadithTree.sln
 dotnet run --project src/SmartHadithTree.Api            # http://localhost:5147
-dotnet test src/SmartHadithTree.Tests                   # the real backend tests (xUnit + Moq)
+dotnet test src/SmartHadithTree.Tests                   # the real backend tests (xUnit + Moq); Integration/ needs Docker
+dotnet test src/SmartHadithTree.Tests --filter "Category!=Integration"                          # without Docker
 dotnet test src/SmartHadithTree.Tests --filter "FullyQualifiedName~HadithSearchServiceTests"   # one class
 dotnet test src/SmartHadithTree.Tests --filter "FullyQualifiedName~SearchHadithsAsync_FiltersOutScatteredMegaRecord_AndRanksExactPhraseFirst"   # one test
 dotnet ef database update --project src/SmartHadithTree.Infrastructure --startup-project src/SmartHadithTree.Api
 ```
-`tests/*` projects (Api/Application/Domain/Infrastructure) are empty `UnitTest1.cs` stubs; tests live in `src/SmartHadithTree.Tests/{Api,Application,Etl}`.
+`tests/*` projects (Api/Application/Domain/Infrastructure) are empty `UnitTest1.cs` stubs; tests live in `src/SmartHadithTree.Tests/{Api,Application,Etl,Integration}` (`Integration/`: Testcontainers PostgreSQL, for raw SQL and query translation). New migrations in `src/SmartHadithTree.Infrastructure/Data/Migrations/` need `git add -f` (`.gitignore`'s `data/` matches `Data/` on Windows).
 
 AI keys: `dotnet user-secrets set "Together:ApiKey" ... --project src/SmartHadithTree.Api` (Together takes precedence; `Gemini:ApiKey` is the fallback).
 
 Frontend (`frontend/`): `npm run dev` (port 3000), `npm run build`, `npm run lint`, Playwright e2e via `npx playwright test` (config starts `npm run dev` itself; single file: `npx playwright test tests/search.spec.ts`). The frontend talks to the API at `http://localhost:5147` through `src/lib/api.ts`.
 
-Both together: `scripts/run.ps1`. Restore the full DB from `backups/*.bak` (see README, `backups/README.md`) instead of rebuilding it.
+Both together: `scripts/run.ps1`. Restore the full DB from `backups/SmartHadithTree_Shamela_v8_pg_*.dump` with `pg_restore` (see README, `backups/README.md`) instead of rebuilding it; the `.bak` files are pre-PostgreSQL (tag `pre-postgres`).
 
 Data/ETL: `dotnet run --project src/SmartHadithTree.Etl -- data/shamela_rijal` loads the Python resolver's output; `... -- seed-ilal-shamela data/shamela_rijal` loads Ilal data. Docker: `docker-compose.yml` (local) and `docker-compose.prod.yml` + `deploy/` (Caddy, runbook in `deploy/devops-handoff.md`).
 
-Search evaluation (standard-library Python, needs a running API): `python scripts/eval_search.py --dry-run | --save x.json | --judge --review-pack search_review.md | --compare baseline.json`; cases in `docs/challenge/evaluation/search-eval-cases.json`. `scripts/eval_verify.py` does the same for `/verify`.
+Search evaluation (standard-library Python, needs a running API): `python scripts/eval_search.py --dry-run | --save x.json | --judge --review-pack search_review.md | --compare baseline.json`; cases in `docs/challenge/evaluation/search-eval-cases.json`. `scripts/eval_verify.py` does the same for `/verify`, `scripts/eval_ilal_pages.py` for nine Ilal pages, and `scripts/snapshot_api.py --save | --compare a b` diffs tree/takhreej/ilal/narrator output across databases (cases in `docs/challenge/evaluation/postgres-baseline/`).
 
 ## Architecture
 
-**Backend layering is non-obvious:** Domain ← Application ← Infrastructure ← Api/Etl. Application defines interfaces (`IHadithTreeDbContext`, `IHadithChainRepository`, ...) and holds all services (search, narrator, verification, `Services/Ilal` rules engine, AI via Semantic Kernel); Infrastructure implements them (EF Core, recursive-CTE graph queries); Api is controllers only (`Search`, `Tree`, `Takhreej`, `Narrator`, `Ilal`, `Verify`, `Books`, `Admin`). Text columns use `Arabic_100_CI_AI` collation; search normalizes Arabic separately (`HadithSearchService`, `RelevanceScorer`, optional AI relevance check in `SearchJudgeService`).
+**Backend layering is non-obvious:** Domain ← Application ← Infrastructure ← Api/Etl. Application defines interfaces (`IHadithTreeDbContext`, `IHadithChainRepository`, ...) and holds all services (search, narrator, verification, `Services/Ilal` rules engine, AI via Semantic Kernel); Infrastructure implements them (EF Core + Npgsql, recursive-CTE graph queries in `HadithChainRepository` with quoted PascalCase identifiers); Api is controllers only (`Search`, `Tree`, `Takhreej`, `Narrator`, `Ilal`, `Verify`, `Books`, `Admin`). Arabic is matched through normalized columns (`NormalizedMatn`, `NormalizedFullName`, ..., `COLLATE "C"`, `pg_trgm` GIN indexes) filled with `ArabicNormalizer`, not a collation; ranking is in `HadithSearchService`/`RelevanceScorer`, with an optional AI relevance check in `SearchJudgeService`. Queries that cap or take the first row sort explicitly (ties by book/number/`SourceKey`, then Id): the database's row order is not stable across engines or reloads (`docs/postgres_migration.md`, phase 4).
 
-**Data pipeline is split across languages.** Hadith books and rijal come from a local Shamela 4 install (SQLite metadata + Lucene text): Java dumper → `build_shamela_books.py`/`split_parts.py` → `data/shamela/<slug>/` (git-ignored, rebuilt by script). Narrator/chain resolution (name matching, isnad segmentation, tahwil, Tahdhib al-Kamal linking) is **Python** in `scripts/shamela4-extractor/rijal_pilot/` (`pipeline.py` orchestrates), producing `registry.json`, `chains/<slug>.json`, `ilal.json`. The C# ETL (`src/SmartHadithTree.Etl`) only loads that output into SQL Server; do not reimplement resolution in C#. Resolver errors surface as gaps in chains; known issues are tracked in `docs/backlog.md`.
+**Data pipeline is split across languages.** Hadith books and rijal come from a local Shamela 4 install (SQLite metadata + Lucene text): Java dumper → `build_shamela_books.py`/`split_parts.py` → `data/shamela/<slug>/` (git-ignored, rebuilt by script). Narrator/chain resolution (name matching, isnad segmentation, tahwil, Tahdhib al-Kamal linking) is **Python** in `scripts/shamela4-extractor/rijal_pilot/` (`pipeline.py` orchestrates), producing `registry.json`, `chains/<slug>.json`, `ilal.json`. The C# ETL (`src/SmartHadithTree.Etl`) only loads that output into PostgreSQL (binary `COPY` via `EFCore.BulkExtensions.PostgreSql`); do not reimplement resolution in C#. Resolver errors surface as gaps in chains; known issues are tracked in `docs/backlog.md`.
 
 **Frontend** (`frontend/src`): App Router pages `tree`, `takhreej`, `search`, `verify`, `books`, `glossary`; graph views use React Flow + ELK.js layout (`TreeCanvas`, `ComparativeTreeCanvas`, `NarratorNode` with anomaly badges); state with Zustand, fetching with TanStack Query; feature code in `features/`, shared UI in `components/`.
 
-Other docs: `docs/architecture.md`, `docs/api.md`, `docs/ilal.md`, `docs/data_ingestion.md`, `docs/changelog.md` (update it with notable changes).
+Other docs: `docs/architecture.md`, `docs/api.md`, `docs/ilal.md`, `docs/data_ingestion.md`, `docs/postgres_migration.md` (the SQL Server → PostgreSQL move, its checks and the production cutover), `docs/changelog.md` (update it with notable changes).

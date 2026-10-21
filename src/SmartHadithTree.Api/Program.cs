@@ -15,16 +15,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ── Database ───────────────────────────────────────────────────────
 builder.Services.AddDbContext<HadithTreeDbContext>(options =>
-    options.UseSqlServer(
+    options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
-        sqlOptions =>
+        npgsqlOptions =>
         {
-            sqlOptions.CommandTimeout(120);
-            sqlOptions.EnableRetryOnFailure(
+            npgsqlOptions.CommandTimeout(120);
+            npgsqlOptions.EnableRetryOnFailure(
                 maxRetryCount: 3,
                 maxRetryDelay: TimeSpan.FromSeconds(5),
-                errorNumbersToAdd: null);
-            sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory");
+                errorCodesToAdd: null);
+            npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory");
         }));
 
 // Register Semantic Kernel
@@ -162,7 +162,7 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Database migration check failed at startup. Ensure the 'MSSQLSERVER' Windows service is running.");
+        logger.LogError(ex, "Database migration check failed at startup. Ensure PostgreSQL is reachable with ConnectionStrings:DefaultConnection (password from the connection string, PGPASSWORD or pgpass.conf).");
     }
 }
 

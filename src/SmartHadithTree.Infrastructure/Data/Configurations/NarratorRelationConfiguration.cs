@@ -19,7 +19,8 @@ public class NarratorRelationConfiguration : IEntityTypeConfiguration<NarratorRe
             .IsRequired()
             .HasMaxLength(50);
 
-        // Both FKs point to Narrators; RESTRICT avoids SQL Server's multiple cascade paths error.
+        // Both FKs point to Narrators; RESTRICT, so deleting a narrator never silently deletes relations (it also
+        // avoided SQL Server's multiple-cascade-paths error before the move to PostgreSQL).
         builder.HasOne<Narrator>()
             .WithMany()
             .HasForeignKey(r => r.TeacherId)

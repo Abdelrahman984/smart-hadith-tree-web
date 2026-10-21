@@ -18,36 +18,48 @@ public class NarratorConfiguration : IEntityTypeConfiguration<Narrator>
         builder.Property(n => n.Id)
             ;
 
-        // ── String Properties with Arabic Collation ────────────────
+        // ── String Properties ──────────────────────────────────────
         builder.Property(n => n.FullName)
             .IsRequired()
-            .HasMaxLength(500)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(500);
 
         builder.Property(n => n.KnownAs)
+            .HasMaxLength(200);
+
+        // Normalized copies (see Narrator.NormalizedFullName): byte-wise, searched with trigram indexes below.
+        builder.Property(n => n.NormalizedFullName)
+            .IsRequired()
+            .HasMaxLength(500)
+            .UseCollation("C");
+
+        builder.Property(n => n.NormalizedKnownAs)
             .HasMaxLength(200)
-            .UseCollation("Arabic_100_CI_AI");
+            .UseCollation("C");
 
         builder.Property(n => n.Kunyah)
-            .HasMaxLength(200)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(200);
 
         builder.Property(n => n.GenerationTier)
-            .HasMaxLength(150)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(150);
 
         builder.Property(n => n.BirthPlace)
-            .HasMaxLength(200)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(200);
 
         builder.Property(n => n.DeathPlace)
-            .HasMaxLength(200)
-            .UseCollation("Arabic_100_CI_AI");
-
-        builder.Property(n => n.Biography)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(200);
 
         // ── Indexes ────────────────────────────────────────────────
+        // Trigram (pg_trgm) indexes for narrator search: Contains/LIKE '%x%' on the normalized names.
+        builder.HasIndex(n => n.NormalizedFullName)
+            .HasMethod("gin")
+            .HasOperators("gin_trgm_ops")
+            .HasDatabaseName("IX_Narrators_NormalizedFullName_Trgm");
+
+        builder.HasIndex(n => n.NormalizedKnownAs)
+            .HasMethod("gin")
+            .HasOperators("gin_trgm_ops")
+            .HasDatabaseName("IX_Narrators_NormalizedKnownAs_Trgm");
+
         // Primary search index on full name.
         builder.HasIndex(n => n.FullName)
             .HasDatabaseName("IX_Narrators_FullName");
@@ -64,21 +76,19 @@ public class NarratorConfiguration : IEntityTypeConfiguration<Narrator>
             .HasMaxLength(50);
 
         builder.Property(n => n.IkhtilatNote)
-            .HasMaxLength(1000)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(1000);
 
         // ── Shamela registry (Phase 5) ─────────────────────────────
         builder.Property(n => n.SourceKey)
             .HasMaxLength(40);
 
         builder.Property(n => n.Verdict)
-            .HasMaxLength(500)
-            .UseCollation("Arabic_100_CI_AI");
+            .HasMaxLength(500);
 
         // Filtered so that rows without a registry id (legacy Itqan rows) do not collide.
         builder.HasIndex(n => n.SourceKey)
             .IsUnique()
-            .HasFilter("[SourceKey] IS NOT NULL")
+            .HasFilter("\"SourceKey\" IS NOT NULL")
             .HasDatabaseName("IX_Narrators_SourceKey");
 
         builder.HasIndex(n => n.ShamelaManId)

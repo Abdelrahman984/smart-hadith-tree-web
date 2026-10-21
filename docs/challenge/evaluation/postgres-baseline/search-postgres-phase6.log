@@ -1,0 +1,28 @@
+21 cases, 3 in parallel
+[1/21] S01  rank=1  results=10  relevance=88  (0.4s)
+[2/21] S02  rank=2  results=26  relevance=88  (0.4s)
+[3/21] S05  rank=1  results=28  relevance=100  (0.1s)
+[4/21] S04  rank=1  results=48  relevance=100  (0.1s)
+[5/21] S03  rank=20  results=50  relevance=88  (0.5s)
+[6/21] S06  rank=1  results=19  relevance=75  (0.1s)
+[7/21] S07  rank=1  results=9  relevance=88  (0.1s)
+[8/21] S08  rank=1  results=16  relevance=100  (0.1s)
+[9/21] S10  rank=1  results=16  relevance=100  (0.1s)
+[10/21] S11  rank=33  results=50  relevance=88  (0.1s)
+[11/21] S09  rank=1  results=17  relevance=100  (0.1s)
+[12/21] S13  rank=1  results=12  relevance=100  (0.1s)
+[13/21] S12  rank=1  results=45  relevance=88  (0.1s)
+[14/21] S14  rank=1  results=26  relevance=100  (0.1s)
+[15/21] S15  rank=1  results=28  relevance=100  (0.1s)
+[16/21] S17  rank=1  results=5  relevance=100  (0.1s)
+[17/21] S16  rank=1  results=20  relevance=88  (0.1s)
+[18/21] S18  rank=1  results=8  relevance=100  (0.1s)
+[19/21] D01  rank=None  results=0  relevance=None  (0.1s)
+[20/21] D02  rank=None  results=9  relevance=None  (0.1s)
+[21/21] D03  rank=None  results=0  relevance=None  (0.1s)
+Done in 1s
+
+search order           hit@1 15/18  hit@3 16/18  hit@10 16/18  MRR 0.866  not found 0
+Precision of the top results (cases with relevant_contains): 0.93 over 3 cases
+Latency ms: median 72, max 457
+Saved to docs/challenge/evaluation/postgres-baseline/search-postgres-phase6.json

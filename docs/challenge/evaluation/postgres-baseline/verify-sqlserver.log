@@ -1,0 +1,45 @@
+PASS  P01  exact      method=lexical
+PASS  P02  exact      method=lexical
+PASS  P03  exact      method=lexical
+PASS  P04  exact      method=lexical
+PASS  P05  exact      method=lexical
+PASS  P06  exact      method=lexical
+PASS  P07  exact      method=lexical
+PASS  V01  exact      method=lexical
+PASS  V02  variant    method=ai+lexical
+PASS  V03  exact      method=lexical
+PASS  V04  exact      method=lexical
+PASS  N01  not-found  method=lexical
+PASS  N02  not-found  method=lexical
+PASS  N03  not-found  method=lexical
+PASS  N04  not-found  method=ai+lexical
+PASS  I01  invalid    method=lexical
+PASS  P08  exact      method=lexical
+PASS  P09  exact      method=lexical
+PASS  P10  exact      method=lexical
+PASS  G01  variant    method=ai+lexical
+PASS  G02  variant    method=ai+lexical
+PASS  A01  variant    method=ai+lexical
+PASS  A02  not-found  method=lexical
+PASS  A03  not-found  method=ai+lexical
+PASS  N05  exact      method=lexical
+PASS  N06  not-found  method=lexical
+PASS  N07  not-found  method=lexical
+PASS  N08  not-found  method=lexical
+PASS  N09  not-found  method=lexical
+
+By group:
+  positive-exact     10/10
+  positive-variant   4/4
+  negative           8/8
+  invalid            1/1
+  grey-zone          2/2
+  altered            3/3
+  found-in-corpus    1/1
+
+Overall: 29/29 passed
+Negatives: 0 false attribution(s), 8/8 abstained
+Latency ms: median 809, max 15047 (29 calls)
+Model review status per case: not-needed=23, reviewed=6
+Cases where the model reviewed: 6/29 ['V02', 'N04', 'G01', 'G02', 'A01', 'A03']
+Saved results to docs/challenge/evaluation/postgres-baseline/verify-sqlserver.json

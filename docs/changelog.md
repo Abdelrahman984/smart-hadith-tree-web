@@ -1,5 +1,119 @@
 # Changelog
 
+## 2026-10-21: Matn findings no longer depend on the order of the turuq (branch `fix/ilal-matn-order`, from `feature/postgres`)
+
+- **Bug** (found in phase 6): `MatnAtMadarRule` built its text clusters greedily from the first text it met. It also read a student carried by several books through the first book listed. So the same turuq could give different verdicts. مسند أحمد #2 (four turuq from Waki') was a Shudhudh **Tanbih** against ابن ماجه #1395 in one order and a Shudhudh **Qadihah** against أبي يعلى #12 in another.
+- **Fix**: no step uses the input order any more.
+  - A student carried by several books is read through the text most similar to the other records at the madar, so a compiler's notes or an abridgement no longer stand for him.
+  - Two texts that agree are one version, and so are texts linked through others that agree. The clusters no longer depend on a seed text.
+  - The main cluster is compared with each other cluster through their closest pair of texts: a finding needs even the nearest readings to differ.
+  - Ties go to the most typical text, then a fixed order.
+  - مسند أحمد #2 is now always «زاد أحمد… ولم يذكرها», Tanbih 0.45 against ابن ماجه #1395, the verdict of the old SQL Server build.
+- **Checked**: new `MatnOrderTests` runs every order of the مسند أحمد #2 turuq (real texts, 24 orders) and of a student carried by two books. Both fail on the old rule and pass now. All 152 Ilal tests pass; the full suite is 292/294 (the 2 known stale-count tests).
+- **Nine Ilal pages** (`eval_ilal_pages.py --compare …/ilal-pages-postgres-phase6.json`, PostgreSQL full corpus; saved as `postgres-baseline/ilal-pages-matn-order.json`):
+  - Findings 119 → 113, matn 46 → 40, matn «قادحة» 9 → 10. **No grade changed.**
+  - By page (matn): tahur 3 → 4, niyyat 3 → 1, mughira 6 → 5, nasiha 11 → 7, halal 14 → 13, hayaa 2 → 3; jannah, darar and kadhib have the same counts (only the order of names in the evidence differs).
+  - **Qadihah removed** (all on nasiha, at Suhayl):
+    - The Idtirab (the two Sufyans against Khalid and Yahya) and the Shudhudh of Wuhayb are gone. Suhayl's students' texts now link into one version, so nothing contradicts.
+  - **Qadihah kept on another pair**:
+    - halal, Zakariyya's Idtirab: now Ibn al-Mubarak against al-Fadl (0.896), was Waki' against al-Fadl.
+    - halal, al-A'mash's Shudhudh of Abu Mu'awiya: now against Ibn Uyayna (0.732), was against Shu'ba (0.365).
+  - **Qadihah added**:
+    - **hayaa**, Idtirab at al-Zuhri, Malik against Ibn Uyayna (0.8). Ibn Uyayna's first-listed record was the abridged «الحياء من الإيمان» (مصنف ابن أبي شيبة #32437). It was dropped as a fragment, and his branch with it; now his full text is compared. The difference is «مر على رجل» against «رأى رجلاً», narration by meaning, so this is a false Qadihah from the contradiction rule, not from the order.
+    - **nasiha**, Idtirab at Ibn Uyayna, al-Humaydi against Ahmad. Of three comparable clusters (al-Humaydi, Ahmad, Ibn Mahdi), the main one is now the most typical text (al-Humaydi), not Ibn Mahdi's. Ahmad's text repeats «إن الدين النصيحة», an addition over Ibn Mahdi but a contradiction over al-Humaydi.
+    - **halal**, Shudhudh at al-Sha'bi, Awn ibn Abd Allah against Ibn Awn (0.4). The full texts (Zakariyya, Urwa, Mujalid, Ibn Awn) now form one cluster that outweighs al-Mughira's short pointer text («وذكر الحديث»). That is better than before, when every full text was a «زيادة يُخشى شذوذها» against that pointer. Awn's own full wording is then read as a contradiction.
+  - **Other matn changes** (Tanbih / GhayrQadihah):
+    - niyyat: Yahya ibn Sa'id's students are now one version, so al-Awza'i's Tanbih and Yazid/Layth's Ziyadah are gone.
+    - tahur: Ahmad at Affan is read through #22908 (#22902 is the tahwil record with «قال عفان» notes), and the two unranked contradictions stay. One Tanbih is new: Yahya ibn Ishaq at Aban, whose only text is #22902, so the notes count as his addition (backlog §4, compiler's text in the matn).
+    - mughira: Isma'il ibn Ja'far's Tanbih addition at Muhammad ibn Amr is gone (his text now links into the main version). The two others are compared with al-Bayhaqi #448 (0.49 and 0.79), not أبو داود #1 (0.14 and 0.22).
+- **Still open** (`docs/backlog.md` §3): the contradiction rule (two adjacent words replaced, similarity below 0.9) flags narration by meaning. Three of the Qadihah above come from it (hayaa; halal at Zakariyya, 0.896; nasiha at Ibn Uyayna).
+
+---
+
+## 2026-10-21: PostgreSQL phase 7, Docker, deploy, backups and docs (branch `feature/postgres`)
+
+- **Docker**: both compose files run `postgres:18` (user `sht`, database `smart_hadith_tree`, volume `pgdata`); `POSTGRES_PASSWORD` replaces `MSSQL_SA_PASSWORD`. The local stack publishes the database on 5433.
+- **Deploy**: `deploy/deploy-remote.sh` backs up with `pg_dump`, **refuses a deploy that would change the database image** (the merge of this branch would otherwise start an empty PostgreSQL in production and still pass the health check), and fails when `/api/books` is empty. The production cutover is a manual runbook in `deploy/devops-handoff.md`; it has not been run.
+- **Backup v8**: `SmartHadithTree_Shamela_v8_pg_2026-10-21.dump` (153 MB, `pg_dump -Fc`), restore checked in a fresh container. Not uploaded yet.
+- **Checked**: the local compose stack end to end with the v8 restore (books, search, narrator search, web, CORS); the export scripts on `psql` against the full corpus; the deploy guard with stubs; tests 301/303.
+- **Fixed**: the Testcontainers version of phase 5 pulled `SSH.NET` 2024.2.0 (two high-severity advisories); now 4.15.0, and the build has no warnings.
+- **Docs**: README, `CLAUDE.md`, `AGENTS.md`, architecture, data ingestion, deploy docs and `backups/README.md` describe PostgreSQL.
+
+---
+
+## 2026-10-21: PostgreSQL phase 6, side-by-side parity check (branch `feature/postgres`)
+
+- **Setup**: tag `pre-postgres` on SQL Server v7 (`:5148`) and this branch on the PostgreSQL test container with the full corpus (`:5147`), both Release, same AI provider.
+- **Identical**: search eval (MRR 0.866, no rank changed), verify eval (29/29, no status changed), the nine Ilal pages (119 findings, 9 Qadihah, every grade as in v7), all 36 isnad trees, and the related-hadith sets.
+- **Faster**: hadith search 844 → 72 ms median, verify 789 → 74, related hadiths 1,196 → 148, Ilal 1,160 → 96, narrator search 129 → 14 (trigram indexes). Trees and merged trees about the same.
+- **Different, all explained** (`docs/postgres_migration.md`, "Phase 6: results"): the phase 4 group-rule hint, tiebreakers and related order; and narrator search, where SQL Server **found nothing** for names with أ/إ/آ/ة (مالك بن أنس, أبو هريرة, قتادة, عائشة…) because only the query was normalized; PostgreSQL finds them.
+- **Found, not fixed**: `MatnAtMadarRule` picks its reference matn by the order of the turuq, so مسند أحمد #2 is a Shudhudh **Tanbih** in one order and **Qadihah** in another, with the same four turuq.
+
+---
+
+## 2026-10-21: PostgreSQL phase 5, integration tests on a real database (branch `feature/postgres`)
+
+- **New** (`src/SmartHadithTree.Tests/Integration/`): 11 tests on a `postgres:18` Testcontainers database migrated with the real migrations. They cover what the InMemory tests cannot run: the two isnad queries (tahwil branches, two compilers, the merged tree and its `uuid[]` parameter), search as PostgreSQL translates it (tashkeel, `LIKE` with literal `%`/`_`, narrator order, alef variants), the ETL's binary `COPY`, and the Ilal engine's group-rule order.
+- **Checked**: 11/11 pass twice; full suite 301/303 (the 2 known stale-count tests). Breaking the `Ordinal` order makes its test fail every time.
+- **Corrected** (`docs/postgres_migration.md`, phase 2): breaking them on purpose showed that neither the `::text` cast in the recursive branch nor the quoting of the column aliases is required; quoting the tables and columns is.
+- **Needs Docker**. Without it: `dotnet test --filter "Category!=Integration"`.
+
+---
+
+## 2026-10-21: PostgreSQL phase 4B, an order for the reads that had none (branch `feature/postgres`)
+
+- **Mukhtalit group rules**: new `Ordinal` (the books' order from `ilal.json`; migration `AddGroupRuleOrdinal`, run `seed-ilal-shamela` once to fill it). When a student's own timing is unknown, the Ikhtilat note now quotes the first «before» **and** the first «after» rule instead of whichever rule the database returned first; for 15 narrators the rules go both ways, so the quoted verdict could flip. Rules that state no timing are no longer quoted as «قبل الاختلاط».
+- **Related hadiths** (takhreej list, `/ilal/{id}`): the 20 shortest matches, then book and number, instead of any 20; about one hadith in ten has more matches.
+- **Narrator search**: names that start with the query first, then shorter names. **Tooltip grade**: evaluations in scholar-name order. **Ilal engine**: transmissions in step and registry order, so the tahwil branches kept under the path cap no longer depend on row order.
+- **Checked**: 6 new unit tests (290/292 pass, the 2 known stale-count tests fail as before); on the full corpus in PostgreSQL, 36 Ilal reports are identical between two runs and the شريك note quotes both the Wasit (before) and the Kufa (after) rule.
+
+---
+
+## 2026-10-21: PostgreSQL phase 4A, ordering tiebreakers (branch `feature/postgres`)
+
+- **Tiebreakers** where a query already sorts, so equal rows no longer come in the database's order: hadith search (three fetches by matn length, and the final ranking), both isnad tree queries (the merge and the anomaly check take the first row), and the hadiths of a chapter in the book browser (`HadithNumber`, then `Volume`, then `Id`).
+- **Found**: book, chapter and number are not unique (4,925 repeats in v7; المعجم الكبير restarts its numbers per volume), so the book browser listed same-number hadiths in arbitrary order, and `scripts/snapshot_api.py` could resolve a case to the wrong hadith. Snapshot cases now carry a SHA-1 of the matn.
+- **Checked** on the full corpus in PostgreSQL: the 36 snapshot trees have the same 376 nodes as on SQL Server.
+- **Proposed, not done** (`docs/postgres_migration.md`, phase 4 part B): an order for the five reads that have none: the Mukhtalit group-rule hint (its verdict can flip for 15 narrators), related hadiths (`Take(20)`), narrator search (`Take(50)`), the transmissions read by the Ilal engine, and the tooltip grade.
+
+---
+
+## 2026-10-21: PostgreSQL phase 3, the ETL loads the full corpus (branch `feature/postgres`)
+
+- **Package**: `EFCore.BulkExtensions.PostgreSql` instead of the metapackage; `SqlBulkCopyOptions` removed. The build has no warnings any more (the `System.Security.Cryptography.Pkcs` vulnerability warnings came through the SqlServer/Oracle providers).
+- **Bug fixed** (`src/SmartHadithTree.Etl/Program.cs`): the first full load failed at the transmissions, because the binary `COPY` uses the connection string's 30 s `Command Timeout`, not EF's 600 s. The ETL now sets 600 s on the connection string too.
+- **Checked** on a fresh PostgreSQL 18 database: `data/shamela_rijal` then `seed-ilal-shamela` load in about 4 minutes; every table count and the per-book counts of all 31 books (hadiths, text lengths, transmissions, `StepOrder` sums) equal the v7 baseline. A matn phrase search uses the trigram index (20 ms).
+
+---
+
+## 2026-10-21: PostgreSQL phase 2, the isnad queries (branch `feature/postgres`)
+
+- **Ported** (`HadithChainRepository`): the single-tree recursive CTE (`WITH RECURSIVE`, quoted names, `uuid`/`text` casts with matching types in both branches) and the comparative query (`gen_random_uuid()`, `= ANY` with one `uuid[]` parameter).
+- **Checked**: 45 real hadiths (with their GUIDs) copied from SQL Server v7 into a PostgreSQL 18 container; the old T-SQL on SQL Server and the new SQL on PostgreSQL return the same 810 rows for 36 trees and 12 comparative groups. With the full narrator, relation and evaluation tables copied, the tree and takhreej service output matches the phase 0 API snapshot in 71 of 72 cases.
+- **Found**: the one difference is an unordered read: `IkhtilatRule` quotes the first `MukhtalitGroupRule` of a narrator, and the rules are loaded without `ORDER BY`, so SQL Server and PostgreSQL quote different rules for شريك النخعي. Left for phase 4 (needs a choice of order).
+- **Fixed** (`scripts/snapshot_api.py`): the shared all-zero id of tahwil compiler nodes no longer gets a row-order-dependent label.
+
+---
+
+## 2026-10-21: PostgreSQL phase 1, provider and model (branch `feature/postgres`)
+
+- **Provider**: Api, Etl and `IlalCompare` use Npgsql (`Npgsql.EntityFrameworkCore.PostgreSQL` 9.0.4) instead of SQL Server. Connection strings point at `Host=localhost;Database=smart_hadith_tree;Username=sht`, with the password from `PGPASSWORD` or `pgpass.conf`.
+- **Model**: the `Arabic_100_CI_AI` collations are gone; `Arabic_100_BIN2` columns are `COLLATE "C"`. New `Narrator.NormalizedFullName` / `NormalizedKnownAs` (computed from `FullName` / `KnownAs` with `ArabicNormalizer`), which narrator search now queries. `pg_trgm` GIN indexes on `NormalizedMatn`, `FullIsnadText`, `NormalizedBookName` and the two narrator columns.
+- **Migrations**: the 11 SQL Server migrations moved to `Data/Migrations.SqlServer/` (not compiled); one new Npgsql `InitialCreate`.
+- **Checked** on a throwaway PostgreSQL 18 container: the migration applies; the seed ETL loads through the current bulk insert; `Contains` translates to a trigram-indexable `LIKE '%…%'`; narrator search ignores tashkeel. 284/286 tests pass; the 2 failures expect pre-v7 counts and fail the same way at tag `pre-postgres`.
+- **Not working yet**: `/api/Tree` and `/api/Takhreej` (raw T-SQL, phase 2); no real corpus loaded into PostgreSQL yet (phase 3).
+
+---
+
+## 2026-10-21: Plan and SQL Server baseline for moving to PostgreSQL
+
+- **Plan**: `docs/postgres_migration.md` lists every SQL Server dependency (collations, the two raw recursive CTEs, migrations, `SqlBulkCopy` options, Docker/backup tooling) and the phases of the move. No code changed.
+- **Baseline (phase 0)**: tag `pre-postgres` on `f1c6493`; search eval (MRR 0.866, median 1,253 ms), verify eval (29/29), per-book counts and an API snapshot of 36 hadiths + 20 narrator queries, all in `docs/challenge/evaluation/postgres-baseline/`.
+- **New script**: `scripts/snapshot_api.py` saves tree/takhreej/ilal/narrator-search output and compares two snapshots across databases (random GUIDs are relabelled by book/number and narrator name).
+- **Found**: two snapshots of the same SQL Server database already differ in one place, the order of the omitting narrators in a Shudhudh finding (`MatnAtMadarRule`, مسند أحمد #2), because it follows database row order.
+
+---
+
 ## 2026-10-07: Getting started points at the v7 backup
 
 - **Problem**: the README downloaded and restored the v5 backup into `SmartHadithTree_ShamelaV5`, while the Api and Etl connect to `SmartHadithTree_ShamelaV7`. Someone following it literally got an empty database.
