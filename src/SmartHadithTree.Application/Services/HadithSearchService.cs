@@ -136,7 +136,7 @@ public class HadithSearchService(
         var orderingPhrases = normalizedAndPhrases.Count > 1 ? normalizedAndPhrases : normalizedOrPhrases;
         if ((request.IsOrdered || request.IsProximity) && orderingPhrases.Count > 1)
         {
-            // Push ordered constraint directly to SQL Server when searching Matn/All with AND phrases
+            // Push ordered constraint directly to the database when searching Matn/All with AND phrases
             if (request.IsOrdered && normalizedAndPhrases.Count > 1)
             {
                 var orderedPattern = "%" + string.Join("%", orderingPhrases) + "%";

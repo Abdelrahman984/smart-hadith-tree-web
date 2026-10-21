@@ -1,7 +1,8 @@
 # Database Backups
 
-Full SQL Server backups of the `SmartHadithTree` database live in this folder (git-ignored, local only).
+Full backups of the database live in this folder (git-ignored, local only).
 Each file is a numbered version so later data migrations (e.g. the move from Itqan to Shamela 4) can always be compared against, or rolled back to, a known state.
+**v8 and later are PostgreSQL** (`pg_dump -Fc`, `.dump`); v1–v7 are SQL Server backups (`.bak`) from before the move (`docs/postgres_migration.md`). The app now needs a PostgreSQL database: restore v8.
 
 | Version | File | Taken | Size | Compression / Checksum | SHA-256 |
 |---|---|---|---|---|---|
@@ -12,6 +13,7 @@ Each file is a numbered version so later data migrations (e.g. the move from Itq
 | v5 | `SmartHadithTree_Shamela_v5_2026-10-05.bak` | 2026-10-05 | 474 MB | Yes / Yes | `63413b6727c72133ff0e0dd4aad2678da475ca111636a7e6b956c96e0b308394` |
 | v6 | `SmartHadithTree_Shamela_v6_2026-10-07.bak` | 2026-10-07 | 493 MB | Yes / Yes | `c43c10c777edaf326dbea266d40b654b80300c11aae4ef0e7ce78ab9e68af13b` |
 | v7 | `SmartHadithTree_Shamela_v7_2026-10-07.bak` | 2026-10-07 | 497 MB | Yes / Yes | `5a738bb4005c87b78cff87e203c9a3a4475e5c79061c8b056c7abd9b8d83792a` |
+| v8 | `SmartHadithTree_Shamela_v8_pg_2026-10-21.dump` (PostgreSQL 18) | 2026-10-21 | 153 MB | `pg_dump -Fc` (compressed) / restore checked | `73593f3e9832076a9aed85ef8324c63bf38eab33fe9418f9984b4167d6f78f94` |
 
 Both files pass `RESTORE VERIFYONLY` (checked 2026-10-03).
 The counts below were taken by restoring each backup and querying it directly.
@@ -67,9 +69,38 @@ Current database as of 2026-10-03. This is the **baseline for the planned migrat
 
 ---
 
-## Restore
+## Restore (PostgreSQL, v8 and later)
 
-Replace the file name with the version you want:
+With the compose stack (`docker-compose.yml` mounts this folder at `/backups`), after `docker compose up -d db`:
+
+```bash
+docker compose exec -T db pg_restore -U sht -d smart_hadith_tree --clean --if-exists --no-owner /backups/SmartHadithTree_Shamela_v8_pg_2026-10-21.dump
+```
+
+Into a PostgreSQL 18 installed on the machine (the database and the `sht` role must exist; password from `PGPASSWORD`):
+
+```powershell
+& 'C:\Program Files\PostgreSQL\18\bin\pg_restore.exe' -h localhost -U sht -d smart_hadith_tree --clean --if-exists --no-owner backups\SmartHadithTree_Shamela_v8_pg_2026-10-21.dump
+```
+
+`--clean --if-exists` replaces what is there (also the empty schema the api creates when it starts first). The restore
+needs a role allowed to `CREATE EXTENSION pg_trgm` (the compose `sht` user is a superuser). It takes about 3 minutes.
+
+## Taking a new version (PostgreSQL)
+
+Use the next number and today's date, then add a section to this file:
+
+```bash
+docker compose exec -T db pg_dump -U sht -d smart_hadith_tree -Fc -f /tmp/SmartHadithTree_Shamela_v9_pg_YYYY-MM-DD.dump
+docker compose cp db:/tmp/SmartHadithTree_Shamela_v9_pg_YYYY-MM-DD.dump backups/
+sha256sum backups/SmartHadithTree_Shamela_v9_pg_YYYY-MM-DD.dump
+```
+
+Check it by restoring into a throwaway container and comparing the counts (`docs/challenge/evaluation/postgres-baseline/book-counts-postgres.sql`).
+
+## Restore an old SQL Server backup (v1–v7)
+
+These need SQL Server and the build from before the move (`git checkout pre-postgres`). Replace the file name with the version you want:
 
 ```powershell
 sqlcmd -S . -Q "RESTORE DATABASE [SmartHadithTree] FROM DISK = N'D:\Programming\Full-Stack\Smart-Hadith-Tree\backups\SmartHadithTree_v2_2026-10-03.bak' WITH REPLACE, STATS = 25;"
@@ -81,9 +112,7 @@ To inspect an old version without touching the live database, restore it under a
 sqlcmd -S . -Q "RESTORE DATABASE [SHT_v1_inspect] FROM DISK = N'D:\Programming\Full-Stack\Smart-Hadith-Tree\backups\SmartHadithTree_v1_2026-10-02.bak' WITH MOVE 'SmartHadithTree' TO N'C:\Program Files\Microsoft SQL Server\MSSQL16.MSSQLSERVER\MSSQL\DATA\SHT_v1_inspect.mdf', MOVE 'SmartHadithTree_log' TO N'C:\Program Files\Microsoft SQL Server\MSSQL16.MSSQLSERVER\MSSQL\DATA\SHT_v1_inspect_log.ldf';"
 ```
 
-## Taking a new version
-
-Use the next number and today's date, then add a section to this file:
+Taking a SQL Server backup (historical, v1–v7):
 
 ```powershell
 sqlcmd -S . -Q "BACKUP DATABASE [SmartHadithTree] TO DISK = N'D:\Programming\Full-Stack\Smart-Hadith-Tree\backups\SmartHadithTree_v3_YYYY-MM-DD.bak' WITH INIT, FORMAT, COMPRESSION, CHECKSUM, NAME = N'SmartHadithTree v3 - <description>', STATS = 25; RESTORE VERIFYONLY FROM DISK = N'D:\Programming\Full-Stack\Smart-Hadith-Tree\backups\SmartHadithTree_v3_YYYY-MM-DD.bak' WITH CHECKSUM;"
@@ -130,9 +159,9 @@ A fresh database built from the improved resolver (`docs/changelog.md`, 2026-10-
 
 Isnad gaps (an undecided name inside a chain, branch by branch, 295,952 branches): 108,066 in v5, 94,032 in v6 (14,661 closed, 1,624 opened, 27,578 names gained, 694 lost, 3,996 narrators changed). The nine Ilal pages: findings 127 -> 121, matn Qadihah 11 -> 10, every grade unchanged (`docs/challenge/evaluation/ilal-pages-v6-2026-10-07.json`).
 
-## v7 — verbs with a final alef maqsura (database `SmartHadithTree_ShamelaV7`, the current one)
+## v7 — verbs with a final alef maqsura (database `SmartHadithTree_ShamelaV7`, the last SQL Server one)
 
-Download: [Google Drive](https://drive.google.com/file/d/19oYawbGHpfwR9ZhwsnsFSGPFGINo88cF/view?usp=sharing). The file is 521,072,640 bytes (497 MB) and its SHA-256 matches the table above; the Api and Etl `appsettings.json` and `docker-compose.yml` point at this database.
+Download: [Google Drive](https://drive.google.com/file/d/19oYawbGHpfwR9ZhwsnsFSGPFGINo88cF/view?usp=sharing). The file is 521,072,640 bytes (497 MB) and its SHA-256 matches the table above; the Api, the Etl and `docker-compose.yml` pointed at this database until the PostgreSQL move (v8).
 
 The v6 build with one resolver fix: al-Bayhaqi writes «أخبرنى / حدثنى» with ى, which the segmenter did not know, so a narrator after such a verb was lost («أخبرنى محمد بن إبراهيم التيمي» in Sunan al-Kubra 15101). Chains re-exported for all 31 books (the registry is unchanged); 3,512 of 21,849 Bayhaqi records changed, 30 other books by 1 to 14. Every hadith Guid differs from v6.
 
@@ -144,3 +173,19 @@ The v6 build with one resolver fix: al-Bayhaqi writes «أخبرنى / حدثن�
 | Mudallisin / mukhtalit hearings | 165 / 168 | 165 / 168 |
 
 The nine Ilal pages: findings 121 -> 119, Qadihah 10 -> 9, every grade unchanged (`docs/challenge/evaluation/ilal-pages-v7-2026-10-07.json`).
+
+## v8 — the v7 corpus on PostgreSQL (database `smart_hadith_tree`, the current one)
+
+Download: not uploaded yet (the file is local; upload it next to the v7 link and put the link here).
+
+The same corpus as v7, loaded into PostgreSQL 18 by the ETL (`dotnet run --project src/SmartHadithTree.Etl -- data/shamela_rijal`, then `seed-ilal-shamela data/shamela_rijal`) from the resolver output of 2026-10-07 02:07, the one v7 was built from. Every hadith Guid differs from v7. Schema: the two Npgsql migrations `InitialCreate` and `AddGroupRuleOrdinal` (the group rules carry the books' order, 47 of 76 have `Ordinal` > 0). Taken with `pg_dump -Fc` from PostgreSQL 18.6.
+
+| Table | v7 | v8 |
+|---|---|---|
+| Hadiths | 274,597 | 274,597 |
+| Transmissions | 1,266,022 | 1,266,022 |
+| Narrators | 44,282 | 44,282 |
+| ScholarEvaluations / NarratorRelations | 131,994 / 153,519 | 131,994 / 153,519 |
+| Mudallisin / mukhtalit hearings / group rules | 165 / 168 / 76 | 165 / 168 / 76 |
+
+The per-book counts of all 31 books (hadiths, matn and isnad characters, transmissions, `StepOrder` sums) equal v7 (`docs/challenge/evaluation/postgres-baseline/book-counts-*.csv`). **Restore checked** (2026-10-21): the `pg_restore` command above into a fresh `postgres:18` container ran without errors in 168 s and gave the same per-book counts, `pg_trgm`, the 5 trigram indexes and both migrations. The nine Ilal pages: 119 findings, 9 Qadihah, every grade as in v7 (`docs/challenge/evaluation/postgres-baseline/ilal-pages-postgres-phase6.json`).

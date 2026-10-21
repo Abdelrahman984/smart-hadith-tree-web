@@ -9,9 +9,9 @@ namespace SmartHadithTree.Infrastructure.Data.Configurations;
 /// This is the critical ternary relationship: Sheikh → Student for a Hadith at a step.
 /// </summary>
 /// <remarks>
-/// Both SheikhId and StudentId point to the Narrator table. SQL Server rejects
-/// CASCADE delete on multiple FK paths to the same table, so both narrator FKs
-/// use <see cref="DeleteBehavior.Restrict"/>.
+/// Both SheikhId and StudentId point to the Narrator table. Both narrator FKs use
+/// <see cref="DeleteBehavior.Restrict"/>, so deleting a narrator never silently deletes chains
+/// (it also avoided SQL Server's error on multiple cascade paths before the move to PostgreSQL).
 /// </remarks>
 public class TransmissionConfiguration : IEntityTypeConfiguration<Transmission>
 {
@@ -34,7 +34,7 @@ public class TransmissionConfiguration : IEntityTypeConfiguration<Transmission>
             .OnDelete(DeleteBehavior.Cascade);
 
         // 2. Sheikh (Narrator as teacher) → Transmissions.
-        //    RESTRICT: prevents SQL Server "multiple cascade paths" error.
+        //    RESTRICT: see the remarks above.
         builder.HasOne(t => t.Sheikh)
             .WithMany(n => n.TransmissionsAsSheikh)
             .HasForeignKey(t => t.SheikhId)

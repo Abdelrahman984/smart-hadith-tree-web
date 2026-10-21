@@ -13,11 +13,11 @@ dotnet sln d:\Programming\Full-Stack\Smart-Hadith-Tree\SmartHadithTree.sln add d
 
 echo "Fixing packages (removing 10.x, adding 9.x)"
 dotnet remove d:\Programming\Full-Stack\Smart-Hadith-Tree\src\SmartHadithTree.Infrastructure\SmartHadithTree.Infrastructure.csproj package Microsoft.EntityFrameworkCore.Tools
-dotnet remove d:\Programming\Full-Stack\Smart-Hadith-Tree\src\SmartHadithTree.Infrastructure\SmartHadithTree.Infrastructure.csproj package Microsoft.EntityFrameworkCore.SqlServer
+dotnet remove d:\Programming\Full-Stack\Smart-Hadith-Tree\src\SmartHadithTree.Infrastructure\SmartHadithTree.Infrastructure.csproj package Npgsql.EntityFrameworkCore.PostgreSQL
 dotnet remove d:\Programming\Full-Stack\Smart-Hadith-Tree\src\SmartHadithTree.Api\SmartHadithTree.Api.csproj package Microsoft.EntityFrameworkCore.Design
 
 echo "Step 8: Add NuGet packages to Infrastructure (v9)"
-dotnet add d:\Programming\Full-Stack\Smart-Hadith-Tree\src\SmartHadithTree.Infrastructure\SmartHadithTree.Infrastructure.csproj package Microsoft.EntityFrameworkCore.SqlServer -v "9.0.*"
+dotnet add d:\Programming\Full-Stack\Smart-Hadith-Tree\src\SmartHadithTree.Infrastructure\SmartHadithTree.Infrastructure.csproj package Npgsql.EntityFrameworkCore.PostgreSQL -v "9.0.*"
 dotnet add d:\Programming\Full-Stack\Smart-Hadith-Tree\src\SmartHadithTree.Infrastructure\SmartHadithTree.Infrastructure.csproj package Microsoft.EntityFrameworkCore.Tools -v "9.0.*"
 
 echo "Step 9: Add EF Design package to Api (v9)"

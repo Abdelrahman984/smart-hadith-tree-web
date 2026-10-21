@@ -14,9 +14,7 @@ namespace SmartHadithTree.Tests.Integration;
 /// </summary>
 public sealed class PostgresFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder()
-        .WithImage("postgres:18")
-        .Build();
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:18").Build();
 
     public string ConnectionString => _container.GetConnectionString();
 

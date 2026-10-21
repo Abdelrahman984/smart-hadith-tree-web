@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-21: PostgreSQL phase 7, Docker, deploy, backups and docs (branch `feature/postgres`)
+
+- **Docker**: both compose files run `postgres:18` (user `sht`, database `smart_hadith_tree`, volume `pgdata`); `POSTGRES_PASSWORD` replaces `MSSQL_SA_PASSWORD`. The local stack publishes the database on 5433.
+- **Deploy**: `deploy/deploy-remote.sh` backs up with `pg_dump`, **refuses a deploy that would change the database image** (the merge of this branch would otherwise start an empty PostgreSQL in production and still pass the health check), and fails when `/api/books` is empty. The production cutover is a manual runbook in `deploy/devops-handoff.md`; it has not been run.
+- **Backup v8**: `SmartHadithTree_Shamela_v8_pg_2026-10-21.dump` (153 MB, `pg_dump -Fc`), restore checked in a fresh container. Not uploaded yet.
+- **Checked**: the local compose stack end to end with the v8 restore (books, search, narrator search, web, CORS); the export scripts on `psql` against the full corpus; the deploy guard with stubs; tests 301/303.
+- **Fixed**: the Testcontainers version of phase 5 pulled `SSH.NET` 2024.2.0 (two high-severity advisories); now 4.15.0, and the build has no warnings.
+- **Docs**: README, `CLAUDE.md`, `AGENTS.md`, architecture, data ingestion, deploy docs and `backups/README.md` describe PostgreSQL.
+
+---
+
 ## 2026-10-21: PostgreSQL phase 6, side-by-side parity check (branch `feature/postgres`)
 
 - **Setup**: tag `pre-postgres` on SQL Server v7 (`:5148`) and this branch on the PostgreSQL test container with the full corpus (`:5147`), both Release, same AI provider.

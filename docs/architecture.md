@@ -19,10 +19,10 @@ The frontend is built with Next.js App Router (`frontend/src/app`).
 - **Data Fetching**: The API client (`lib/api.ts`) communicates with the backend on `http://localhost:5147`. React Query is used for caching and state management of these requests.
 - **Isnad Visualization**: `React Flow` combined with `elkjs` is used to render the complex tree of narrators. The tree is configured to render Top-to-Bottom, ensuring long Arabic names don't overlap horizontally.
 
-## 3. Database (SQL Server)
+## 3. Database (PostgreSQL 18)
 
-- **Collation**: Text columns use the `Arabic_100_CI_AI` collation. This allows users to search in Arabic without worrying about diacritics (tashkeel), hamza, or alef variations.
-- **Graph Queries**: Retrieving a full Isnad chain requires navigating a graph. This is achieved natively in SQL Server using a **Recursive CTE (Common Table Expression)**, allowing us to fetch an entire tree in a single fast query.
+- **Arabic search**: every searched text has a normalized copy (`NormalizedMatn`, `NormalizedBookName`, `FullIsnadText`, `Narrator.NormalizedFullName` / `NormalizedKnownAs`) without tashkeel and with alef and ta marbuta variants unified by `ArabicNormalizer`, the same function the query goes through. These columns are byte-wise (`COLLATE "C"`) and carry `pg_trgm` GIN indexes, so `Contains` (translated to `LIKE '%…%'`) is an index lookup instead of a scan. (Until 2026-10-21 the database was SQL Server with an `Arabic_100_CI_AI` collation, which ignored the tashkeel but not the letter variants: `docs/postgres_migration.md`.)
+- **Graph Queries**: Retrieving a full Isnad chain requires navigating a graph. This is done in the database with a **Recursive CTE** (`WITH RECURSIVE` in `HadithChainRepository`), fetching an entire tree in a single query.
 
 ## 4. Artificial Intelligence (Semantic Kernel)
 

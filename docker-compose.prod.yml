@@ -1,4 +1,4 @@
-# Production stack on a single Linux host: SQL Server + API + web + Caddy (automatic HTTPS).
+# Production stack on a single Linux host: PostgreSQL + API + web + Caddy (automatic HTTPS).
 # Configuration comes from a git-ignored `.env` file next to this file (template: .env.production.example).
 # Full runbook: deploy/devops-handoff.md
 #   docker compose -f docker-compose.prod.yml up -d db     # first, then restore the backup, then:
@@ -7,22 +7,23 @@ name: smart-hadith-tree   # own project name: containers, network and volumes ca
 
 services:
   db:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    image: postgres:18
     restart: unless-stopped
     environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD}
-      MSSQL_MEMORY_LIMIT_MB: ${MSSQL_MEMORY_LIMIT_MB:-2048}
+      POSTGRES_USER: sht
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: smart_hadith_tree
     volumes:
-      - sqldata:/var/opt/mssql
+      # PostgreSQL 18 images keep their data under /var/lib/postgresql/18/docker: mount the parent.
+      - pgdata:/var/lib/postgresql
       - ./backups:/backups
     # No published ports: only the api container reaches the database, over the compose network.
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" -b -o /dev/null"]
-      interval: 15s
+      test: ["CMD-SHELL", "pg_isready -U sht -d smart_hadith_tree"]
+      interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 20s
 
   api:
     build:
@@ -33,7 +34,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      ConnectionStrings__DefaultConnection: "Server=db;Database=SmartHadithTree;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=true"
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=smart_hadith_tree;Username=sht;Password=${POSTGRES_PASSWORD}"
       Together__ApiKey: ${TOGETHER_API_KEY:-}
       Together__Model: ${TOGETHER_MODEL:-zai-org/GLM-5.3-Flash}
       Together__ExtraBody: ${TOGETHER_EXTRA_BODY:-}
@@ -78,6 +79,8 @@ services:
       - caddy_config:/config
 
 volumes:
-  sqldata:
+  # The SQL Server volume of the stack before the PostgreSQL move (`smart-hadith-tree_sqldata`) is not declared any
+  # more and is left alone on the host; remove it by hand once the cutover is confirmed (devops-handoff.md).
+  pgdata:
   caddy_data:
   caddy_config:

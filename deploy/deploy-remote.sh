@@ -9,8 +9,10 @@
 # current images as :previous -> build -> up -> prove it (local + public checks) -> on any failure, put the
 # previous images and commit back.
 #
-# Never touches: .env, compose.edge.yml, the sqldata volume, the edge Caddy, or any non-smart-hadith-tree
-# container. No `docker system prune` / `down -v`: this is a shared host (devops-handoff.md §2).
+# Never touches: .env, compose.edge.yml, the pgdata volume (nor the old sqldata one), the edge Caddy, or any
+# non-smart-hadith-tree container. No `docker system prune` / `down -v`: this is a shared host (devops-handoff.md §2).
+# A change of database image (SQL Server -> PostgreSQL, or a PostgreSQL major version) is a cutover, not a deploy:
+# it is refused here and done by hand (devops-handoff.md, "Cutover to PostgreSQL").
 set -euo pipefail
 cd /opt/smart-hadith-tree
 
@@ -29,6 +31,18 @@ DOMAIN="$(envval WEB_DOMAIN)"
 SERVICES=(api web)
 
 log "deploying ${BEFORE:-unknown} -> $AFTER"
+
+# --- 0. Refuse a database image change. `up -d` would start the new image on an empty volume, the api would
+# create an empty schema, and /api/books would still answer 200. Nothing has been touched yet, so put the
+# checkout back and stop; the running stack keeps serving.
+running_db="$(docker inspect -f '{{.Config.Image}}' "$(docker compose ps -q db 2>/dev/null)" 2>/dev/null || true)"
+wanted_db="$(docker compose config --images 2>/dev/null | grep -m1 -E '^(postgres:|mcr\.microsoft\.com/mssql/)' || true)"
+if [ -n "$running_db" ] && [ "$running_db" != "$wanted_db" ]; then
+  log "database image would change ($running_db -> ${wanted_db:-?}): that is a cutover, see deploy/devops-handoff.md"
+  [ -n "$BEFORE" ] && git reset --quiet --hard "$BEFORE"
+  log "refused, ${BEFORE:-the checkout} left live"
+  exit 1
+fi
 
 # --- 1. Skip the rebuild when only prose / pipeline files changed (health checks still run). ---------------
 SKIP_BUILD=0
@@ -55,19 +69,20 @@ rollback() {
     docker compose up -d --no-build "${SERVICES[@]}" || true
   fi
   [ -n "$BEFORE" ] && git reset --quiet --hard "$BEFORE"
-  log "rolled back. NOTE: a migration that already ran is NOT undone; restore backups/predeploy_*.bak if needed."
+  log "rolled back. NOTE: a migration that already ran is NOT undone; restore backups/predeploy_*.dump if needed" \
+      "(docker compose exec -T db pg_restore -U sht -d smart_hadith_tree --clean --if-exists /backups/<file>)."
 }
 trap rollback ERR
 
 if [ "$SKIP_BUILD" = 0 ]; then
   # --- 2. Pre-deploy backup when the schema may change (api applies EF migrations on start). -----------------
   if [ -z "$BEFORE" ] || printf '%s\n' "$CHANGED" | grep -q '^src/SmartHadithTree.Infrastructure/Data/Migrations/'; then
-    BAK="predeploy_$(date -u +%Y%m%dT%H%M%SZ)_${AFTER:0:7}.bak"
+    BAK="predeploy_$(date -u +%Y%m%dT%H%M%SZ)_${AFTER:0:7}.dump"
     log "migrations may run, backing up the database to backups/$BAK"
-    docker compose exec -T -e BAK="/backups/$BAK" db bash -c \
-      '/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -b -t 0 -Q "BACKUP DATABASE SmartHadithTree TO DISK=N'"'"'$BAK'"'"' WITH COPY_ONLY, COMPRESSION, CHECKSUM, INIT"'
-    # Keep the three newest pre-deploy backups (each is about 0.5 GB).
-    ls -1t backups/predeploy_*.bak 2>/dev/null | tail -n +4 | xargs -r rm -f
+    # Custom format (-Fc): compressed, and pg_restore can restore it table by table.
+    docker compose exec -T -e BAK="/backups/$BAK" db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f "$BAK"'
+    # Keep the three newest pre-deploy backups.
+    ls -1t backups/predeploy_*.dump 2>/dev/null | tail -n +4 | xargs -r rm -f
   fi
 
   # --- 3. Keep the running images so a failed deploy can go straight back. ----------------------------------
@@ -94,6 +109,8 @@ wait_200() { # url, seconds
   log "no 200 from $1 after $2 s"; return 1
 }
 wait_200 "http://127.0.0.1:$API_PORT/api/books" 180
+# An empty database answers 200 too (the api creates the schema on start): the corpus must be there.
+[ "$(curl -s --max-time 10 "http://127.0.0.1:$API_PORT/api/books")" != "[]" ] || { log "/api/books is empty: no corpus in the database"; false; }
 wait_200 "http://127.0.0.1:$WEB_PORT/" 120
 if docker compose logs --since "$START" api 2>&1 | grep -qi "migration check failed"; then
   log "api logged 'Database migration check failed'"; false

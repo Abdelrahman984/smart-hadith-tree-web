@@ -162,7 +162,7 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Database migration check failed at startup. Ensure the 'MSSQLSERVER' Windows service is running.");
+        logger.LogError(ex, "Database migration check failed at startup. Ensure PostgreSQL is reachable with ConnectionStrings:DefaultConnection (password from the connection string, PGPASSWORD or pgpass.conf).");
     }
 }
 

@@ -14,13 +14,13 @@ A MENA-targeted SaaS platform and scholarly research tool designed to digitize, 
 - `frontend/`: Next.js (App Router) React & TypeScript application.
 - `docs/`: Technical documentation, Ilal engine specification, and changelogs.
 - `scripts/`: PowerShell, Python, and Java utilities for dataset setup and Shamela 4 Lucene extraction.
-- `backups/`: Local SQL Server `.bak` database backups (git-ignored).
+- `backups/`: Local database backups (git-ignored): PostgreSQL `.dump` from v8 on, older SQL Server `.bak` files.
 - `tests/` & `src/SmartHadithTree.Tests/`: xUnit test suites for Domain, Application, Infrastructure, API, and ETL.
 
 ## Tech Stack
 - **Frontend**: Next.js (App Router), React, TypeScript, Tailwind CSS, React Flow (with `elkjs` layout engine & `html-to-image` exports), Zustand, TanStack Query.
 - **Backend**: C# 13, .NET 9, ASP.NET Core Controllers & Services.
-- **Database**: SQL Server, Entity Framework Core 9 (with Bulk Extensions, Recursive CTEs for graph traversal, & Normalized Search).
+- **Database**: PostgreSQL 18, Entity Framework Core 9 with Npgsql (Bulk Extensions, Recursive CTEs for graph traversal, normalized Arabic columns with `pg_trgm` trigram indexes for search). Until 2026-10-21 it ran on SQL Server (git tag `pre-postgres`, [`docs/postgres_migration.md`](docs/postgres_migration.md)).
 - **AI**: Microsoft Semantic Kernel (Gemini integration for Rijal RAG summaries and Ilal explanations).
 - **Data Source**: a local Shamela 4 installation, read through the Lucene/SQLite extraction pipeline (`scripts/shamela4-extractor/`); see [`docs/data_ingestion.md`](docs/data_ingestion.md).
 
@@ -29,20 +29,26 @@ A MENA-targeted SaaS platform and scholarly research tool designed to digitize, 
 **Just want to try it?** Open the live demo, no setup needed: <https://smart-hadith.idealisticsolutions.com>. The steps below run it locally.
 
 ### Prerequisites
-- Windows with a local SQL Server instance (`.` or LocalDB). The default connection string uses Windows authentication (`Trusted_Connection`) and the commands below are PowerShell. On macOS/Linux use the Docker stack instead (`docker-compose.yml`, see `deploy/deployment.md` for the restore steps inside the container).
+- PostgreSQL 18: either Docker (the `db` service of `docker-compose.yml`, recommended) or a local installation (it includes the `pg_trgm` extension the schema needs). The commands below are PowerShell; on macOS/Linux the same steps work in a POSIX shell.
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) (running the app). Running the test project (`src/SmartHadithTree.Tests`) needs the .NET 10 SDK, since it targets `net10.0`.
 - [Node.js 18+](https://nodejs.org/)
 
 ### 1. Database Setup & Data Ingestion
 #### Option A: Instant Restore from Full Backup (Recommended)
-The database is not stored in git. Download the full SQL Server backup (v7, about 497 MB, 31 books) from [Google Drive](https://drive.google.com/file/d/19oYawbGHpfwR9ZhwsnsFSGPFGINo88cF/view?usp=sharing) and place it at `backups/SmartHadithTree_Shamela_v7_2026-10-07.bak` (the folder is git-ignored). It restores into `SmartHadithTree_ShamelaV7`, the database the API connects to by default. To only try the product, use the live demo instead: <https://smart-hadith.idealisticsolutions.com>. The source texts come from the Shamela library; see [`docs/challenge/sources-and-licenses.md`](docs/challenge/sources-and-licenses.md) for their rights status. All versions are described in [`backups/README.md`](backups/README.md). Run the restore from the repository root:
+The database is not stored in git. Get the PostgreSQL backup (v8, about 153 MB, 31 books) and place it at `backups/SmartHadithTree_Shamela_v8_pg_2026-10-21.dump` (the folder is git-ignored; download link and checksum in [`backups/README.md`](backups/README.md)). To only try the product, use the live demo instead: <https://smart-hadith.idealisticsolutions.com>. The source texts come from the Shamela library; see [`docs/challenge/sources-and-licenses.md`](docs/challenge/sources-and-licenses.md) for their rights status. From the repository root:
 ```powershell
-sqlcmd -S . -Q "RESTORE DATABASE [SmartHadithTree_ShamelaV7] FROM DISK = N'$((Get-Location).Path)\backups\SmartHadithTree_Shamela_v7_2026-10-07.bak' WITH REPLACE, STATS = 25;"
+$env:POSTGRES_PASSWORD = '<choose one>'
+docker compose up -d db          # PostgreSQL 18 on localhost:5433, user sht, database smart_hadith_tree
+docker compose exec -T db pg_restore -U sht -d smart_hadith_tree --clean --if-exists --no-owner /backups/SmartHadithTree_Shamela_v8_pg_2026-10-21.dump
+# For the API and ETL run from this shell (both read these over appsettings.json):
+$env:ConnectionStrings__DefaultConnection = 'Host=localhost;Port=5433;Database=smart_hadith_tree;Username=sht'
+$env:PGPASSWORD = $env:POSTGRES_PASSWORD
 ```
+With a local PostgreSQL 18 instead: create the role `sht` and the database `smart_hadith_tree`, restore with `pg_restore -h localhost -U sht -d smart_hadith_tree --clean --if-exists --no-owner <file>` as a role that may create the `pg_trgm` extension, and set `PGPASSWORD` (the default connection string in `appsettings.json` is `Host=localhost;Port=5432;Database=smart_hadith_tree;Username=sht`, with no password in it).
 
 #### Option B: Run Migrations & Load from `data/shamela_rijal`
 Needs the data files built from a local Shamela 4 installation (see [`docs/data_ingestion.md`](docs/data_ingestion.md)).
-1. Ensure SQL Server is running and update the connection string in `src/SmartHadithTree.Api/appsettings.json` and `src/SmartHadithTree.Etl/appsettings.json` if needed (the default database is `SmartHadithTree_ShamelaV7`).
+1. Start an empty PostgreSQL 18 as in Option A (without the restore) and set the same environment variables.
 2. Run the database migrations:
    ```powershell
    dotnet ef database update --project src/SmartHadithTree.Infrastructure --startup-project src/SmartHadithTree.Api

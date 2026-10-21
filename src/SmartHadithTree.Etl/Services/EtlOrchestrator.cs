@@ -58,7 +58,7 @@ public class EtlOrchestrator(
             return;
         }
 
-        // 3. Bulk ingest into SQL Server
+        // 3. Bulk ingest into PostgreSQL
         await ingestionService.IngestAsync(dataset, ct);
 
         stopwatch.Stop();

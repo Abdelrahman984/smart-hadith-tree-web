@@ -14,6 +14,9 @@ Status (2026-10-21), branch `feature/postgres`:
   bulk `COPY`, Ilal loading); see "Phase 5: what was done".
 - **Phase 6 done**: the `pre-postgres` build on SQL Server and this branch on PostgreSQL, side by side: evals and
   Ilal pages identical, every API difference explained, searches 8–12× faster; see "Phase 6: results".
+- **Phase 7 done in the repository**: compose files, deploy script, backups (v8 `.dump`), scripts and docs are
+  PostgreSQL; see "Phase 7: what was done". **Production is not cut over**: that is a manual step on the host
+  (`deploy/devops-handoff.md`, "Cutover to PostgreSQL"), and the v8 dump still has to be uploaded.
 
 ## Why it is a contained change
 
@@ -390,6 +393,35 @@ Every difference, by cause:
   Npgsql; remove `scripts/setup.ps1` / `fix.ps1` / `setup_etl.ps1` SqlServer lines.
 - Docs: `CLAUDE.md` (commands, default DB), `README.md` (restore steps), `docs/architecture.md`
   (collation/normalization section), `docs/changelog.md`.
+
+#### Phase 7: what was done
+- **Compose**: `db` is `postgres:18` (user `sht`, database `smart_hadith_tree`, volume `pgdata` at
+  `/var/lib/postgresql` as the 18 image expects, `pg_isready` healthcheck, `api` waits for it). Local publishes
+  `${DB_PORT:-5433}` (5432 is often a local install). `POSTGRES_PASSWORD` replaces `MSSQL_SA_PASSWORD` and
+  `MSSQL_MEMORY_LIMIT_MB` (`.env.production.example`). The old `sqldata` volume is no longer declared and is left
+  on the host for a rollback.
+- **`deploy/deploy-remote.sh`**: pre-deploy backup with `pg_dump -Fc` (`predeploy_*.dump`); new step 0 refuses a
+  database image change (resets the checkout, exits 1, touches nothing), because `up -d` would otherwise start an
+  empty PostgreSQL and `/api/books` would still answer 200; new check that `/api/books` is not empty. Checked:
+  `bash -n`, `shellcheck -S warning` clean, the guard run with stubbed `docker`/`git` in three cases.
+- **Cutover runbook** for the live host: `deploy/devops-handoff.md`, "Cutover to PostgreSQL" (last SQL Server
+  backup, `POSTGRES_PASSWORD`, replace `db`, `pg_restore`, deploy, rollback onto the kept `sqldata` volume).
+- **Backup v8**: `backups/SmartHadithTree_Shamela_v8_pg_2026-10-21.dump`, 153 MB (v7 `.bak`: 497 MB), SHA-256
+  `73593f3e…78f94`, from the test container (phase 3 load + `AddGroupRuleOrdinal` + Ilal reload). Restored with the
+  documented command into a fresh `postgres:18`: no errors, 168 s, per-book counts identical. Not uploaded yet.
+- **Local compose stack run end to end** (separate project): restore 84 s, both images built, books, search,
+  narrator search, web 200, CORS, no migration failure.
+- **Scripts**: `export_chains.ps1` and `phase6/export_db_chains.ps1` now use `psql` (JSON built by PostgreSQL, SQL
+  passed as a UTF-8 file); run on the full corpus: 274,597 hadiths and 1,266,022 links, and al-Bukhari +
+  al-Mustadrak 16,532 / 87,313, matching the per-book counts. `setup*.ps1` / `fix.ps1` name the Npgsql packages.
+- **Docs**: `CLAUDE.md`, `AGENTS.md`, `README.md`, `docs/architecture.md`, `docs/data_ingestion.md`,
+  `deploy/deployment.md`, `deploy/devops-handoff.md`, `backups/README.md`, code comments (the API's
+  "migration check failed" message, which `deploy-remote.sh` greps for, keeps that phrase). Historical records
+  (changelog entries, `docs/shamela_migration.md`, `docs/backlog.md`, `docs/plan-prompt.md`) and the generators of the
+  committed challenge presentation (`scripts/generate_deck.py`, `generate_pdf.py`) are unchanged on purpose.
+- **Correction to phase 5**: Testcontainers 4.6.0 brought `SSH.NET` 2024.2.0 with two high-severity advisories
+  (NU1903, test project only); phase 5 only looked for compiler warnings. Now 4.15.0 (`SSH.NET` 2026.0.0) and the
+  image-taking `PostgreSqlBuilder` constructor: full rebuild with 0 warnings, 301/303 tests.
 
 ## Risks
 

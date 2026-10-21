@@ -20,7 +20,7 @@ dotnet add ..\src\SmartHadithTree.Application\SmartHadithTree.Application.csproj
 dotnet add ..\src\SmartHadithTree.Api\SmartHadithTree.Api.csproj reference ..\src\SmartHadithTree.Domain\SmartHadithTree.Domain.csproj ..\src\SmartHadithTree.Infrastructure\SmartHadithTree.Infrastructure.csproj ..\src\SmartHadithTree.Application\SmartHadithTree.Application.csproj
 
 echo "Step 8: Add NuGet packages to Infrastructure"
-dotnet add ..\src\SmartHadithTree.Infrastructure\SmartHadithTree.Infrastructure.csproj package Microsoft.EntityFrameworkCore.SqlServer
+dotnet add ..\src\SmartHadithTree.Infrastructure\SmartHadithTree.Infrastructure.csproj package Npgsql.EntityFrameworkCore.PostgreSQL
 dotnet add ..\src\SmartHadithTree.Infrastructure\SmartHadithTree.Infrastructure.csproj package Microsoft.EntityFrameworkCore.Tools
 
 echo "Step 9: Add EF Design package to Api"
