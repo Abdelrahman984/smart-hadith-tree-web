@@ -379,7 +379,8 @@ Every difference, by cause:
   but `MatnAtMadarRule` takes its reference matn from the turuq's order. SQL Server's arbitrary order compared
   Ahmad with ابن ماجه #1395 («زاد… ولم يذكرها», **Tanbih**, 0.45); the length order compares him with أبي يعلى #12
   («اختلف الرواة… شاذة», **Qadihah**, 0.5). The order is now deterministic, but the verdict still depends on it.
-  A rule-engine question, not a migration one; left as a follow-up.
+  A rule-engine question, not a migration one. **Fixed** on `fix/ilal-matn-order` (merged into `feature/postgres`): the rule no longer depends on the
+  order, and مسند أحمد #2 is the Tanbih in every order (`docs/changelog.md`).
 
 ### Phase 7: ops and docs
 - `docker-compose.yml` / `docker-compose.prod.yml`: `postgres:18` service, `POSTGRES_PASSWORD` instead of

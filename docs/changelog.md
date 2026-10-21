@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-10-21: Matn findings no longer depend on the order of the turuq (branch `fix/ilal-matn-order`, from `feature/postgres`)
+
+- **Bug** (found in phase 6): `MatnAtMadarRule` built its text clusters greedily from the first text it met. It also read a student carried by several books through the first book listed. So the same turuq could give different verdicts. مسند أحمد #2 (four turuq from Waki') was a Shudhudh **Tanbih** against ابن ماجه #1395 in one order and a Shudhudh **Qadihah** against أبي يعلى #12 in another.
+- **Fix**: no step uses the input order any more.
+  - A student carried by several books is read through the text most similar to the other records at the madar, so a compiler's notes or an abridgement no longer stand for him.
+  - Two texts that agree are one version, and so are texts linked through others that agree. The clusters no longer depend on a seed text.
+  - The main cluster is compared with each other cluster through their closest pair of texts: a finding needs even the nearest readings to differ.
+  - Ties go to the most typical text, then a fixed order.
+  - مسند أحمد #2 is now always «زاد أحمد… ولم يذكرها», Tanbih 0.45 against ابن ماجه #1395, the verdict of the old SQL Server build.
+- **Checked**: new `MatnOrderTests` runs every order of the مسند أحمد #2 turuq (real texts, 24 orders) and of a student carried by two books. Both fail on the old rule and pass now. All 152 Ilal tests pass; the full suite is 292/294 (the 2 known stale-count tests).
+- **Nine Ilal pages** (`eval_ilal_pages.py --compare …/ilal-pages-postgres-phase6.json`, PostgreSQL full corpus; saved as `postgres-baseline/ilal-pages-matn-order.json`):
+  - Findings 119 → 113, matn 46 → 40, matn «قادحة» 9 → 10. **No grade changed.**
+  - By page (matn): tahur 3 → 4, niyyat 3 → 1, mughira 6 → 5, nasiha 11 → 7, halal 14 → 13, hayaa 2 → 3; jannah, darar and kadhib have the same counts (only the order of names in the evidence differs).
+  - **Qadihah removed** (all on nasiha, at Suhayl):
+    - The Idtirab (the two Sufyans against Khalid and Yahya) and the Shudhudh of Wuhayb are gone. Suhayl's students' texts now link into one version, so nothing contradicts.
+  - **Qadihah kept on another pair**:
+    - halal, Zakariyya's Idtirab: now Ibn al-Mubarak against al-Fadl (0.896), was Waki' against al-Fadl.
+    - halal, al-A'mash's Shudhudh of Abu Mu'awiya: now against Ibn Uyayna (0.732), was against Shu'ba (0.365).
+  - **Qadihah added**:
+    - **hayaa**, Idtirab at al-Zuhri, Malik against Ibn Uyayna (0.8). Ibn Uyayna's first-listed record was the abridged «الحياء من الإيمان» (مصنف ابن أبي شيبة #32437). It was dropped as a fragment, and his branch with it; now his full text is compared. The difference is «مر على رجل» against «رأى رجلاً», narration by meaning, so this is a false Qadihah from the contradiction rule, not from the order.
+    - **nasiha**, Idtirab at Ibn Uyayna, al-Humaydi against Ahmad. Of three comparable clusters (al-Humaydi, Ahmad, Ibn Mahdi), the main one is now the most typical text (al-Humaydi), not Ibn Mahdi's. Ahmad's text repeats «إن الدين النصيحة», an addition over Ibn Mahdi but a contradiction over al-Humaydi.
+    - **halal**, Shudhudh at al-Sha'bi, Awn ibn Abd Allah against Ibn Awn (0.4). The full texts (Zakariyya, Urwa, Mujalid, Ibn Awn) now form one cluster that outweighs al-Mughira's short pointer text («وذكر الحديث»). That is better than before, when every full text was a «زيادة يُخشى شذوذها» against that pointer. Awn's own full wording is then read as a contradiction.
+  - **Other matn changes** (Tanbih / GhayrQadihah):
+    - niyyat: Yahya ibn Sa'id's students are now one version, so al-Awza'i's Tanbih and Yazid/Layth's Ziyadah are gone.
+    - tahur: Ahmad at Affan is read through #22908 (#22902 is the tahwil record with «قال عفان» notes), and the two unranked contradictions stay. One Tanbih is new: Yahya ibn Ishaq at Aban, whose only text is #22902, so the notes count as his addition (backlog §4, compiler's text in the matn).
+    - mughira: Isma'il ibn Ja'far's Tanbih addition at Muhammad ibn Amr is gone (his text now links into the main version). The two others are compared with al-Bayhaqi #448 (0.49 and 0.79), not أبو داود #1 (0.14 and 0.22).
+- **Still open** (`docs/backlog.md` §3): the contradiction rule (two adjacent words replaced, similarity below 0.9) flags narration by meaning. Three of the Qadihah above come from it (hayaa; halal at Zakariyya, 0.896; nasiha at Ibn Uyayna).
+
+---
+
 ## 2026-10-21: PostgreSQL phase 7, Docker, deploy, backups and docs (branch `feature/postgres`)
 
 - **Docker**: both compose files run `postgres:18` (user `sht`, database `smart_hadith_tree`, volume `pgdata`); `POSTGRES_PASSWORD` replaces `MSSQL_SA_PASSWORD`. The local stack publishes the database on 5433.
