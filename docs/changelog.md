@@ -1,10 +1,19 @@
 # Changelog
 
+## 2026-10-22: The DevOps cutover file is now a specification
+
+- **Changed**: `deploy/postgres-cutover-tasks.md` became `deploy/postgres-cutover-spec.md`: instead of a task list it says what the end state must be (T1 to T8), the constraints, the inputs (the dump on Google Drive, its size and SHA-256), 12 acceptance criteria with the command that checks each (A1 to A12), the rollback requirements, what is required afterwards, what to report, and the open points. The exact commands remain, as a suggested procedure in an appendix, so the file still works alone.
+- **Self-contained**: the file no longer depends on `deploy/devops-handoff.md` or any other file; the host fetches the code itself.
+- **Checked**: the 5 shell blocks pass `bash -n` and `shellcheck`; the `.env` edit tested on a file without a trailing newline; the backup command's quoting tested; the A9 check (`git merge-base --is-ancestor 68dfdb7 HEAD`) works on `master`. **Not run**: the cutover itself.
+- **Context** (also in the spec): the deploy for the merge of PR #7 (2026-10-22) was refused as designed, `refused, f9b232d left live`; production still runs the SQL Server build.
+
+---
+
 ## 2026-10-21: The deploy check fails closed; DevOps checklist for the PostgreSQL cutover
 
 - **Bug** (first deploy after merging PR #6, run 39524924844): `deploy-remote.sh`'s database-image check failed open. The host's `.env` has no `POSTGRES_PASSWORD`, so `docker compose` could not read the new compose file, the check saw no running `db` and let the deploy through. The pre-deploy backup then failed on the same error and the rollback's `compose up` did too, so no container changed. **Checked**: the live site still answered with the SQL Server build (31 books; narrator search «قتادة» empty, as on SQL Server).
 - **Fix**: the running `db` image is read from Docker labels (`com.docker.compose.project=smart-hadith-tree`, `service=db`), not through compose; an unreadable compose file, or one without a database image, is refused. Stub-tested in five cases (today's host refused, cutover refused, normal deploy and first install let through, no database image refused); the label query checked on a real compose container; `shellcheck` clean.
-- **New**: `deploy/postgres-cutover-tasks.md`, the DevOps engineer's ordered checklist: where production stands, what to get from the owner, pre-checks on the host, the cutover with what to expect at each step, verification (including a check that tells the PostgreSQL build apart), what to report, and the clean-up and nightly backup afterwards.
+- **New**: `deploy/postgres-cutover-tasks.md` (later turned into the specification `deploy/postgres-cutover-spec.md`, see above), the DevOps engineer's ordered checklist: where production stands, what to get from the owner, pre-checks on the host, the cutover with what to expect at each step, verification (including a check that tells the PostgreSQL build apart), what to report, and the clean-up and nightly backup afterwards.
 
 ---
 

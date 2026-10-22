@@ -7,7 +7,7 @@ Everything needed to deploy and operate the app on one Linux host. Background an
 
 Not in the repository. Status as agreed with the project owner:
 
-- [x] **Database backup file** `SmartHadithTree_Shamela_v8_pg_2026-10-21.dump` (153 MB, PostgreSQL): on Google Drive, <https://drive.google.com/file/d/1ri78j75J4R4C-lBZYXmucMGJjZTwT6cP/view?usp=sharing>. Check its SHA-256 after downloading (section 3; a plain `curl` of a Drive link over 100 MB returns an HTML page, see `deploy/postgres-cutover-tasks.md` task 3). Without it the site shows no data. (The SQL Server `.bak` files sent before are for the old stack only.)
+- [x] **Database backup file** `SmartHadithTree_Shamela_v8_pg_2026-10-21.dump` (153 MB, PostgreSQL): on Google Drive, <https://drive.google.com/file/d/1ri78j75J4R4C-lBZYXmucMGJjZTwT6cP/view?usp=sharing>. Check its SHA-256 after downloading (section 3; a plain `curl` of a Drive link over 100 MB returns an HTML page, see `deploy/postgres-cutover-spec.md`, section 5). Without it the site shows no data. (The SQL Server `.bak` files sent before are for the old stack only.)
 - [x] **Server:** you own and administer the VPS, so no access has to be handed over.
 - [ ] **Domains:** you create the web and API hostnames, with DNS A records pointing at the server.
 - [x] **Certificate email** (`ACME_EMAIL`), if the bundled Caddy is used: use one of your own.
@@ -80,7 +80,7 @@ empty database until this file is restored. **Without it the site starts but sho
 
 What to do:
 
-1. **Get the file**: download it from <https://drive.google.com/file/d/1ri78j75J4R4C-lBZYXmucMGJjZTwT6cP/view?usp=sharing> in a browser and `scp` it to the host (or `gdown`, see `deploy/postgres-cutover-tasks.md` task 3).
+1. **Get the file**: download it from <https://drive.google.com/file/d/1ri78j75J4R4C-lBZYXmucMGJjZTwT6cP/view?usp=sharing> in a browser and `scp` it to the host (or `gdown`, see `deploy/postgres-cutover-spec.md`, section 5).
 2. **Verify it:** `sha256sum SmartHadithTree_Shamela_v8_pg_2026-10-21.dump` must print the SHA-256 above.
 3. **Put it in `./backups/`** next to `docker-compose.prod.yml` (create the folder). The compose file mounts it into the
    `db` container as `/backups`.
@@ -176,8 +176,9 @@ The host's `.env` sets `COMPOSE_FILE=docker-compose.prod.yml:compose.edge.yml` (
 
 ### Cutover to PostgreSQL (once, on a host that runs the SQL Server stack)
 
-The ordered checklist around these steps (pre-checks, what to expect, verification, afterwards) is
-`deploy/postgres-cutover-tasks.md`.
+The same cutover as a specification (target state, constraints, acceptance criteria, rollback requirements, and a suggested
+procedure in an appendix), as one self-contained file to hand to the DevOps engineer, is
+`deploy/postgres-cutover-spec.md`. If the two ever differ, the last-checked one is the spec.
 
 The app moved from SQL Server to PostgreSQL (`docs/postgres_migration.md`). The merge that brings this to `master`
 triggers the usual deploy, and `deploy-remote.sh` **refuses it** (the `db` image would change): the workflow run fails,
@@ -255,7 +256,7 @@ rebuild needs a local Shamela 4 installation, so treat the backup as the source 
    passed `bash -n` and `shellcheck`, and its database-image guard was exercised with stubs. **On the real host** the first
    PostgreSQL deploy (merge of PR #6, 2026-10-21) showed the first version of the guard failing open when the compose
    file could not be read (no `POSTGRES_PASSWORD` in `.env`); it was stopped by the same error further on and touched
-   nothing. The guard now fails closed (`deploy/postgres-cutover-tasks.md`, "Where things stand"). **Not run on the real
+   nothing. The guard now fails closed (`deploy/postgres-cutover-spec.md`, section 2). **Not run on the real
    host**: the cutover above. Expect to adjust on the first run and update this file.
 
 ## 9. Useful commands
