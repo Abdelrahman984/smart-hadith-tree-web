@@ -157,9 +157,10 @@ the frontend lint, then asks the host over SSH to deploy that commit SHA. Pushes
   is the forced command of the deploy key in `/root/.ssh/authorized_keys` (`command=...,restrict`). It accepts only a
   commit SHA that is on `origin/master` and not older than the live one, checks it out and runs `deploy/deploy-remote.sh` of that commit.
   It is not updated by deploys: after changing it, copy it to `/usr/local/sbin/` by hand.
-- **`deploy/deploy-remote.sh`**: first **refuses a database image change** (the running `db` image differs from the
-  one in the new compose file, e.g. SQL Server -> PostgreSQL): it resets the checkout to the live commit and exits 1
-  without touching anything; that is a cutover, done by hand (next section). Otherwise it skips the rebuild for
+- **`deploy/deploy-remote.sh`**: first **refuses a database image change** (the running `db` image, read from Docker
+  labels, differs from the one in the new compose file, e.g. SQL Server -> PostgreSQL), and also refuses when the new
+  compose file cannot be read (e.g. a variable missing from `.env`) or names no database image: it resets the checkout
+  to the live commit and exits 1 without touching anything; a database change is a cutover, done by hand (next section). Otherwise it skips the rebuild for
   docs-only changes; backs up the database with `pg_dump -Fc` to `backups/predeploy_*.dump` (newest three kept) when
   `src/SmartHadithTree.Infrastructure/Data/Migrations/` changed; tags the running images `:previous`; builds and
   restarts `api` and `web`; checks `/api/books` (and that it is **not empty**), the web root, the public domain, the
@@ -174,6 +175,9 @@ The host's `.env` sets `COMPOSE_FILE=docker-compose.prod.yml:compose.edge.yml` (
 `api`/`web` to the edge proxy network), so plain `docker compose ...` in `/opt/smart-hadith-tree` targets production.
 
 ### Cutover to PostgreSQL (once, on a host that runs the SQL Server stack)
+
+The ordered checklist around these steps (pre-checks, what to expect, verification, afterwards) is
+`deploy/postgres-cutover-tasks.md`.
 
 The app moved from SQL Server to PostgreSQL (`docs/postgres_migration.md`). The merge that brings this to `master`
 triggers the usual deploy, and `deploy-remote.sh` **refuses it** (the `db` image would change): the workflow run fails,
@@ -248,9 +252,11 @@ rebuild needs a local Shamela 4 installation, so treat the backup as the source 
 8. **Status of this setup:** the PostgreSQL local stack (`docker-compose.yml`) was built and run end to end with the v8
    restore on 2026-10-21 (`deploy/deployment.md`, "Status"). The PostgreSQL `docker-compose.prod.yml` passed
    `docker compose config`, the v8 restore command was run in a fresh `postgres:18` container, `deploy-remote.sh`
-   passed `bash -n` and `shellcheck`, and its database-image guard was exercised with stubs (cutover refused, normal
-   deploy and first install let through). **Not run on the real host**: the cutover above and the PostgreSQL
-   `deploy-remote.sh`. Expect to adjust on the first run and update this file.
+   passed `bash -n` and `shellcheck`, and its database-image guard was exercised with stubs. **On the real host** the first
+   PostgreSQL deploy (merge of PR #6, 2026-10-21) showed the first version of the guard failing open when the compose
+   file could not be read (no `POSTGRES_PASSWORD` in `.env`); it was stopped by the same error further on and touched
+   nothing. The guard now fails closed (`deploy/postgres-cutover-tasks.md`, "Where things stand"). **Not run on the real
+   host**: the cutover above. Expect to adjust on the first run and update this file.
 
 ## 9. Useful commands
 

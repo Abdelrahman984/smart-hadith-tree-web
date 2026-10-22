@@ -34,14 +34,27 @@ log "deploying ${BEFORE:-unknown} -> $AFTER"
 
 # --- 0. Refuse a database image change. `up -d` would start the new image on an empty volume, the api would
 # create an empty schema, and /api/books would still answer 200. Nothing has been touched yet, so put the
-# checkout back and stop; the running stack keeps serving.
-running_db="$(docker inspect -f '{{.Config.Image}}' "$(docker compose ps -q db 2>/dev/null)" 2>/dev/null || true)"
-wanted_db="$(docker compose config --images 2>/dev/null | grep -m1 -E '^(postgres:|mcr\.microsoft\.com/mssql/)' || true)"
-if [ -n "$running_db" ] && [ "$running_db" != "$wanted_db" ]; then
-  log "database image would change ($running_db -> ${wanted_db:-?}): that is a cutover, see deploy/devops-handoff.md"
+# checkout back and stop; the running stack keeps serving. Fail closed: when the new compose file cannot even be
+# read (e.g. a variable it requires is missing from .env), refuse too. The first version of this check asked
+# compose for the running db as well, so on 2026-10-21 (no POSTGRES_PASSWORD in .env) it saw no db and let the
+# deploy through; it failed further on by luck.
+refuse() {
+  log "$1"
   [ -n "$BEFORE" ] && git reset --quiet --hard "$BEFORE"
   log "refused, ${BEFORE:-the checkout} left live"
   exit 1
+}
+# The running db, straight from Docker by its compose labels: this must not depend on the new compose file.
+# "smart-hadith-tree" is the project `name:` set in docker-compose.prod.yml.
+running_db="$(docker ps --filter label=com.docker.compose.project=smart-hadith-tree \
+                        --filter label=com.docker.compose.service=db --format '{{.Image}}' | head -n 1)"
+if ! images="$(docker compose config --images 2>&1)"; then
+  refuse "the new compose configuration cannot be read, refusing: $(printf '%s' "$images" | tail -n 1)"
+fi
+wanted_db="$(printf '%s\n' "$images" | grep -m1 -E '^(postgres:|mcr\.microsoft\.com/mssql/)' || true)"
+[ -n "$wanted_db" ] || refuse "no database image found in the new compose configuration, refusing"
+if [ -n "$running_db" ] && [ "$running_db" != "$wanted_db" ]; then
+  refuse "database image would change ($running_db -> $wanted_db): that is a cutover, see deploy/devops-handoff.md"
 fi
 
 # --- 1. Skip the rebuild when only prose / pipeline files changed (health checks still run). ---------------

@@ -405,6 +405,14 @@ Every difference, by cause:
   database image change (resets the checkout, exits 1, touches nothing), because `up -d` would otherwise start an
   empty PostgreSQL and `/api/books` would still answer 200; new check that `/api/books` is not empty. Checked:
   `bash -n`, `shellcheck -S warning` clean, the guard run with stubbed `docker`/`git` in three cases.
+  **Correction after the merge** (deploy run 39524924844, 2026-10-21): on the host the guard failed open. The host's
+  `.env` has no `POSTGRES_PASSWORD`, so `docker compose` could not read the new compose file; the guard asked compose
+  for the running `db`, got nothing and let the deploy through. It failed at the pre-deploy backup on the same error,
+  and the rollback's `compose up` failed too, so no container changed (checked: the site still served the SQL Server
+  build). None of the three stub cases had an unreadable compose file. Fixed on `fix/deploy-guard-fail-closed`: the
+  running `db` image is read from Docker labels, and an unreadable compose file or one without a database image is
+  refused; stub-tested in five cases (including the host's state that day), the label query checked on a real compose
+  container. The DevOps checklist is `deploy/postgres-cutover-tasks.md`.
 - **Cutover runbook** for the live host: `deploy/devops-handoff.md`, "Cutover to PostgreSQL" (last SQL Server
   backup, `POSTGRES_PASSWORD`, replace `db`, `pg_restore`, deploy, rollback onto the kept `sqldata` volume).
 - **Backup v8**: `backups/SmartHadithTree_Shamela_v8_pg_2026-10-21.dump`, 153 MB (v7 `.bak`: 497 MB), SHA-256
