@@ -23,8 +23,11 @@ what to expect at each step. Background: `docs/postgres_migration.md`.
 
 ## What you need from the project owner
 
-- [ ] The backup `SmartHadithTree_Shamela_v8_pg_2026-10-21.dump` (153 MB, PostgreSQL 18 `pg_dump -Fc`), sent privately.
-  SHA-256 `73593f3e9832076a9aed85ef8324c63bf38eab33fe9418f9984b4167d6f78f94` (also in `backups/README.md`).
+- [x] The backup `SmartHadithTree_Shamela_v8_pg_2026-10-21.dump` (153 MB, PostgreSQL 18 `pg_dump -Fc`) is on Google Drive:
+  <https://drive.google.com/file/d/1ri78j75J4R4C-lBZYXmucMGJjZTwT6cP/view?usp=sharing> (anyone with the link). Task 3 downloads it.
+  SHA-256 `73593f3e9832076a9aed85ef8324c63bf38eab33fe9418f9984b4167d6f78f94` (also in `backups/README.md`): that is the
+  hash of the local file that was uploaded; the Drive copy has not been downloaded and re-hashed, so **the check in
+  task 3 is the proof** that it arrived intact.
 - [ ] A maintenance window of about 15 minutes. The API is down while the database is replaced, restored and the
   images rebuilt; the web pages load but their API calls fail meanwhile.
 
@@ -57,8 +60,17 @@ Domains, ports, the edge proxy, the Together key and the deploy key do not chang
 
 ### 3. Put the backup in place
 
-- [ ] Copy the dump to `/opt/smart-hadith-tree/backups/`.
-- [ ] `sha256sum backups/SmartHadithTree_Shamela_v8_pg_2026-10-21.dump` prints the SHA-256 above.
+- [ ] Get the dump into `/opt/smart-hadith-tree/backups/` from <https://drive.google.com/file/d/1ri78j75J4R4C-lBZYXmucMGJjZTwT6cP/view?usp=sharing>. Drive shows a "cannot scan for viruses"
+  page for files over 100 MB, so a plain `curl` of the link saves that HTML page, not the dump. Either download it in a
+  browser and `scp` it to the host, or on the host try `gdown` (not tested here):
+  ```bash
+  pip install --user gdown
+  gdown 1ri78j75J4R4C-lBZYXmucMGJjZTwT6cP -O backups/SmartHadithTree_Shamela_v8_pg_2026-10-21.dump
+  ```
+- [ ] `sha256sum backups/SmartHadithTree_Shamela_v8_pg_2026-10-21.dump` prints the SHA-256 above, and `ls -l` shows
+  about 160 MB (160,344,262 bytes). A few KB or a different hash means the download is wrong: do not restore it.
+- [ ] Optional, before the window: `file backups/SmartHadithTree_Shamela_v8_pg_2026-10-21.dump` says
+  "PostgreSQL custom database dump".
 
 ### 4. Cutover (in the maintenance window)
 

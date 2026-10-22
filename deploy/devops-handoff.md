@@ -7,7 +7,7 @@ Everything needed to deploy and operate the app on one Linux host. Background an
 
 Not in the repository. Status as agreed with the project owner:
 
-- [ ] **Database backup file** `SmartHadithTree_Shamela_v8_pg_2026-10-21.dump` (153 MB, PostgreSQL): to be sent privately by the owner. Check its SHA-256 (section 3). Without it the site shows no data. (The SQL Server `.bak` files sent before are for the old stack only.)
+- [x] **Database backup file** `SmartHadithTree_Shamela_v8_pg_2026-10-21.dump` (153 MB, PostgreSQL): on Google Drive, <https://drive.google.com/file/d/1ri78j75J4R4C-lBZYXmucMGJjZTwT6cP/view?usp=sharing>. Check its SHA-256 after downloading (section 3; a plain `curl` of a Drive link over 100 MB returns an HTML page, see `deploy/postgres-cutover-tasks.md` task 3). Without it the site shows no data. (The SQL Server `.bak` files sent before are for the old stack only.)
 - [x] **Server:** you own and administer the VPS, so no access has to be handed over.
 - [ ] **Domains:** you create the web and API hostnames, with DNS A records pointing at the server.
 - [x] **Certificate email** (`ACME_EMAIL`), if the bundled Caddy is used: use one of your own.
@@ -80,7 +80,7 @@ empty database until this file is restored. **Without it the site starts but sho
 
 What to do:
 
-1. **Get the file from the project owner** (private transfer: `scp`, a private expiring link, or a file-transfer service).
+1. **Get the file**: download it from <https://drive.google.com/file/d/1ri78j75J4R4C-lBZYXmucMGJjZTwT6cP/view?usp=sharing> in a browser and `scp` it to the host (or `gdown`, see `deploy/postgres-cutover-tasks.md` task 3).
 2. **Verify it:** `sha256sum SmartHadithTree_Shamela_v8_pg_2026-10-21.dump` must print the SHA-256 above.
 3. **Put it in `./backups/`** next to `docker-compose.prod.yml` (create the folder). The compose file mounts it into the
    `db` container as `/backups`.

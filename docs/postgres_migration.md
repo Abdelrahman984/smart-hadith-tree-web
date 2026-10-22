@@ -16,7 +16,8 @@ Status (2026-10-21), branch `feature/postgres`:
   Ilal pages identical, every API difference explained, searches 8–12× faster; see "Phase 6: results".
 - **Phase 7 done in the repository**: compose files, deploy script, backups (v8 `.dump`), scripts and docs are
   PostgreSQL; see "Phase 7: what was done". **Production is not cut over**: that is a manual step on the host
-  (`deploy/devops-handoff.md`, "Cutover to PostgreSQL"), and the v8 dump still has to be uploaded.
+  (`deploy/devops-handoff.md`, "Cutover to PostgreSQL"; checklist in `deploy/postgres-cutover-tasks.md`). The v8 dump is on
+  Google Drive (link in `backups/README.md`).
 
 ## Why it is a contained change
 
@@ -417,7 +418,8 @@ Every difference, by cause:
   backup, `POSTGRES_PASSWORD`, replace `db`, `pg_restore`, deploy, rollback onto the kept `sqldata` volume).
 - **Backup v8**: `backups/SmartHadithTree_Shamela_v8_pg_2026-10-21.dump`, 153 MB (v7 `.bak`: 497 MB), SHA-256
   `73593f3e…78f94`, from the test container (phase 3 load + `AddGroupRuleOrdinal` + Ilal reload). Restored with the
-  documented command into a fresh `postgres:18`: no errors, 168 s, per-book counts identical. Not uploaded yet.
+  documented command into a fresh `postgres:18`: no errors, 168 s, per-book counts identical. Uploaded to Google Drive (link in `backups/README.md`); the Drive copy has not been
+  re-downloaded and re-hashed.
 - **Local compose stack run end to end** (separate project): restore 84 s, both images built, books, search,
   narrator search, web 200, CORS, no migration failure.
 - **Scripts**: `export_chains.ps1` and `phase6/export_db_chains.ps1` now use `psql` (JSON built by PostgreSQL, SQL

@@ -176,7 +176,7 @@ The nine Ilal pages: findings 121 -> 119, Qadihah 10 -> 9, every grade unchanged
 
 ## v8 — the v7 corpus on PostgreSQL (database `smart_hadith_tree`, the current one)
 
-Download: not uploaded yet (the file is local; upload it next to the v7 link and put the link here).
+Download: [Google Drive](https://drive.google.com/file/d/1ri78j75J4R4C-lBZYXmucMGJjZTwT6cP/view?usp=sharing) (153 MB; the file name on Drive is the one above). The SHA-256 in the table is that of the local file that was uploaded; check it after downloading. A plain `curl` of a Drive link over 100 MB returns an HTML page, so use a browser or `gdown`.
 
 The same corpus as v7, loaded into PostgreSQL 18 by the ETL (`dotnet run --project src/SmartHadithTree.Etl -- data/shamela_rijal`, then `seed-ilal-shamela data/shamela_rijal`) from the resolver output of 2026-10-07 02:07, the one v7 was built from. Every hadith Guid differs from v7. Schema: the two Npgsql migrations `InitialCreate` and `AddGroupRuleOrdinal` (the group rules carry the books' order, 47 of 76 have `Ordinal` > 0). Taken with `pg_dump -Fc` from PostgreSQL 18.6.
 
