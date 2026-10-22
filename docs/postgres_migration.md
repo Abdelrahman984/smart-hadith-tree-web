@@ -16,7 +16,7 @@ Status (2026-10-21), branch `feature/postgres`:
   Ilal pages identical, every API difference explained, searches 8–12× faster; see "Phase 6: results".
 - **Phase 7 done in the repository**: compose files, deploy script, backups (v8 `.dump`), scripts and docs are
   PostgreSQL; see "Phase 7: what was done". **Production is not cut over**: that is a manual step on the host
-  (`deploy/devops-handoff.md`, "Cutover to PostgreSQL"; checklist in `deploy/postgres-cutover-tasks.md`). The v8 dump is on
+  (`deploy/devops-handoff.md`, "Cutover to PostgreSQL"; specification for the DevOps engineer in `deploy/postgres-cutover-spec.md`). The v8 dump is on
   Google Drive (link in `backups/README.md`).
 
 ## Why it is a contained change
@@ -413,7 +413,7 @@ Every difference, by cause:
   build). None of the three stub cases had an unreadable compose file. Fixed on `fix/deploy-guard-fail-closed`: the
   running `db` image is read from Docker labels, and an unreadable compose file or one without a database image is
   refused; stub-tested in five cases (including the host's state that day), the label query checked on a real compose
-  container. The DevOps checklist is `deploy/postgres-cutover-tasks.md`.
+  container. The specification for the DevOps engineer is `deploy/postgres-cutover-spec.md`.
 - **Cutover runbook** for the live host: `deploy/devops-handoff.md`, "Cutover to PostgreSQL" (last SQL Server
   backup, `POSTGRES_PASSWORD`, replace `db`, `pg_restore`, deploy, rollback onto the kept `sqldata` volume).
 - **Backup v8**: `backups/SmartHadithTree_Shamela_v8_pg_2026-10-21.dump`, 153 MB (v7 `.bak`: 497 MB), SHA-256
